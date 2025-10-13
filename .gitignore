@@ -31,3 +31,7 @@ logs/
 
 # Project-specific
 prd.docx
+
+# Documentation staging (keep local until final release)
+handoff.md
+**/handoff.md
