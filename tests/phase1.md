@@ -17,10 +17,8 @@ Results
 - Duration: ~10s
 - Warnings: 5 (pydantic/SQLAlchemy deprecations; non-blocking for Phase 1)
 
-Raw output
-- See tests/phase1_raw.txt for the full test session output.
-
-Notes
-- Tests outside of Phase 1 were intentionally excluded to honor phase-scoped delivery.
-- Some tests reference optional packages (e.g., email-validator, requests). The environment was updated minimally to satisfy Phase 1 tests only.
-- Database connectivity is required for certain user/case flows. Ensure backend/.env is correctly pointed at a reachable PostgreSQL instance.
+Test cases executed
+- tests/test_full_auth.py::test_authentication_flow — end-to-end auth + role checks; user and case ops
+- tests/test_new_users.py::test_new_users — LIAISON and SUPERVISOR login, /auth/me, and cases access
+- tests/test_basic.py::test_basic_endpoints — root, /health, /openapi.json
+- tests/test_app.py — app import and route listing smoke check (no pytest test function)
