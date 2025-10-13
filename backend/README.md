@@ -87,7 +87,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### Testing
 
 Phase Reports:
-- Phase 1: tests/phase1.md
+- [Phase 1 test report](../tests/phase1.md)
 
 ### Run All Tests
 ```bash

@@ -99,7 +99,7 @@ Repository: https://github.com/tarakiga/jctc.git
 Cadence: Weekly commits when prompted; only include code within the scope of the active phase.
 
 ## 🧪 Phase Test Reports
-- Phase 1 report: tests/phase1.md
+- [Phase 1 test report](tests/phase1.md)
 
 ## 📚 Documentation
 
