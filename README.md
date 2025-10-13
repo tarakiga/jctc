@@ -98,6 +98,9 @@ The project will be pushed to GitHub in weekly, phase-scoped commits. Only the c
 Repository: https://github.com/tarakiga/jctc.git
 Cadence: Weekly commits when prompted; only include code within the scope of the active phase.
 
+## 🧪 Phase Test Reports
+- Phase 1 report: tests/phase1.md
+
 ## 📚 Documentation
 
 - **[Complete System Documentation](handoff.md)** - Comprehensive technical documentation
