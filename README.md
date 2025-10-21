@@ -108,6 +108,7 @@ Cadence: Weekly commits when prompted; only include code within the scope of the
 ## 🧪 Phase Test Reports
 
 - [Phase 1 test report](tests/phase1.md)
+- [Phase 1B test report](tests/phase1b.md)
 
 ## 📚 Documentation
 
