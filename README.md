@@ -96,7 +96,7 @@ JCTC/
 The project will be pushed to GitHub in weekly, phase-scoped commits. Only the code for the active phase will be included each week. The checklist below mirrors the provided phases.
 
 - [x] Phase 1A — Core Platform Foundation (1 week): Authentication, User Management, Case Management
-- [ ] Phase 1B — Evidence Management System (1 week): Digital Evidence, Chain of Custody, File Handling
+- [x] Phase 1B — Evidence Management System (1 week): Digital Evidence, Chain of Custody, File Handling
 - [ ] Phase 1C — Advanced Platform Features (1 week): Analytics, Notifications, Reporting, Mobile
 - [ ] Phase 2A — Integration & Connectivity (1 week): External System Integration, Webhooks, Data Exchange, APIs
 - [ ] Phase 2B — Audit & Compliance System (1 week): Comprehensive Audit Trails, Compliance Reporting
