@@ -37,8 +37,8 @@ The Joint Case Team on Cybercrimes Management System is an end-to-end platform t
 The documentation and codebase will be published to GitHub in weekly, phase-scoped commits.
 
 - [x] Phase 1 — Core Platform Foundation (1 week): Authentication, User Management, Case Management
-- [ ] Phase 1A — Evidence Management System (1 week): Digital Evidence, Chain of Custody, File Handling
-- [ ] Phase 1B — Advanced Platform Features (1 week): Analytics, Notifications, Reporting, Mobile
+- [x] Phase 1A — Evidence Management System (1 week): Digital Evidence, Chain of Custody, File Handling
+- [x] Phase 1B — Advanced Platform Features (1 week): Analytics, Notifications, Reporting, Mobile
 - [ ] Phase 2 — Integration & Connectivity (1 week): External System Integration, Webhooks, Data Exchange, APIs
 - [ ] Phase 2A — Audit & Compliance System (1 week): Comprehensive Audit Trails, Compliance Reporting
 - [ ] Phase 2B — Testing, Deployment (1 week): Production Deployment, Documentation
@@ -58,6 +58,7 @@ The JCTC CMS is built with modern technologies to ensure scalability, security, 
 ## Key Features
 
 ### Case Lifecycle Management
+
 - Intake and triage
 - Investigation workflow
 - Evidence management
@@ -65,6 +66,7 @@ The JCTC CMS is built with modern technologies to ensure scalability, security, 
 - Case closure and reporting
 
 ### Evidence Management
+
 - Chain of custody tracking
 - Digital evidence handling
 - Physical evidence logging
@@ -72,18 +74,21 @@ The JCTC CMS is built with modern technologies to ensure scalability, security, 
 - Secure storage management
 
 ### User Management
+
 - Seven distinct user roles
 - Granular permissions
 - Multi-organization support
 - Active Directory integration ready
 
 ### International Cooperation
+
 - MLAT request handling
 - Cross-border case tracking
 - Partner agency collaboration
 - 24/7 network integration
 
 ### Integration Platform
+
 - External forensic tool connectivity (EnCase, Cellebrite, X-Ways)
 - Database integration (INTERPOL, national databases)
 - Webhook system with HMAC signature verification
@@ -92,6 +97,7 @@ The JCTC CMS is built with modern technologies to ensure scalability, security, 
 - Real-time monitoring and health checks
 
 ### Advanced Analytics
+
 - Automated report generation
 - Performance metrics and KPIs
 - Task workflow automation
