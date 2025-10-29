@@ -96,3 +96,31 @@ class BulkEvidenceTransferResponse(BaseModel):
     transferred_count: int
     failed_transfers: List[UUID] = []
     transfer_timestamp: datetime
+
+
+class EvidenceResponse(BaseModel):
+    """Evidence response with enriched data"""
+    id: str
+    evidence_number: str
+    type: str
+    description: Optional[str] = None
+    case_id: str
+    case_number: Optional[str] = None
+    case_title: Optional[str] = None
+    collected_date: datetime
+    collected_by: str
+    chain_of_custody_status: str
+    storage_location: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class EvidenceListResponse(BaseModel):
+    """Paginated evidence list response"""
+    items: List[dict]
+    total: int
+    skip: int
+    limit: int
