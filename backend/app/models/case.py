@@ -9,9 +9,11 @@ import uuid
 
 class CaseStatus(str, enum.Enum):
     OPEN = "OPEN"
-    SUSPENDED = "SUSPENDED"
-    PROSECUTION = "PROSECUTION"
+    UNDER_INVESTIGATION = "UNDER_INVESTIGATION"
+    PENDING_PROSECUTION = "PENDING_PROSECUTION"
+    IN_COURT = "IN_COURT"
     CLOSED = "CLOSED"
+    ARCHIVED = "ARCHIVED"
 
 
 class LocalInternational(str, enum.Enum):

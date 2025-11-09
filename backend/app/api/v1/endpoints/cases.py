@@ -1,9 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import joinedload
 from app.database.base import get_db
 from app.models.case import Case, CaseStatus, CaseAssignment, AssignmentRole
@@ -118,6 +118,45 @@ async def list_cases(
     cases = result.scalars().all()
     
     return cases
+
+@router.get("/stats")
+async def get_case_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get case statistics."""
+    # Total cases count
+    total_result = await db.execute(select(func.count(Case.id)))
+    total = total_result.scalar()
+    
+    # Cases by status
+    status_result = await db.execute(
+        select(Case.status, func.count(Case.id))
+        .group_by(Case.status)
+    )
+    by_status = {str(status): count for status, count in status_result.all()}
+    
+    # Cases by severity
+    severity_result = await db.execute(
+        select(Case.severity, func.count(Case.id))
+        .group_by(Case.severity)
+    )
+    by_severity = {severity: count for severity, count in severity_result.all()}
+    
+    # Recent cases (last 10)
+    recent_result = await db.execute(
+        select(Case)
+        .order_by(Case.created_at.desc())
+        .limit(10)
+    )
+    recent_cases = recent_result.scalars().all()
+    
+    return {
+        "total": total,
+        "by_status": by_status,
+        "by_severity": by_severity,
+        "recent_cases": recent_cases
+    }
 
 @router.get("/{case_id}", response_model=CaseResponse)
 async def get_case(
@@ -311,6 +350,58 @@ async def get_case_assignments(
     assignments = result.scalars().all()
     
     return assignments
+
+@router.get("/{case_id}/evidence")
+async def get_case_evidence(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all evidence for a specific case."""
+    from app.models.evidence import EvidenceItem
+    from sqlalchemy.orm import selectinload
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).filter(Case.id == case_id))
+    case = case_result.scalar_one_or_none()
+    if not case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found"
+        )
+    
+    # Get evidence for this case
+    evidence_query = select(EvidenceItem).options(
+        selectinload(EvidenceItem.chain_entries)
+    ).where(EvidenceItem.case_id == case_id)
+    
+    result = await db.execute(evidence_query)
+    evidence_items = result.scalars().all()
+    
+    # Format evidence items
+    formatted_evidence = []
+    for item in evidence_items:
+        # Get chain of custody status from latest entry
+        chain_status = "SECURE"
+        if item.chain_entries:
+            latest_entry = max(item.chain_entries, key=lambda x: x.timestamp)
+            chain_status = latest_entry.action
+        
+        formatted_evidence.append({
+            "id": str(item.id),
+            "evidence_number": f"EVD-{str(item.id)[:8].upper()}",
+            "type": str(item.category) if item.category else "PHYSICAL",
+            "description": item.notes or item.label,
+            "case_id": str(item.case_id),
+            "collected_date": item.created_at,
+            "collected_by": "System",
+            "chain_of_custody_status": chain_status,
+            "storage_location": item.storage_location,
+            "created_at": item.created_at,
+            "updated_at": item.updated_at
+        })
+    
+    return formatted_evidence
 
 # Case types endpoints
 @router.get("/types/", response_model=List[LookupCaseTypeResponse])

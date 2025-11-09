@@ -1,0 +1,79 @@
+# Testing requirements for the audit and compliance system
+# Run: uv pip install -r requirements-test.txt
+
+# Core testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-asyncio>=0.21.0
+pytest-xdist>=3.3.0
+
+# HTTP client testing
+httpx>=0.24.0
+requests-mock>=1.11.0
+
+# FastAPI testing
+fastapi[all]>=0.100.0
+testclient>=0.6.0
+
+# Database testing
+sqlalchemy>=2.0.0
+sqlalchemy[asyncio]
+alembic>=1.11.0
+
+# Mocking and fixtures
+factory-boy>=3.3.0
+faker>=19.0.0
+freezegun>=1.2.0
+
+# Data validation and serialization
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Date/time handling
+python-dateutil>=2.8.0
+pendulum>=2.1.0
+
+# Cryptographic testing
+cryptography>=41.0.0
+passlib[bcrypt]>=1.7.0
+
+# File and path utilities
+pathlib2>=2.3.0; python_version < "3.4"
+
+# JSON and data processing
+orjson>=3.9.0
+python-json-logger>=2.0.0
+
+# Background task testing
+celery>=5.3.0
+redis>=4.6.0
+
+# Report generation testing
+reportlab>=4.0.0
+openpyxl>=3.1.0
+jinja2>=3.1.0
+
+# Environment and configuration
+python-dotenv>=1.0.0
+dynaconf>=3.2.0
+
+# Logging and monitoring
+structlog>=23.1.0
+rich>=13.4.0
+
+# Utility libraries for testing
+click>=8.1.0
+typer>=0.9.0
+tqdm>=4.65.0
+
+# Development and debugging
+ipython>=8.14.0
+ipdb>=0.13.0
+pdbpp>=0.10.0
+
+# Code quality (optional for testing)
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.4.0

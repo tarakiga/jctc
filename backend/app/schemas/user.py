@@ -38,6 +38,13 @@ class Token(BaseModel):
     token_type: str
 
 
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+    user: UserResponse
+
+
 class TokenData(BaseModel):
     email: Optional[str] = None
 
