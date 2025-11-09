@@ -34,10 +34,9 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
   }
 
   const isActive = (path: string) => {
-    if (path === '/dashboard') {
-      return pathname === '/dashboard'
-    }
-    return pathname.startsWith(path)
+    // Treat exact match and nested routes as active
+    if (pathname === path) return true
+    return pathname.startsWith(path + '/')
   }
 
   return (
@@ -72,7 +71,7 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
                   href="/dashboard" 
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/dashboard')
-                      ? 'text-primary-600 bg-primary-50' 
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
@@ -82,7 +81,7 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
                   href="/cases" 
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/cases')
-                      ? 'text-primary-600 bg-primary-50' 
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
@@ -92,7 +91,7 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
                   href="/evidence" 
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/evidence')
-                      ? 'text-primary-600 bg-primary-50' 
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
@@ -102,7 +101,7 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
                   href="/reports" 
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/reports')
-                      ? 'text-primary-600 bg-primary-50' 
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
@@ -113,7 +112,7 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
                     href="/admin" 
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       isActive('/admin')
-                        ? 'text-primary-600 bg-primary-50' 
+                        ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                   >
