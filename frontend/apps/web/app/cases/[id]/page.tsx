@@ -16,6 +16,8 @@ import { ActionLog } from '@/components/cases/ActionLog'
 import { EvidenceItemManager } from '@/components/evidence/EvidenceItemManager'
 import { ChainOfCustody } from '@/components/evidence/ChainOfCustody'
 import { PremiumEvidenceManager } from '@/components/evidence/PremiumEvidenceManager'
+import { DeleteConfirmModal } from '@/components/evidence/DeleteConfirmModal'
+import { HashVerificationModal } from '@/components/evidence/HashVerificationModal'
 import { useParties, usePartyMutations } from '@/lib/hooks/useParties'
 import { useAssignments, useAvailableUsers, useAssignmentMutations } from '@/lib/hooks/useAssignments'
 import { useTasks, useTaskMutations } from '@/lib/hooks/useTasks'
@@ -46,6 +48,10 @@ function CaseDetailContent() {
   const [isEditEvidenceModalOpen, setIsEditEvidenceModalOpen] = useState(false)
   const [editingEvidence, setEditingEvidence] = useState<any>(null)
   const [isAddCustodyModalOpen, setIsAddCustodyModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null)
+  const [isHashVerifyModalOpen, setIsHashVerifyModalOpen] = useState(false)
+  const [hashVerifyResult, setHashVerifyResult] = useState<{ isValid: boolean; evidenceName: string; hash?: string } | null>(null)
 
   // Fetch case details
   const { caseData, loading: caseLoading, error: caseError } = useCase(caseId)
@@ -502,16 +508,23 @@ function CaseDetailContent() {
                 setEditingEvidence(item)
                 setIsEditEvidenceModalOpen(true)
               }}
-              onDelete={async (id) => {
-                if (confirm('Are you sure you want to delete this evidence item?')) {
-                  await deleteEvidence(id)
-                }
+              onDelete={(id) => {
+                setDeletingEvidenceId(id)
+                setIsDeleteModalOpen(true)
               }}
               onGenerateQR={async (id) => {
                 return await generateQR(id)
               }}
               onVerifyHash={async (id) => {
-                return await verifyHash(id)
+                const evidence = evidenceItems.find(e => e.id === id)
+                const isValid = await verifyHash(id)
+                setHashVerifyResult({
+                  isValid,
+                  evidenceName: evidence?.label || 'Unknown',
+                  hash: evidence?.sha256_hash
+                })
+                setIsHashVerifyModalOpen(true)
+                return isValid
               }}
               custodyEntries={displayCustodyEntries}
               onAddCustodyEntry={() => setIsAddCustodyModalOpen(true)}
@@ -1144,6 +1157,33 @@ function CaseDetailContent() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={async () => {
+          if (deletingEvidenceId) {
+            await deleteEvidence(deletingEvidenceId)
+            setDeletingEvidenceId(null)
+          }
+        }}
+        evidenceName={evidenceItems.find(e => e.id === deletingEvidenceId)?.label || 'Unknown'}
+      />
+
+      {/* Hash Verification Result Modal */}
+      {hashVerifyResult && (
+        <HashVerificationModal
+          isOpen={isHashVerifyModalOpen}
+          onClose={() => {
+            setIsHashVerifyModalOpen(false)
+            setHashVerifyResult(null)
+          }}
+          isValid={hashVerifyResult.isValid}
+          evidenceName={hashVerifyResult.evidenceName}
+          hash={hashVerifyResult.hash}
+        />
       )}
     </DashboardLayout>
   )
