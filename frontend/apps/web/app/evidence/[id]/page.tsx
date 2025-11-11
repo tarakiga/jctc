@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@jctc/ui'
-import { useEvidenceById } from '@/lib/hooks/useEvidence'
+import { useEvidenceItem } from '@/lib/hooks/useEvidence'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 
 function EvidenceDetailContent() {
@@ -11,7 +11,7 @@ function EvidenceDetailContent() {
   const router = useRouter()
   const evidenceId = params.id as string
 
-  const { evidence, loading, error } = useEvidenceById(evidenceId)
+  const { evidence, loading, error } = useEvidenceItem(evidenceId)
 
   if (loading) {
     return (
