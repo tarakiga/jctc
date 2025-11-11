@@ -131,7 +131,7 @@ export function CaseDetailSidebar({ activeSection, onSectionChange, stats, class
   }
 
   return (
-    <nav className={`w-72 bg-white border-r border-slate-200 h-full overflow-y-auto ${className}`}>
+    <nav className={`w-72 bg-white border-r border-slate-200 self-start sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto ${className}`}>
       <div className="p-6 space-y-1">
         {NAV_GROUPS.map((group) => {
           const isExpanded = expandedGroups.has(group.id)
