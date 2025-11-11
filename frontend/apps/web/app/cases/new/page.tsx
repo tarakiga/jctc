@@ -1,0 +1,258 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Button, Card, CardHeader, CardTitle, CardContent } from '@jctc/ui'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
+import { useCaseMutations } from '@/lib/hooks/useCases'
+
+function NewCaseContent() {
+  const { logout } = useAuth()
+  const router = useRouter()
+  const { createCase, loading, error } = useCaseMutations()
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    severity: '3',
+    case_type: 'FRAUD',
+    local_or_international: 'LOCAL',
+    originating_country: '',
+    date_reported: new Date().toISOString().split('T')[0],
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const newCase = await createCase({
+      title: formData.title,
+      description: formData.description,
+      severity: parseInt(formData.severity),
+      case_type: formData.case_type,
+      local_or_international: formData.local_or_international,
+      originating_country: formData.originating_country || undefined,
+      date_reported: formData.date_reported,
+    })
+
+    if (newCase) {
+      // Success - redirect to new case
+      router.push(`/cases/${newCase.id}`)
+    }
+    // Error is automatically handled by the hook
+  }
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  return (
+    <div className="min-h-screen bg-neutral-50">
+      <header className="bg-white border-b border-neutral-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-4">
+              <Link href="/cases">
+                <h1 className="text-2xl font-bold text-primary-600">JCTC</h1>
+              </Link>
+              <span className="text-neutral-400">|</span>
+              <Link href="/cases" className="text-sm text-neutral-600 hover:text-primary-600">
+                Cases
+              </Link>
+              <span className="text-neutral-400">›</span>
+              <span className="text-neutral-700">New Case</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={logout}>
+              Logout
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-neutral-900">Create New Case</h2>
+          <p className="text-neutral-600 mt-2">Fill in the details to create a new case</p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle>Case Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-2">
+                    Case Title *
+                  </label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    required
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Brief title describing the case"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-neutral-700 mb-2"
+                  >
+                    Description *
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    required
+                    rows={4}
+                    value={formData.description}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Detailed description of the case"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label
+                      htmlFor="case_type"
+                      className="block text-sm font-medium text-neutral-700 mb-2"
+                    >
+                      Case Type *
+                    </label>
+                    <select
+                      id="case_type"
+                      name="case_type"
+                      required
+                      value={formData.case_type}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="FRAUD">Fraud</option>
+                      <option value="CYBERCRIME">Cybercrime</option>
+                      <option value="MONEY_LAUNDERING">Money Laundering</option>
+                      <option value="IDENTITY_THEFT">Identity Theft</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="severity"
+                      className="block text-sm font-medium text-neutral-700 mb-2"
+                    >
+                      Severity *
+                    </label>
+                    <select
+                      id="severity"
+                      name="severity"
+                      required
+                      value={formData.severity}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="1">1 - Low</option>
+                      <option value="2">2 - Low-Medium</option>
+                      <option value="3">3 - Medium</option>
+                      <option value="4">4 - High</option>
+                      <option value="5">5 - Critical</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="date_reported"
+                      className="block text-sm font-medium text-neutral-700 mb-2"
+                    >
+                      Date Reported *
+                    </label>
+                    <input
+                      type="date"
+                      id="date_reported"
+                      name="date_reported"
+                      required
+                      value={formData.date_reported}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="local_or_international"
+                      className="block text-sm font-medium text-neutral-700 mb-2"
+                    >
+                      Scope *
+                    </label>
+                    <select
+                      id="local_or_international"
+                      name="local_or_international"
+                      required
+                      value={formData.local_or_international}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="LOCAL">Local</option>
+                      <option value="INTERNATIONAL">International</option>
+                    </select>
+                  </div>
+                </div>
+
+                {formData.local_or_international === 'INTERNATIONAL' && (
+                  <div>
+                    <label
+                      htmlFor="originating_country"
+                      className="block text-sm font-medium text-neutral-700 mb-2"
+                    >
+                      Originating Country
+                    </label>
+                    <input
+                      type="text"
+                      id="originating_country"
+                      name="originating_country"
+                      value={formData.originating_country}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="Country where the crime originated"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {error && (
+            <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 font-semibold">Error Creating Case</p>
+              <p className="text-red-600 text-sm mt-1">{error.message}</p>
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-end gap-4">
+            <Button variant="outline" type="button" onClick={() => router.push('/cases')} disabled={loading}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={loading}>
+              {loading ? 'Creating...' : 'Create Case'}
+            </Button>
+          </div>
+        </form>
+      </main>
+    </div>
+  )
+}
+
+export default function NewCasePage() {
+  return (
+    <ProtectedRoute requireAuth requiredPermissions={['cases:create']}>
+      <NewCaseContent />
+    </ProtectedRoute>
+  )
+}

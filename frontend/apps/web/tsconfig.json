@@ -1,0 +1,22 @@
+{
+  "extends": "@jctc/typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./*"],
+      "@jctc/ui": ["../../packages/ui/src"],
+      "@jctc/types": ["../../packages/types/src"],
+      "@jctc/api-client": ["../../packages/api-client/src"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,1215 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import Link from 'next/link'
+import { Button, Input, Card, Badge } from '@jctc/ui'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
+import { CaseStatus } from '@jctc/types'
+import { useCases } from '@/lib/hooks/useCases'
+import { DashboardLayout } from '@/components/layout/DashboardLayout'
+
+type SortField = 'case_number' | 'date_reported' | 'severity' | 'status'
+type SortOrder = 'asc' | 'desc'
+
+function CasesContent() {
+  const { user, logout } = useAuth()
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [severityFilter, setSeverityFilter] = useState<string>('all')
+  const [sortField, setSortField] = useState<SortField>('date_reported')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  
+  // Complete list of 195 UN-recognized countries
+  const countries = [
+    'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina',
+    'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh',
+    'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia',
+    'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso',
+    'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Canada', 'Central African Republic',
+    'Chad', 'Chile', 'China', 'Colombia', 'Comoros', 'Congo (Congo-Brazzaville)',
+    'Congo (Democratic Republic)', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic',
+    'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'East Timor (Timor-Leste)',
+    'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini',
+    'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana',
+    'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras',
+    'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy',
+    'Ivory Coast', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kosovo',
+    'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya',
+    'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives',
+    'Mali', 'Malta', 'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia',
+    'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar (Burma)',
+    'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria',
+    'North Korea', 'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine',
+    'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal',
+    'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia',
+    'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Sao Tome and Principe',
+    'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia',
+    'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 'South Sudan',
+    'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria', 'Taiwan',
+    'Tajikistan', 'Tanzania', 'Thailand', 'Togo', 'Tonga', 'Trinidad and Tobago', 'Tunisia',
+    'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates',
+    'United Kingdom', 'United States', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City',
+    'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
+  ]
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalStep, setModalStep] = useState(1)
+  const totalSteps = 4
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    case_type: 'FRAUD',
+    severity: 3,
+    status: 'OPEN',
+    lead_investigator: '',
+    date_reported: new Date().toISOString().split('T')[0],
+    local_or_international: 'LOCAL',
+    originating_country: '',
+    cooperating_countries: [] as string[],
+    suspects: '',
+    victims: '',
+    // Risk flags and metadata
+    risk_flags: [] as string[],
+    platforms_implicated: [] as string[],
+    lga_state_location: '',
+    reporter_type: 'ANONYMOUS',
+    reporter_name: '',
+    reporter_contact: {
+      phone: '',
+      email: '',
+    },
+    intake_channel: 'WALK_IN',
+    incident_datetime: '',
+  })
+  
+  const handleModalOpen = () => {
+    setIsModalOpen(true)
+    setModalStep(1)
+  }
+  
+  const handleModalClose = () => {
+    setIsModalOpen(false)
+    setModalStep(1)
+    // Reset form
+    setFormData({
+      title: '',
+      description: '',
+      case_type: 'FRAUD',
+      severity: 3,
+      status: 'OPEN',
+      lead_investigator: '',
+      date_reported: new Date().toISOString().split('T')[0],
+      local_or_international: 'LOCAL',
+      originating_country: '',
+      cooperating_countries: [],
+      suspects: '',
+      victims: '',
+      // Risk flags and metadata
+      risk_flags: [],
+      platforms_implicated: [],
+      lga_state_location: '',
+      reporter_type: 'ANONYMOUS',
+      reporter_name: '',
+      reporter_contact: {
+        phone: '',
+        email: '',
+      },
+      intake_channel: 'WALK_IN',
+      incident_datetime: '',
+    })
+  }
+  
+  const handleNext = () => {
+    if (modalStep < totalSteps) {
+      setModalStep(modalStep + 1)
+    }
+  }
+  
+  const handlePrevious = () => {
+    if (modalStep > 1) {
+      setModalStep(modalStep - 1)
+    }
+  }
+  
+  const handleSubmit = () => {
+    // TODO: Implement API call to create case
+    console.log('Creating case:', formData)
+    handleModalClose()
+    refetch()
+  }
+
+  // Helper functions for multi-select fields
+  const toggleRiskFlag = (flag: string) => {
+    setFormData((prev) => {
+      const flags = prev.risk_flags || []
+      if (flags.includes(flag)) {
+        return { ...prev, risk_flags: flags.filter((f) => f !== flag) }
+      } else {
+        return { ...prev, risk_flags: [...flags, flag] }
+      }
+    })
+  }
+
+  const togglePlatform = (platform: string) => {
+    setFormData((prev) => {
+      const platforms = prev.platforms_implicated || []
+      if (platforms.includes(platform)) {
+        return { ...prev, platforms_implicated: platforms.filter((p) => p !== platform) }
+      } else {
+        return { ...prev, platforms_implicated: [...platforms, platform] }
+      }
+    })
+  }
+
+  // Fetch cases from API
+  const { cases, total, loading, error, refetch } = useCases()
+
+  // Debug logging
+  console.log('Cases data:', { cases, total, loading, error, casesLength: cases?.length })
+
+  // Client-side filtering, sorting, and pagination
+  const filteredAndSortedCases = useMemo(() => {
+    if (!cases) return []
+
+    let filtered = cases.filter((caseItem) => {
+      const matchesSearch =
+        !search ||
+        caseItem.case_number.toLowerCase().includes(search.toLowerCase()) ||
+        caseItem.title.toLowerCase().includes(search.toLowerCase()) ||
+        caseItem.description?.toLowerCase().includes(search.toLowerCase())
+
+      const matchesStatus = statusFilter === 'all' || caseItem.status === statusFilter
+      const matchesSeverity =
+        severityFilter === 'all' || caseItem.severity === parseInt(severityFilter)
+
+      return matchesSearch && matchesStatus && matchesSeverity
+    })
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal: any = a[sortField]
+      let bVal: any = b[sortField]
+
+      if (sortField === 'date_reported') {
+        aVal = new Date(aVal).getTime()
+        bVal = new Date(bVal).getTime()
+      }
+
+      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return filtered
+  }, [cases, search, statusFilter, severityFilter, sortField, sortOrder])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedCases.length / itemsPerPage)
+  const paginatedCases = filteredAndSortedCases.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
+  const getSeverityBadge = (severity: number) => {
+    const map: Record<number, { variant: any; label: string }> = {
+      5: { variant: 'critical', label: 'Critical' },
+      4: { variant: 'high', label: 'High' },
+      3: { variant: 'medium', label: 'Medium' },
+      2: { variant: 'low', label: 'Low' },
+      1: { variant: 'default', label: 'Minimal' },
+    }
+    return map[severity] || map[3]
+  }
+
+  const getStatusBadge = (status: string) => {
+    const map: Record<string, { variant: any; label: string }> = {
+      OPEN: { variant: 'info', label: 'Open' },
+      UNDER_INVESTIGATION: { variant: 'warning', label: 'Investigating' },
+      PENDING_PROSECUTION: { variant: 'warning', label: 'Pending' },
+      IN_COURT: { variant: 'info', label: 'In Court' },
+      CLOSED: { variant: 'default', label: 'Closed' },
+      ARCHIVED: { variant: 'default', label: 'Archived' },
+    }
+    return map[status] || { variant: 'default', label: status }
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-32 bg-slate-200 rounded-2xl"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-8">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-red-100 rounded-xl">
+            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-red-900 mb-1">Error Loading Cases</h3>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <Button onClick={refetch} variant="outline">Retry</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <DashboardLayout>
+      {/* Page Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">
+              Case Management
+            </h1>
+            <p className="text-lg text-slate-600">
+              Track and manage criminal investigations across all jurisdictions
+            </p>
+          </div>
+          <Button 
+            onClick={handleModalOpen}
+            className="bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 transition-all"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create New Case
+          </Button>
+        </div>
+      </div>
+
+      {/* Premium Filters Card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search by case number, title, or description..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+              />
+            </div>
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-white"
+          >
+            <option value="all">All Statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="UNDER_INVESTIGATION">Investigating</option>
+            <option value="PENDING_PROSECUTION">Pending</option>
+            <option value="IN_COURT">In Court</option>
+            <option value="CLOSED">Closed</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+          <select
+            value={severityFilter}
+            onChange={(e) => {
+              setSeverityFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-white"
+          >
+            <option value="all">All Severities</option>
+            <option value="5">Critical</option>
+            <option value="4">High</option>
+            <option value="3">Medium</option>
+            <option value="2">Low</option>
+            <option value="1">Minimal</option>
+          </select>
+        </div>
+        
+        {/* Active Filters */}
+        {(statusFilter !== 'all' || severityFilter !== 'all' || search) && (
+          <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-slate-600">Active filters:</span>
+            {statusFilter !== 'all' && (
+              <span
+                onClick={() => setStatusFilter('all')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-blue-100 transition-colors"
+              >
+                Status: {statusFilter}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </span>
+            )}
+            {severityFilter !== 'all' && (
+              <span
+                onClick={() => setSeverityFilter('all')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-amber-100 transition-colors"
+              >
+                Severity: Level {severityFilter}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </span>
+            )}
+            {search && (
+              <span
+                onClick={() => setSearch('')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                Search: "{search}"
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </span>
+            )}
+            <button
+              onClick={() => {
+                setStatusFilter('all')
+                setSeverityFilter('all')
+                setSearch('')
+              }}
+              className="ml-2 text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Results Count and Sort */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-semibold text-slate-900">
+            {filteredAndSortedCases.length} {filteredAndSortedCases.length === 1 ? 'Case' : 'Cases'}
+          </p>
+          <span className="text-sm text-slate-500">
+            Showing {paginatedCases.length} of {filteredAndSortedCases.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-slate-700">Sort by:</span>
+          <select
+            value={sortField}
+            onChange={(e) => setSortField(e.target.value as SortField)}
+            className="px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="date_reported">Date Reported</option>
+            <option value="case_number">Case Number</option>
+            <option value="severity">Severity</option>
+            <option value="status">Status</option>
+          </select>
+          <button
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {sortOrder === 'asc' ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              )}
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Premium Cases Grid */}
+      <div className="space-y-3">
+        {paginatedCases.map((case_) => {
+          const severityColors = {
+            5: 'bg-red-500',
+            4: 'bg-orange-500',
+            3: 'bg-yellow-500',
+            2: 'bg-blue-500',
+            1: 'bg-slate-400',
+          }
+          const statusColors = {
+            OPEN: 'bg-blue-100 text-blue-700 border-blue-200',
+            UNDER_INVESTIGATION: 'bg-amber-100 text-amber-700 border-amber-200',
+            PENDING_PROSECUTION: 'bg-purple-100 text-purple-700 border-purple-200',
+            IN_COURT: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+            CLOSED: 'bg-green-100 text-green-700 border-green-200',
+            ARCHIVED: 'bg-slate-100 text-slate-700 border-slate-200',
+          }
+          
+          return (
+            <Link key={case_.id} href={`/cases/${case_.id}`}>
+              <div className="group bg-white rounded-2xl border border-slate-200/60 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
+                <div className="flex items-start gap-6 p-6">
+                  {/* Severity Indicator */}
+                  <div className="flex-shrink-0">
+                    <div className={`w-1.5 h-20 ${severityColors[case_.severity as keyof typeof severityColors] || severityColors[3]} rounded-full`}></div>
+                  </div>
+
+                  {/* Case Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                            {case_.case_number}
+                          </h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[case_.status as keyof typeof statusColors] || statusColors.OPEN}`}>
+                            {getStatusBadge(case_.status).label}
+                          </span>
+                        </div>
+                        <p className="text-slate-900 font-medium mb-2 line-clamp-1">{case_.title}</p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-blue-50 transition-colors">
+                          <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Meta Information */}
+                    <div className="flex items-center gap-6 text-sm text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>{new Date(case_.date_reported).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className="font-medium">{case_.lead_investigator}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span className="font-semibold">{getSeverityBadge(case_.severity).label}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+
+      {filteredAndSortedCases.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200/60 p-16 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100">
+              <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">No cases found</h3>
+            <p className="text-slate-600 mb-6">
+              {search || statusFilter !== 'all' || severityFilter !== 'all'
+                ? 'Try adjusting your filters or search terms to find what you\'re looking for.'
+                : 'Get started by creating your first case to begin tracking investigations.'}
+            </p>
+            <Button 
+              variant="primary" 
+              className="shadow-lg shadow-blue-500/20"
+              onClick={handleModalOpen}
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create New Case
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Premium Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-10 flex justify-center items-center gap-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Previous
+          </button>
+          
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              if (totalPages <= 7) return i + 1
+              if (currentPage <= 4) return i + 1
+              if (currentPage >= totalPages - 3) return totalPages - 6 + i
+              return currentPage - 3 + i
+            }).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`min-w-[2.75rem] h-11 rounded-lg font-semibold transition-all ${
+                  page === currentPage
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
+                    : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+          >
+            Next
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Premium Multi-Step Modal */}
+      {isModalOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 transition-opacity duration-300"
+            onClick={handleModalClose}
+          />
+          
+          {/* Modal */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8">
+              {/* Modal Header */}
+              <div className="relative px-8 pt-8 pb-6 border-b border-slate-200/60">
+                <button
+                  onClick={handleModalClose}
+                  className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg">
+                    <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-slate-900">Create New Case</h2>
+                    <p className="text-slate-600 mt-1">Fill in the details to open a new investigation</p>
+                  </div>
+                </div>
+                
+                {/* Progress Steps */}
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4].map((step) => (
+                    <div key={step} className="flex items-center flex-1">
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                          step === modalStep
+                            ? 'bg-slate-900 text-white shadow-lg'
+                            : step < modalStep
+                            ? 'bg-green-500 text-white'
+                            : 'bg-slate-100 text-slate-400'
+                        }`}>
+                          {step < modalStep ? (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            step
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className={`text-xs font-semibold uppercase tracking-wide ${
+                            step === modalStep ? 'text-slate-900' : 'text-slate-400'
+                          }`}>
+                            {step === 1 && 'Case Info'}
+                            {step === 2 && 'Intake & Flags'}
+                            {step === 3 && 'Scope'}
+                            {step === 4 && 'Parties'}
+                          </div>
+                        </div>
+                      </div>
+                      {step < 4 && (
+                        <div className={`h-0.5 w-full mx-2 transition-colors ${
+                          step < modalStep ? 'bg-green-500' : 'bg-slate-200'
+                        }`}></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="px-8 py-8 max-h-[60vh] overflow-y-auto">
+                {/* Step 1: Case Information */}
+                {modalStep === 1 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Case Title <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        placeholder="Enter a descriptive case title"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Description <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Provide detailed information about the case"
+                        rows={4}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Date Reported <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.date_reported}
+                          onChange={(e) => setFormData({ ...formData, date_reported: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Lead Investigator
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.lead_investigator}
+                          onChange={(e) => setFormData({ ...formData, lead_investigator: e.target.value })}
+                          placeholder="Assigned investigator name"
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Case Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.case_type}
+                          onChange={(e) => setFormData({ ...formData, case_type: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                        >
+                          <option value="FRAUD">Fraud</option>
+                          <option value="CYBERCRIME">Cybercrime</option>
+                          <option value="MONEY_LAUNDERING">Money Laundering</option>
+                          <option value="IDENTITY_THEFT">Identity Theft</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Severity Level <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.severity}
+                          onChange={(e) => setFormData({ ...formData, severity: parseInt(e.target.value) })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                        >
+                          <option value={1}>1 - Minimal</option>
+                          <option value={2}>2 - Low</option>
+                          <option value={3}>3 - Medium</option>
+                          <option value={4}>4 - High</option>
+                          <option value={5}>5 - Critical</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Initial Status
+                        </label>
+                        <select
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                        >
+                          <option value="OPEN">Open</option>
+                          <option value="UNDER_INVESTIGATION">Under Investigation</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Intake & Risk Flags */}
+                {modalStep === 2 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Intake Channel <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.intake_channel}
+                        onChange={(e) => setFormData({ ...formData, intake_channel: e.target.value })}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                      >
+                        <option value="WALK_IN">Walk-In</option>
+                        <option value="HOTLINE">Hotline</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="REFERRAL">Referral</option>
+                        <option value="API">API</option>
+                      </select>
+                    </div>
+
+                    {/* Risk Flags */}
+                    <div className="border-t border-slate-200 pt-6">
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">
+                        Risk Flags
+                      </label>
+                      <div className="flex gap-3 flex-wrap">
+                        {['child', 'imminent_harm', 'trafficking', 'sextortion'].map((flag) => (
+                          <button
+                            key={flag}
+                            type="button"
+                            onClick={() => toggleRiskFlag(flag)}
+                            className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${
+                              formData.risk_flags?.includes(flag)
+                                ? 'border-red-600 bg-red-600 text-white'
+                                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                            }`}
+                          >
+                            {flag === 'child' && '🧒 Child Safety'}
+                            {flag === 'imminent_harm' && '⚠️ Imminent Harm'}
+                            {flag === 'trafficking' && '🚨 Trafficking'}
+                            {flag === 'sextortion' && '⛔ Sextortion'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Platforms Implicated */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">
+                        Platforms Implicated
+                      </label>
+                      <div className="flex gap-3 flex-wrap">
+                        {['Instagram', 'Facebook', 'TikTok', 'WhatsApp', 'Twitter/X', 'Telegram', 'Snapchat', 'LinkedIn'].map((platform) => (
+                          <button
+                            key={platform}
+                            type="button"
+                            onClick={() => togglePlatform(platform)}
+                            className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${
+                              formData.platforms_implicated?.includes(platform)
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                            }`}
+                          >
+                            {platform}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Location and Incident Details */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          LGA / State Location
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.lga_state_location}
+                          onChange={(e) => setFormData({ ...formData, lga_state_location: e.target.value })}
+                          placeholder="e.g., Ikeja, Lagos State"
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Incident Date/Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={formData.incident_datetime}
+                          onChange={(e) => setFormData({ ...formData, incident_datetime: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Reporter Information */}
+                    <div className="border-t border-slate-200 pt-6">
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">
+                        Reporter Information
+                      </label>
+                      
+                      <div className="mb-4">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Reporter Type
+                        </label>
+                        <select
+                          value={formData.reporter_type}
+                          onChange={(e) => setFormData({ ...formData, reporter_type: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                        >
+                          <option value="ANONYMOUS">Anonymous</option>
+                          <option value="VICTIM">Victim</option>
+                          <option value="PARENT">Parent/Guardian</option>
+                          <option value="LEA">Law Enforcement Agency</option>
+                          <option value="NGO">NGO</option>
+                        </select>
+                      </div>
+
+                      {formData.reporter_type !== 'ANONYMOUS' && (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                              Reporter Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.reporter_name}
+                              onChange={(e) => setFormData({ ...formData, reporter_name: e.target.value })}
+                              placeholder="Full name of reporter"
+                              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-6">
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Reporter Phone
+                              </label>
+                              <input
+                                type="tel"
+                                value={formData.reporter_contact.phone}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    reporter_contact: { ...formData.reporter_contact, phone: e.target.value },
+                                  })
+                                }
+                                placeholder="+234..."
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Reporter Email
+                              </label>
+                              <input
+                                type="email"
+                                value={formData.reporter_contact.email}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    reporter_contact: { ...formData.reporter_contact, email: e.target.value },
+                                  })
+                                }
+                                placeholder="email@example.com"
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Case Scope */}
+                {modalStep === 3 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Case Scope <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          onClick={() => setFormData({ ...formData, local_or_international: 'LOCAL' })}
+                          className={`px-6 py-4 rounded-xl border-2 font-semibold transition-all ${
+                            formData.local_or_international === 'LOCAL'
+                              ? 'border-slate-900 bg-slate-900 text-white shadow-lg'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            Local
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => setFormData({ ...formData, local_or_international: 'INTERNATIONAL' })}
+                          className={`px-6 py-4 rounded-xl border-2 font-semibold transition-all ${
+                            formData.local_or_international === 'INTERNATIONAL'
+                              ? 'border-slate-900 bg-slate-900 text-white shadow-lg'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            International
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Originating Country
+                      </label>
+                      <select
+                        value={formData.originating_country}
+                        onChange={(e) => setFormData({ ...formData, originating_country: e.target.value })}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                      >
+                        <option value="">Select country</option>
+                        {countries.map((country) => (
+                          <option key={country} value={country}>
+                            {country}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {formData.local_or_international === 'INTERNATIONAL' && (
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Cooperating Countries
+                        </label>
+                        <select
+                          multiple
+                          value={formData.cooperating_countries}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, option => option.value)
+                            setFormData({ ...formData, cooperating_countries: selected })
+                          }}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white min-h-[120px]"
+                        >
+                          {countries.map((country) => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-2 text-sm text-slate-500">Hold Ctrl/Cmd to select multiple countries</p>
+                      </div>
+                    )}
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-1">International Cooperation</h4>
+                          <p className="text-sm text-blue-700">For international cases, ensure proper coordination protocols are followed and relevant authorities are notified.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Parties Involved */}
+                {modalStep === 4 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Suspects
+                      </label>
+                      <textarea
+                        value={formData.suspects}
+                        onChange={(e) => setFormData({ ...formData, suspects: e.target.value })}
+                        placeholder="List suspects or persons of interest (one per line)"
+                        rows={4}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all resize-none"
+                      />
+                      <p className="mt-2 text-sm text-slate-500">Enter each suspect on a new line</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Victims
+                      </label>
+                      <textarea
+                        value={formData.victims}
+                        onChange={(e) => setFormData({ ...formData, victims: e.target.value })}
+                        placeholder="List victims or affected parties (one per line)"
+                        rows={4}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all resize-none"
+                      />
+                      <p className="mt-2 text-sm text-slate-500">Enter each victim on a new line</p>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0">
+                          <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-amber-900 mb-1">Privacy Notice</h4>
+                          <p className="text-sm text-amber-700">All personal information entered here is confidential and protected under law enforcement data privacy regulations.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Review Summary */}
+                    <div className="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                      <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Case Summary
+                      </h3>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Title:</span>
+                          <span className="font-semibold text-slate-900">{formData.title || 'Not set'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Severity:</span>
+                          <span className="font-semibold text-slate-900">Level {formData.severity}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Scope:</span>
+                          <span className="font-semibold text-slate-900">{formData.local_or_international}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Lead Investigator:</span>
+                          <span className="font-semibold text-slate-900">{formData.lead_investigator || 'Unassigned'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-8 py-6 border-t border-slate-200/60 flex justify-between items-center">
+                <div>
+                  {modalStep > 1 && (
+                    <Button
+                      variant="ghost"
+                      onClick={handlePrevious}
+                      className="text-slate-600 hover:text-slate-900"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Previous
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleModalClose}
+                  >
+                    Cancel
+                  </Button>
+                  
+                  {modalStep < totalSteps ? (
+                    <Button
+                      onClick={handleNext}
+                      disabled={!formData.title || !formData.description}
+                      className="bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                      <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!formData.title || !formData.description}
+                      className="bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/20"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Create Case
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </DashboardLayout>
+  )
+}
+
+export default function CasesPage() {
+  return (
+    <ProtectedRoute requireAuth requiredPermissions={['cases:view']}>
+      <CasesContent />
+    </ProtectedRoute>
+  )
+}

@@ -351,6 +351,53 @@ async def get_case_assignments(
     
     return assignments
 
+@router.delete("/{case_id}/assignments/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_case_assignment(
+    case_id: UUID,
+    user_id: UUID,
+    role: Optional[AssignmentRole] = Query(None, description="Role to unassign; if omitted, removes all roles for the user in this case."),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPERVISOR, UserRole.ADMIN))
+):
+    """Remove a case assignment. If `role` is provided, removes that specific role assignment; otherwise removes all assignments for the user in the case."""
+    # Verify case exists
+    case_result = await db.execute(select(Case).filter(Case.id == case_id))
+    case = case_result.scalar_one_or_none()
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    if role:
+        result = await db.execute(
+            select(CaseAssignment).filter(
+                and_(
+                    CaseAssignment.case_id == case_id,
+                    CaseAssignment.user_id == user_id,
+                    CaseAssignment.role == role
+                )
+            )
+        )
+        assignment = result.scalar_one_or_none()
+        if not assignment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+        await db.delete(assignment)
+        await db.commit()
+    else:
+        result = await db.execute(
+            select(CaseAssignment).filter(
+                and_(
+                    CaseAssignment.case_id == case_id,
+                    CaseAssignment.user_id == user_id
+                )
+            )
+        )
+        assignments = result.scalars().all()
+        if assignments:
+            for a in assignments:
+                await db.delete(a)
+            await db.commit()
+    # No content response
+    return None
+
 @router.get("/{case_id}/evidence")
 async def get_case_evidence(
     case_id: UUID,

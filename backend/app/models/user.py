@@ -31,6 +31,16 @@ class User(BaseModel):
     tasks = relationship("Task", back_populates="assignee")
     actions = relationship("ActionLog", back_populates="user")
 
+    # Audit and compliance relationships (reverse mappings)
+    # These align with back_populates defined in audit models
+    audit_logs = relationship("AuditLog", back_populates="user")
+    compliance_reports = relationship("ComplianceReport", back_populates="creator")
+    retention_policies = relationship("RetentionPolicy", back_populates="creator")
+    resolved_violations = relationship("ComplianceViolation", back_populates="resolver")
+    audit_configurations = relationship("AuditConfiguration", back_populates="creator")
+    retention_jobs = relationship("DataRetentionJob", back_populates="creator")
+    audit_archives = relationship("AuditArchive", back_populates="creator")
+
 
 class LookupCaseType(BaseModel):
     __tablename__ = "lookup_case_type"

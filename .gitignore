@@ -10,6 +10,33 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Node.js / Frontend
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+out/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+.eslintcache
+.vercel
+.vscode/
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Environments
 venv/
 .env
@@ -31,7 +58,26 @@ logs/
 
 # Project-specific
 prd.docx
+~$*.docx
+screenshots/
 
 # Documentation staging (keep local until final release)
 handoff.md
 **/handoff.md
+
+# Deployment-only cleanup: ignore local tests and perf artifacts
+# Backend test suites and reports
+backend/tests/
+backend/test_*.py
+backend/pytest.ini
+backend/requirements-test.txt
+backend/run_tests.ps1
+
+# Load/performance local artifacts
+backend/simple_locust_test.py
+backend/baseline_performance_report.html
+backend/LOCUST_PERFORMANCE_REPORT.md
+backend/tests/**/*.html
+
+# Root-level test docs and artifacts
+tests/

@@ -42,8 +42,6 @@ class SeizureResponse(SeizureBase):
     case_id: UUID
     created_at: datetime
     updated_at: datetime
-    created_by: UUID
-    updated_by: UUID
     
     class Config:
         from_attributes = True
@@ -90,23 +88,26 @@ class DeviceUpdate(BaseModel):
     notes: Optional[str] = Field(None, max_length=2000)
 
 
+class DeviceLinkRequest(BaseModel):
+    """Schema for linking an existing device to a seizure."""
+    seizure_id: UUID
+
+
 class DeviceResponse(DeviceBase):
     """Response schema for device information."""
     id: UUID
     seizure_id: UUID
     imaged: bool = Field(description="Whether device has been successfully imaged")
     imaging_status: ImagingStatus = Field(description="Current imaging status")
-    imaging_started_at: Optional[datetime] = Field(description="When imaging started")
-    imaging_completed_at: Optional[datetime] = Field(description="When imaging completed")
-    imaging_tool: Optional[str] = Field(description="Tool used for imaging")
-    image_hash: Optional[str] = Field(description="Hash of the forensic image")
-    image_size_bytes: Optional[int] = Field(description="Size of image in bytes")
-    imaging_technician_id: Optional[UUID] = Field(description="ID of imaging technician")
-    forensic_notes: Optional[str] = Field(description="Forensic analysis notes")
+    imaging_started_at: Optional[datetime] = Field(None, description="When imaging started")
+    imaging_completed_at: Optional[datetime] = Field(None, description="When imaging completed")
+    imaging_tool: Optional[str] = Field(None, description="Tool used for imaging")
+    image_hash: Optional[str] = Field(None, description="Hash of the forensic image")
+    image_size_bytes: Optional[int] = Field(None, description="Size of image in bytes")
+    imaging_technician_id: Optional[UUID] = Field(None, description="ID of imaging technician")
+    forensic_notes: Optional[str] = Field(None, description="Forensic analysis notes")
     created_at: datetime
     updated_at: datetime
-    created_by: UUID
-    updated_by: UUID
     
     class Config:
         from_attributes = True
@@ -188,8 +189,6 @@ class ArtefactResponse(ArtefactBase):
     device_id: UUID
     created_at: datetime
     updated_at: datetime
-    created_by: UUID
-    updated_by: UUID
     
     class Config:
         from_attributes = True

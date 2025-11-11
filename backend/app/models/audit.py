@@ -243,6 +243,8 @@ class RetentionPolicy(Base):
     
     # Relationships
     creator = relationship("User", back_populates="retention_policies")
+    # Reverse relationship for retention jobs
+    retention_jobs = relationship("DataRetentionJob", back_populates="policy")
     
     # Unique constraint
     __table_args__ = (

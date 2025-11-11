@@ -11,6 +11,15 @@ from app.models.evidence import (
 from app.models.task import Task, TaskStatus, ActionLog
 from app.models.prosecution import Charge, CourtSession, Outcome, ChargeStatus, Disposition
 from app.models.misc import Attachment, CaseCollaboration
+from app.models.audit import (
+    AuditLog,
+    ComplianceReport,
+    RetentionPolicy,
+    ComplianceViolation,
+    AuditConfiguration,
+    DataRetentionJob,
+    AuditArchive,
+)
 
 __all__ = [
     "BaseModel",
@@ -23,5 +32,7 @@ __all__ = [
     "ImagingStatus", "DeviceType",
     "Task", "TaskStatus", "ActionLog",
     "Charge", "CourtSession", "Outcome", "ChargeStatus", "Disposition",
-    "Attachment", "CaseCollaboration"
+    "Attachment", "CaseCollaboration",
+    "AuditLog", "ComplianceReport", "RetentionPolicy", "ComplianceViolation",
+    "AuditConfiguration", "DataRetentionJob", "AuditArchive",
 ]
