@@ -161,19 +161,26 @@ Cadence: Weekly commits when prompted; only include code within the scope of the
 
 ## 🧪 Testing & Reports
 
-Phase test artifacts are maintained locally for operational use and not tracked in the deployment repository. For a summary of testing outcomes and deployment readiness, refer to:
+Comprehensive test reports for all backend implementation phases:
 
-- [Phase 2C Release Notes](RELEASE_NOTES_PHASE_2C.md)
-- [Deployment Runbook (Phase 2C)](docs/deployment-runbook-phase-2c.md)
+- **[Phase 1A Test Report](backend/tests/phase1a.md)** - Core Platform Foundation (Authentication, User Management, Case Management)
+- **[Phase 1B Test Report](backend/tests/phase1b.md)** - Evidence Management System (Digital Evidence, Chain of Custody, File Handling)
+- **[Phase 1C Test Report](backend/tests/phase1c.md)** - Advanced Platform Features (Analytics, Notifications, Reporting, Mobile)
+- **[Phase 2A Test Report](backend/tests/phase2a.md)** - Integration & Connectivity (External Systems, Webhooks, Data Exchange, APIs)
+- **[Phase 2B Test Report](backend/tests/phase2b.md)** - Audit & Compliance System (Audit Trails, Compliance Reporting)
+- **[Phase 2C Test Report](backend/tests/phase2c.md)** - Testing & Deployment (Production Deployment, Documentation)
+- **[Deployment Runbook (Phase 2C)](docs/deployment-runbook-phase-2c.md)** - Step-by-step deployment and rollback
 
 ## 📚 Documentation
 
-- **[Complete System Documentation](handoff.md)** - Comprehensive technical documentation
 - **[API Documentation](http://localhost:8000/docs)** - Interactive API documentation (when running)
-- **[Performance Optimization Summary](PERFORMANCE_OPTIMIZATION_SUMMARY.md)** - Performance enhancements
-- **[System Audit Report](FINAL_SYSTEM_AUDIT_REPORT.md)** - Complete system audit
-- **[Phase 2C Release Notes](RELEASE_NOTES_PHASE_2C.md)** - Summary of Phase 2C deliverables
-- **[Deployment Runbook (Phase 2C)](docs/deployment-runbook-phase-2c.md)** - Step-by-step deployment and rollback
+- **[Deployment Runbook](docs/deployment-runbook-phase-2c.md)** - Step-by-step deployment and rollback
+- **[Getting Started Guide](docs/getting-started.md)** - Quick start guide
+- **[Integration APIs](docs/integration-apis.md)** - External system integration guide
+- **[Mobile API](docs/mobile-api.md)** - Mobile application API documentation
+- **[Reporting System](docs/reporting-system.md)** - Report generation and scheduling
+- **[Task Management](docs/task-management.md)** - Task workflow and assignment
+- **[Webhook Configuration](docs/webhook-configuration.md)** - Webhook setup and usage
 
 ## 🎯 Features
 
@@ -373,9 +380,9 @@ The system is in active frontend development (95% complete). Remaining work:
 
 For technical support or questions about the JCTC Management System:
 
-- Review the [Complete System Documentation](handoff.md)
 - Check the [API Documentation](http://localhost:8000/docs) for endpoint details
-- Refer to the [System Audit Report](FINAL_SYSTEM_AUDIT_REPORT.md) for implementation details
+- Review the test reports in [backend/tests/](backend/tests/) for implementation details
+- Refer to the documentation in [docs/](docs/) for specific feature guides
 
 ## 📄 License
 
