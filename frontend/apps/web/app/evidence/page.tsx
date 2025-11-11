@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/contexts/AuthContext'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 import { useEvidence } from '@/lib/hooks/useEvidence'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { AddEvidenceModal } from '@/components/evidence/AddEvidenceModal'
 
 const mockEvidenceRemoved = [
   {
@@ -52,6 +53,7 @@ function EvidenceListContent() {
   const [selectedEvidence, setSelectedEvidence] = useState<any>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showChainOfCustody, setShowChainOfCustody] = useState(false)
+  const [isAddEvidenceOpen, setIsAddEvidenceOpen] = useState(false)
 
   // Mock chain of custody data
   const mockChainOfCustody = [
@@ -195,14 +197,15 @@ function EvidenceListContent() {
               Track and manage digital and physical evidence across all investigations
             </p>
           </div>
-          <Link href="/evidence/upload">
-            <Button className="bg-black text-white hover:bg-neutral-800 shadow-lg hover:shadow-xl transition-all">
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Add Evidence
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => setIsAddEvidenceOpen(true)}
+            className="bg-black text-white hover:bg-neutral-800 shadow-lg hover:shadow-xl transition-all"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Add Evidence
+          </Button>
         </div>
       </div>
 
@@ -271,14 +274,15 @@ function EvidenceListContent() {
                   ? 'Try adjusting your filters to find what you\'re looking for.'
                   : 'Upload your first evidence item to get started.'}
               </p>
-              <Link href="/evidence/upload">
-                <Button className="bg-black text-white hover:bg-neutral-800 shadow-lg">
-                  <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  Add Evidence
-                </Button>
-              </Link>
+              <Button 
+                onClick={() => setIsAddEvidenceOpen(true)}
+                className="bg-black text-white hover:bg-neutral-800 shadow-lg"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Add Evidence
+              </Button>
             </div>
           </div>
         ) : (
@@ -698,6 +702,12 @@ function EvidenceListContent() {
           </div>
         </>
       )}
+
+      {/* Add Evidence Modal */}
+      <AddEvidenceModal 
+        isOpen={isAddEvidenceOpen} 
+        onClose={() => setIsAddEvidenceOpen(false)} 
+      />
     </DashboardLayout>
   )
 }
