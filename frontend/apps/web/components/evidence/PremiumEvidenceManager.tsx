@@ -75,6 +75,7 @@ export function PremiumEvidenceManager({
   const [filterCategory, setFilterCategory] = useState<EvidenceCategory | 'ALL'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [isVerifying, setIsVerifying] = useState<string | null>(null)
+  const [isCustodyExpanded, setIsCustodyExpanded] = useState(true)
 
   const selectedEvidence = evidence.find((e) => e.id === selectedEvidenceId)
   const selectedCustodyEntries = custodyEntries.filter((c) => c.evidence_id === selectedEvidenceId)
@@ -167,8 +168,8 @@ export function PremiumEvidenceManager({
 
   return (
     <div className="flex gap-6 h-[calc(100vh-320px)]">
-      {/* LEFT COLUMN - Evidence List (30%) */}
-      <div className="w-[30%] flex flex-col bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+      {/* LEFT COLUMN - Evidence List (35%) */}
+      <div className="w-[35%] flex flex-col bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-slate-200/60 bg-gradient-to-r from-slate-50 to-white">
           <div className="flex items-center justify-between mb-4">
@@ -259,8 +260,8 @@ export function PremiumEvidenceManager({
         </div>
       </div>
 
-      {/* CENTER COLUMN - Evidence Details (45%) */}
-      <div className="w-[45%] flex flex-col bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+      {/* RIGHT COLUMN - Evidence Details + Chain of Custody (65%) */}
+      <div className="w-[65%] flex flex-col bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
         {selectedEvidence ? (
           <>
             {/* Header */}
@@ -413,6 +414,133 @@ export function PremiumEvidenceManager({
                   <p className="text-sm text-blue-800 leading-relaxed">{selectedEvidence.notes}</p>
                 </div>
               )}
+
+              {/* Chain of Custody Collapsible Section */}
+              <div className="bg-gradient-to-br from-slate-50 via-white to-indigo-50/20 rounded-xl border border-slate-200/60 overflow-hidden">
+                <button
+                  onClick={() => setIsCustodyExpanded(!isCustodyExpanded)}
+                  className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <h3 className="text-base font-bold text-slate-900">Chain of Custody</h3>
+                    <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">
+                      {selectedCustodyEntries.length}
+                    </span>
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-slate-600 transition-transform ${
+                      isCustodyExpanded ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isCustodyExpanded && (
+                  <div className="border-t border-slate-200/60">
+                    <div className="p-5">
+                      <Button
+                        size="sm"
+                        onClick={onAddCustodyEntry}
+                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white mb-4"
+                      >
+                        <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Entry
+                      </Button>
+
+                      {selectedCustodyEntries.length === 0 ? (
+                        <div className="text-center py-8 text-slate-500">
+                          <svg className="w-10 h-10 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          <p className="text-sm font-medium mb-1">No custody records</p>
+                          <p className="text-xs">Add the first entry to start tracking</p>
+                        </div>
+                      ) : (
+                        <div className="relative space-y-3">
+                          {/* Vertical timeline line */}
+                          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500"></div>
+
+                          {selectedCustodyEntries.map((entry) => (
+                            <div key={entry.id} className="relative pl-12">
+                              {/* Timeline node */}
+                              <div className="absolute left-0 flex items-center justify-center">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-br ${getActionColor(entry.action)}`}>
+                                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    {getActionIcon(entry.action)}
+                                  </svg>
+                                </div>
+                              </div>
+
+                              {/* Entry card */}
+                              <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-start justify-between mb-3">
+                                  <span className="text-sm font-bold text-slate-900">{entry.action}</span>
+                                  {entry.signature_verified && (
+                                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  )}
+                                </div>
+
+                                <p className="text-sm text-slate-600 mb-3">{entry.purpose}</p>
+
+                                <div className="space-y-2 text-sm">
+                                  {entry.from_person_name && (
+                                    <div className="flex items-center gap-2 text-slate-500">
+                                      <span className="font-medium">From:</span>
+                                      <span>{entry.from_person_name}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 text-slate-500">
+                                    <span className="font-medium">To:</span>
+                                    <span>{entry.to_person_name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-slate-500">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    </svg>
+                                    <span className="text-xs">{entry.location}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-slate-500">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-xs">
+                                      {new Date(entry.timestamp).toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {entry.notes && (
+                                  <div className="mt-3 pt-3 border-t border-slate-200">
+                                    <p className="text-xs font-medium text-slate-500 uppercase mb-1">Notes</p>
+                                    <p className="text-xs text-slate-700 leading-relaxed">{entry.notes}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         ) : (
@@ -427,104 +555,6 @@ export function PremiumEvidenceManager({
             </div>
           </div>
         )}
-      </div>
-
-      {/* RIGHT COLUMN - Chain of Custody (25%) */}
-      <div className="w-[25%] flex flex-col bg-gradient-to-br from-slate-50 via-white to-indigo-50/20 rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-200/60">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Chain of Custody
-            </h3>
-            <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">
-              {selectedCustodyEntries.length}
-            </span>
-          </div>
-          <Button 
-            size="sm" 
-            onClick={onAddCustodyEntry}
-            disabled={!selectedEvidenceId}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-          >
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Entry
-          </Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          {!selectedEvidenceId ? (
-            <div className="text-center py-8 text-slate-500">
-              <svg className="w-10 h-10 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <p className="text-xs">Select evidence to view custody chain</p>
-            </div>
-          ) : selectedCustodyEntries.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
-              <svg className="w-10 h-10 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p className="text-xs font-medium mb-1">No custody records</p>
-              <p className="text-xs">Add the first entry to start tracking</p>
-            </div>
-          ) : (
-            <div className="relative space-y-3">
-              {/* Vertical timeline line */}
-              <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500"></div>
-
-              {selectedCustodyEntries.map((entry, index) => (
-                <div key={entry.id} className="relative pl-12">
-                  {/* Timeline node */}
-                  <div className="absolute left-0 flex items-center justify-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-br ${getActionColor(entry.action)}`}>
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {getActionIcon(entry.action)}
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Entry card */}
-                  <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-xs font-bold text-slate-900">{entry.action}</span>
-                      {entry.signature_verified && (
-                        <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-slate-600 mb-2 line-clamp-2">{entry.purpose}</p>
-
-                    <div className="space-y-1 text-xs">
-                      {entry.from_person_name && (
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <span className="font-medium">From:</span>
-                          <span>{entry.from_person_name}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <span className="font-medium">To:</span>
-                        <span>{entry.to_person_name}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>{new Date(entry.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
