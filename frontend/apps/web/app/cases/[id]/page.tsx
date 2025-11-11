@@ -31,6 +31,7 @@ import ProsecutionManager from '@/components/prosecution/ProsecutionManager'
 import InternationalCooperationManager from '@/components/international/InternationalCooperationManager'
 import AttachmentManager from '@/components/cases/AttachmentManager'
 import CollaborationManager from '@/components/collaboration/CollaborationManager'
+import { CaseDetailSidebar } from '@/components/cases/CaseDetailSidebar'
 
 function CaseDetailContent() {
   const { user, logout } = useAuth()
@@ -233,47 +234,62 @@ function CaseDetailContent() {
       </div>
 
       {/* Case Header */}
-        <div className="mb-8">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-bold text-neutral-900">{caseData.case_number}</h2>
-                <Badge {...getSeverityBadge(caseData.severity)}>
-                  {getSeverityBadge(caseData.severity).label}
-                </Badge>
-                <Badge variant="warning">{caseData.status}</Badge>
-              </div>
-              <p className="text-xl text-neutral-700">{caseData.title}</p>
+      <div className="mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-3xl font-bold text-neutral-900">{caseData.case_number}</h2>
+              <Badge {...getSeverityBadge(caseData.severity)}>
+                {getSeverityBadge(caseData.severity).label}
+              </Badge>
+              <Badge variant="warning">{caseData.status}</Badge>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>Edit Case</Button>
-            </div>
+            <p className="text-xl text-neutral-700">{caseData.title}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>Edit Case</Button>
           </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="border-b border-neutral-200 mb-6">
-          <nav className="-mb-px flex gap-8">
-            {(['overview', 'evidence', 'parties', 'assignments', 'tasks', 'actions', 'seizures', 'devices', 'forensics', 'legal', 'prosecution', 'international', 'attachments', 'collaboration', 'timeline'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm capitalize
-                  ${
-                    activeTab === tab
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                  }
-                `}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
+      {/* Main Content with Sidebar */}
+      <div className="flex gap-6 h-[calc(100vh-280px)]">
+        {/* Sidebar Navigation */}
+        <CaseDetailSidebar 
+          activeSection={activeTab} 
+          onSectionChange={setActiveTab}
+          stats={{
+            evidenceCount: evidenceItems.length,
+            taskCount: tasks.filter(t => t.status !== 'COMPLETED').length,
+            teamCount: assignments.length
+          }}
+          className="flex-shrink-0"
+        />
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 rounded-2xl border border-slate-200 p-8">
+        
+        {/* Section Header */}
+        <div className="mb-6 pb-4 border-b border-slate-200">
+          <h3 className="text-2xl font-bold text-slate-900 capitalize flex items-center gap-3">
+            {activeTab === 'overview' && <><svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>Case Overview</>}
+            {activeTab === 'evidence' && <><svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>Evidence Management</>}
+            {activeTab === 'parties' && <><svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>Parties & Individuals</>}
+            {activeTab === 'assignments' && <><svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>Team Assignments</>}
+            {activeTab === 'tasks' && <><svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>Tasks</>}
+            {activeTab === 'actions' && <><svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>Action Log</>}
+            {activeTab === 'seizures' && <><svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>Seizures</>}
+            {activeTab === 'devices' && <><svg className="w-6 h-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>Devices</>}
+            {activeTab === 'forensics' && <><svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>Forensic Analysis</>}
+            {activeTab === 'legal' && <><svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>Legal Instruments</>}
+            {activeTab === 'prosecution' && <><svg className="w-6 h-6 text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>Prosecution</>}
+            {activeTab === 'international' && <><svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>International Cooperation</>}
+            {activeTab === 'attachments' && <><svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>Attachments</>}
+            {activeTab === 'collaboration' && <><svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>Collaboration</>}
+            {activeTab === 'timeline' && <><svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Case Timeline</>}
+          </h3>
         </div>
 
-        {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -627,6 +643,8 @@ function CaseDetailContent() {
             <CollaborationManager caseId={caseId} />
           </div>
         )}
+        </div>
+      </div>
 
       {/* Premium Evidence Details Drawer */}
       {isDrawerOpen && selectedEvidence && (
