@@ -513,7 +513,46 @@ function CaseDetailContent() {
                 setIsDeleteModalOpen(true)
               }}
               onGenerateQR={async (id) => {
-                return await generateQR(id)
+                try {
+                  const qrCode = await generateQR(id)
+                  const evidence = evidenceItems.find(e => e.id === id)
+                  // Open QR code in new window for printing
+                  const printWindow = window.open('', '_blank')
+                  if (printWindow) {
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>Evidence QR Code</title>
+                          <style>
+                            body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background: linear-gradient(to br, #f8fafc, #e0e7ff); }
+                            .qr-container { text-align: center; background: white; padding: 3rem; border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+                            img { width: 300px; height: 300px; border: 4px solid #3b82f6; border-radius: 1rem; margin-bottom: 1.5rem; }
+                            h2 { color: #1e293b; margin-bottom: 0.5rem; font-size: 1.5rem; }
+                            p { color: #64748b; margin-bottom: 1.5rem; }
+                            button { background: linear-gradient(to right, #3b82f6, #6366f1); color: white; border: none; padding: 0.75rem 2rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; font-size: 1rem; }
+                            button:hover { opacity: 0.9; }
+                            @media print { button { display: none; } }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="qr-container">
+                            <h2>Evidence QR Code</h2>
+                            <p>${evidence?.evidence_number || 'Unknown'}</p>
+                            <img src="${qrCode}" alt="Evidence QR Code" />
+                            <p><strong>${evidence?.label || 'Evidence Item'}</strong></p>
+                            <button onclick="window.print()">🖨️ Print Label</button>
+                          </div>
+                        </body>
+                      </html>
+                    `)
+                    printWindow.document.close()
+                  }
+                  return qrCode
+                } catch (error) {
+                  console.error('Error generating QR code:', error)
+                  alert('Failed to generate QR code')
+                  return ''
+                }
               }}
               onVerifyHash={async (id) => {
                 const evidence = evidenceItems.find(e => e.id === id)
@@ -1184,6 +1223,53 @@ function CaseDetailContent() {
           evidenceName={hashVerifyResult.evidenceName}
           hash={hashVerifyResult.hash}
         />
+      )}
+
+      {/* Add Evidence Modal - TODO: Implement premium modal */}
+      {isAddEvidenceModalOpen && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50" onClick={() => setIsAddEvidenceModalOpen(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Add Evidence</h2>
+                <p className="text-slate-600 mb-6">Feature coming soon - evidence modal will be implemented here</p>
+                <Button onClick={() => setIsAddEvidenceModalOpen(false)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Edit Evidence Modal - TODO: Implement premium modal */}
+      {isEditEvidenceModalOpen && editingEvidence && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50" onClick={() => { setIsEditEvidenceModalOpen(false); setEditingEvidence(null); }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Edit Evidence</h2>
+                <p className="text-slate-600 mb-2">Editing: <span className="font-semibold text-slate-900">{editingEvidence.label}</span></p>
+                <p className="text-slate-500 text-sm mb-6">Feature coming soon - edit modal will be implemented here</p>
+                <Button onClick={() => { setIsEditEvidenceModalOpen(false); setEditingEvidence(null); }} className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </DashboardLayout>
   )
