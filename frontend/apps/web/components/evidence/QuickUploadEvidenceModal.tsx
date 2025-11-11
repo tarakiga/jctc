@@ -19,7 +19,8 @@ export function QuickUploadEvidenceModal({ isOpen, onClose, cases = [] }: QuickU
 
   const handleUpload = async () => {
     setUploading(true)
-    // Simulate upload
+    // TODO: Implement actual upload when backend endpoint is ready
+    // Backend needs: POST /api/v1/evidence (create) then POST /api/v1/evidence/{id}/upload (files)
     await new Promise(resolve => setTimeout(resolve, 1500))
     setUploading(false)
     setSuccess(true)
@@ -103,18 +104,18 @@ export function QuickUploadEvidenceModal({ isOpen, onClose, cases = [] }: QuickU
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Evidence Files <span className="text-red-500">*</span>
                   </label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer">
-                    <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100">
-                      <Upload className="w-8 h-8 text-blue-600" />
+                  <div className="border-2 border-dashed border-amber-300 bg-amber-50 rounded-xl p-12 text-center">
+                    <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100">
+                      <Upload className="w-8 h-8 text-amber-600" />
                     </div>
                     <p className="text-lg font-semibold text-slate-900 mb-1">
-                      Drop files here or click to browse
+                      📦 Coming Soon
                     </p>
-                    <p className="text-sm text-slate-500">
-                      Supports images, documents, videos, and other file types
+                    <p className="text-sm text-slate-600 mb-2">
+                      File upload feature is currently being implemented
                     </p>
-                    <p className="text-xs text-slate-400 mt-2">
-                      Maximum file size: 100MB
+                    <p className="text-xs text-amber-700 font-medium bg-amber-100 px-3 py-1.5 rounded-lg inline-block">
+                      For now, please upload evidence from the Case Detail → Evidence tab
                     </p>
                   </div>
                 </div>
