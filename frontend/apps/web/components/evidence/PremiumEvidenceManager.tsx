@@ -120,11 +120,9 @@ export function PremiumEvidenceManager({
   const handleVerifyHash = async (id: string) => {
     setIsVerifying(id)
     try {
-      const isValid = await onVerifyHash(id)
-      alert(isValid ? '✓ Hash verification successful' : '✗ Hash verification failed')
+      await onVerifyHash(id)
     } catch (error) {
       console.error('Error verifying hash:', error)
-      alert('Failed to verify hash')
     } finally {
       setIsVerifying(null)
     }
