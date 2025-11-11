@@ -61,6 +61,20 @@ prd.docx
 ~$*.docx
 screenshots/
 
+# Root-level markdown documentation (local only, except README.md)
+CORE_PRD_COMPLETION_SUMMARY.md
+CRITICAL_PENDING_ITEMS.md
+FINAL_SYSTEM_AUDIT_REPORT.md
+FRONTEND_DEVELOPMENT_PLAN.md
+frontend_taskplan.md
+INTEGRATION_FIXES.md
+PERFORMANCE_OPTIMIZATION_SUMMARY.md
+prd.md
+PRD_AUDIT_REPORT.md
+PROJECT_STRUCTURE.md
+RELEASE_NOTES_PHASE_2C.md
+WORKPLAN-JCTC-Backend-Implementation.md
+
 # Documentation staging (keep local until final release)
 handoff.md
 **/handoff.md
