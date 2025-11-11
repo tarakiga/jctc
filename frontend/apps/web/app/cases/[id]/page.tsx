@@ -493,7 +493,7 @@ function CaseDetailContent() {
         )}
 
         {activeTab === 'evidence' && (
-          <div>
+          <div className="-m-8 h-[calc(100vh-12rem)]">
             <PremiumEvidenceManager
               caseId={caseId}
               evidence={evidenceItems}

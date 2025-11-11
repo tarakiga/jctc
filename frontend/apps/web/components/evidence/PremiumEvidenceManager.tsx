@@ -167,9 +167,9 @@ export function PremiumEvidenceManager({
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-16rem)]">
+    <div className="flex gap-0 h-full">
       {/* LEFT COLUMN - Evidence List (35%) */}
-      <div className="w-[35%] flex flex-col bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+      <div className="w-[35%] flex flex-col bg-white border-r border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-slate-200/60 bg-gradient-to-r from-slate-50 to-white">
           <div className="flex items-center justify-between mb-4">
@@ -261,7 +261,7 @@ export function PremiumEvidenceManager({
       </div>
 
       {/* RIGHT COLUMN - Evidence Details + Chain of Custody (65%) */}
-      <div className="w-[65%] flex flex-col bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+      <div className="w-[65%] flex flex-col bg-white overflow-hidden">
         {selectedEvidence ? (
           <>
             {/* Header */}
