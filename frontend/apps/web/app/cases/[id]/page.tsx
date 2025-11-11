@@ -350,7 +350,7 @@ function CaseDetailContent() {
       </div>
 
       {/* Main Content with Sidebar */}
-      <div className="flex gap-6 h-[calc(100vh-280px)]">
+      <div className="flex gap-6">
         {/* Sidebar Navigation */}
         <CaseDetailSidebar 
           activeSection={activeTab} 
@@ -364,7 +364,7 @@ function CaseDetailContent() {
         />
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 rounded-2xl border border-slate-200 p-8">
+        <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 p-8">
         
         {/* Section Header */}
         <div className="mb-6 pb-4 border-b border-slate-200">
