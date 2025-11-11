@@ -15,6 +15,7 @@ import { TaskManager } from '@/components/tasks/TaskManager'
 import { ActionLog } from '@/components/cases/ActionLog'
 import { EvidenceItemManager } from '@/components/evidence/EvidenceItemManager'
 import { ChainOfCustody } from '@/components/evidence/ChainOfCustody'
+import { PremiumEvidenceManager } from '@/components/evidence/PremiumEvidenceManager'
 import { useParties, usePartyMutations } from '@/lib/hooks/useParties'
 import { useAssignments, useAvailableUsers, useAssignmentMutations } from '@/lib/hooks/useAssignments'
 import { useTasks, useTaskMutations } from '@/lib/hooks/useTasks'
@@ -41,6 +42,10 @@ function CaseDetailContent() {
   const [selectedEvidence, setSelectedEvidence] = useState<any>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showChainOfCustody, setShowChainOfCustody] = useState(false)
+  const [isAddEvidenceModalOpen, setIsAddEvidenceModalOpen] = useState(false)
+  const [isEditEvidenceModalOpen, setIsEditEvidenceModalOpen] = useState(false)
+  const [editingEvidence, setEditingEvidence] = useState<any>(null)
+  const [isAddCustodyModalOpen, setIsAddCustodyModalOpen] = useState(false)
 
   // Fetch case details
   const { caseData, loading: caseLoading, error: caseError } = useCase(caseId)
@@ -396,73 +401,29 @@ function CaseDetailContent() {
         )}
 
         {activeTab === 'evidence' && (
-          <div className="space-y-6">
-            {/* Evidence Items Manager */}
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-900 mb-4">Evidence Items</h3>
-              <EvidenceItemManager
-                caseId={caseId}
-                evidence={evidenceItems}
-                onAdd={async (evidence) => {
-                  await createEvidence(evidence)
-                }}
-                onEdit={async (id, evidence) => {
-                  await updateEvidence(id, evidence)
-                }}
-                onDelete={async (id) => {
+          <div>
+            <PremiumEvidenceManager
+              caseId={caseId}
+              evidence={evidenceItems}
+              onAdd={() => setIsAddEvidenceModalOpen(true)}
+              onEdit={(item) => {
+                setEditingEvidence(item)
+                setIsEditEvidenceModalOpen(true)
+              }}
+              onDelete={async (id) => {
+                if (confirm('Are you sure you want to delete this evidence item?')) {
                   await deleteEvidence(id)
-                }}
-                onGenerateQR={async (id) => {
-                  return await generateQR(id)
-                }}
-                onVerifyHash={async (id) => {
-                  return await verifyHash(id)
-                }}
-                onViewCustody={(id) => {
-                  setSelectedEvidenceId(id)
-                  // Scroll to chain of custody section
-                  setTimeout(() => {
-                    document.getElementById('chain-of-custody-section')?.scrollIntoView({ behavior: 'smooth' })
-                  }, 100)
-                }}
-              />
-            </div>
-
-            {/* Chain of Custody - Shows when evidence item is selected */}
-            {selectedEvidenceId && (
-              <div id="chain-of-custody-section" className="border-t border-neutral-200 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-neutral-900">Chain of Custody</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedEvidenceId(null)}
-                    className="text-neutral-600"
-                  >
-                    ✕ Close
-                  </Button>
-                </div>
-                <ChainOfCustody
-                  evidenceId={selectedEvidenceId}
-                  evidenceNumber={evidenceItems.find(e => e.id === selectedEvidenceId)?.evidence_number || ''}
-                  custodyEntries={custodyEntries}
-                  availableUsers={availableUsers}
-                  currentUser={{ id: 'current-user-id', full_name: 'Current User' }}
-                  onAddEntry={async (entry) => {
-                    await addCustodyEntry(entry)
-                  }}
-                  onApprove={async (entryId) => {
-                    await approveEntry(entryId)
-                  }}
-                  onReject={async (entryId) => {
-                    await rejectEntry(entryId)
-                  }}
-                  onGenerateReceipt={async (entryId) => {
-                    return await generateReceipt(entryId)
-                  }}
-                />
-              </div>
-            )}
+                }
+              }}
+              onGenerateQR={async (id) => {
+                return await generateQR(id)
+              }}
+              onVerifyHash={async (id) => {
+                return await verifyHash(id)
+              }}
+              custodyEntries={custodyEntries}
+              onAddCustodyEntry={() => setIsAddCustodyModalOpen(true)}
+            />
           </div>
         )}
 
