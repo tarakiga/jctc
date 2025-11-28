@@ -1,5 +1,15 @@
 import { apiClient } from './api-client'
 
+// Enum types matching backend
+export type IntakeChannel = 'WALK_IN' | 'HOTLINE' | 'EMAIL' | 'REFERRAL' | 'API' | 'ONLINE_FORM' | 'PARTNER_AGENCY'
+export type ReporterType = 'ANONYMOUS' | 'VICTIM' | 'PARENT' | 'LEA' | 'NGO' | 'CORPORATE' | 'WHISTLEBLOWER'
+export type RiskFlag = 'CHILD_SAFETY' | 'IMMINENT_HARM' | 'TRAFFICKING' | 'SEXTORTION' | 'FINANCIAL_CRITICAL' | 'HIGH_PROFILE' | 'CROSS_BORDER'
+
+export interface ReporterContact {
+  phone?: string
+  email?: string
+}
+
 export interface Case {
   id: string
   case_number: string
@@ -15,6 +25,16 @@ export interface Case {
   cooperating_countries?: string[]
   created_at: string
   updated_at: string
+  // Intake fields
+  intake_channel?: IntakeChannel
+  risk_flags?: string[]
+  platforms_implicated?: string[]
+  lga_state_location?: string
+  incident_datetime?: string
+  // Reporter fields
+  reporter_type?: ReporterType
+  reporter_name?: string
+  reporter_contact?: ReporterContact
 }
 
 export interface CreateCaseData {
@@ -22,9 +42,19 @@ export interface CreateCaseData {
   description: string
   severity: number
   case_type?: string
-  local_or_international?: string
+  local_or_international: 'LOCAL' | 'INTERNATIONAL'
   originating_country?: string
-  date_reported: string
+  cooperating_countries?: string[]
+  // Intake fields
+  intake_channel?: IntakeChannel
+  risk_flags?: string[]
+  platforms_implicated?: string[]
+  lga_state_location?: string
+  incident_datetime?: string
+  // Reporter fields
+  reporter_type?: ReporterType
+  reporter_name?: string
+  reporter_contact?: ReporterContact
 }
 
 export interface UpdateCaseData extends Partial<CreateCaseData> {
@@ -68,25 +98,21 @@ export const casesService = {
    * Get a single case by ID
    */
   async getCase(id: string): Promise<Case> {
-    const response = await apiClient.get(`/cases/${id}`)
-    // apiClient already unwraps response.data
-    return response
+    return await apiClient.get<Case>(`/cases/${id}`)
   },
 
   /**
    * Create a new case
    */
   async createCase(data: CreateCaseData): Promise<Case> {
-    const response = await apiClient.post('/cases', data)
-    return response
+    return await apiClient.post<Case>('/cases', data)
   },
 
   /**
    * Update an existing case
    */
   async updateCase(id: string, data: UpdateCaseData): Promise<Case> {
-    const response = await apiClient.put(`/cases/${id}`, data)
-    return response
+    return await apiClient.put<Case>(`/cases/${id}`, data)
   },
 
   /**
@@ -105,23 +131,25 @@ export const casesService = {
     by_severity: Record<number, number>
     recent_cases: Case[]
   }> {
-    const response = await apiClient.get('/cases/stats')
-    return response
+    return await apiClient.get<{
+      total: number
+      by_status: Record<string, number>
+      by_severity: Record<number, number>
+      recent_cases: Case[]
+    }>('/cases/stats')
   },
 
   /**
    * Assign investigator to case
    */
   async assignInvestigator(caseId: string, userId: string): Promise<Case> {
-    const response = await apiClient.post(`/cases/${caseId}/assign`, { user_id: userId })
-    return response
+    return await apiClient.post<Case>(`/cases/${caseId}/assign`, { user_id: userId })
   },
 
   /**
    * Update case status
    */
   async updateStatus(caseId: string, status: string): Promise<Case> {
-    const response = await apiClient.patch(`/cases/${caseId}/status`, { status })
-    return response
+    return await apiClient.patch<Case>(`/cases/${caseId}/status`, { status })
   },
 }

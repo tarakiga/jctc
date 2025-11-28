@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Card, CardContent, Badge } from '@jctc/ui'
+import { Button, Badge } from '@jctc/ui'
 
 type AssignmentRole = 'LEAD' | 'SUPPORT' | 'PROSECUTOR' | 'LIAISON'
 
@@ -30,16 +30,21 @@ interface AssignmentManagerProps {
 }
 
 export function AssignmentManager({
-  caseId,
+  caseId: _caseId,
   assignments,
   availableUsers,
   onAssign,
   onUnassign,
 }: AssignmentManagerProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<AssignmentRole>('SUPPORT')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
+  const [deletingAssignment, setDeletingAssignment] = useState<Assignment | null>(null)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
 
   const handleOpenModal = () => {
     setSelectedUserId('')
@@ -80,32 +85,64 @@ export function AssignmentManager({
     }
   }
 
-  const handleUnassign = async (assignmentId: string) => {
-    if (confirm('Are you sure you want to remove this assignment?')) {
-      try {
-        await onUnassign(assignmentId)
-      } catch (error) {
-        console.error('Error removing assignment:', error)
-        alert('Failed to remove assignment')
-      }
+  const handleOpenEditModal = (assignment: Assignment) => {
+    setEditingAssignment(assignment)
+    setSelectedRole(assignment.role)
+    setIsEditModalOpen(true)
+    setOpenDropdownId(null)
+  }
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false)
+    setEditingAssignment(null)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!editingAssignment) return
+
+    // If role hasn't changed, just close
+    if (selectedRole === editingAssignment.role) {
+      handleCloseEditModal()
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      // Unassign the old assignment and reassign with new role
+      await onUnassign(editingAssignment.id)
+      await onAssign(editingAssignment.user_id, selectedRole)
+      handleCloseEditModal()
+    } catch (error) {
+      console.error('Error updating assignment:', error)
+      alert('Failed to update assignment')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  const getRoleBadge = (role: AssignmentRole) => {
-    const variants = {
-      LEAD: 'critical' as const,
-      SUPPORT: 'default' as const,
-      PROSECUTOR: 'warning' as const,
-      LIAISON: 'info' as const,
-    }
-    return <Badge variant={variants[role]}>{role}</Badge>
+  const handleOpenDeleteModal = (assignment: Assignment) => {
+    setDeletingAssignment(assignment)
+    setIsDeleteModalOpen(true)
+    setOpenDropdownId(null)
   }
 
-  const groupedAssignments = {
-    LEAD: assignments.filter((a) => a.role === 'LEAD'),
-    SUPPORT: assignments.filter((a) => a.role === 'SUPPORT'),
-    PROSECUTOR: assignments.filter((a) => a.role === 'PROSECUTOR'),
-    LIAISON: assignments.filter((a) => a.role === 'LIAISON'),
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false)
+    setDeletingAssignment(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingAssignment) return
+
+    try {
+      await onUnassign(deletingAssignment.id)
+      handleCloseDeleteModal()
+    } catch (error) {
+      console.error('Error removing assignment:', error)
+      alert('Failed to remove assignment')
+    }
   }
 
   const selectableUsers = availableUsers
@@ -113,12 +150,35 @@ export function AssignmentManager({
     .filter((a) => a.user_id === selectedUserId)
     .map((a) => a.role)
 
+  const getRoleColor = (role: AssignmentRole) => {
+    const colors = {
+      LEAD: 'bg-red-100 text-red-700 border-red-200',
+      SUPPORT: 'bg-blue-100 text-blue-700 border-blue-200',
+      PROSECUTOR: 'bg-amber-100 text-amber-700 border-amber-200',
+      LIAISON: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    }
+    return colors[role]
+  }
+
+  const getRoleIcon = (role: AssignmentRole) => {
+    const icons = {
+      LEAD: '⭐',
+      SUPPORT: '👥',
+      PROSECUTOR: '⚖️',
+      LIAISON: '🌍',
+    }
+    return icons[role]
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-bold text-slate-900">Case Assignments</h3>
-        <Button onClick={handleOpenModal} className="bg-black text-white hover:bg-neutral-800">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Case Team</h3>
+          <p className="text-sm text-slate-600 mt-1">{assignments.length} team member{assignments.length !== 1 ? 's' : ''} assigned</p>
+        </div>
+        <Button onClick={handleOpenModal} className="bg-slate-900 text-white hover:bg-slate-800 shadow-lg">
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
@@ -131,212 +191,286 @@ export function AssignmentManager({
         </Button>
       </div>
 
-      {/* Assignments by Role */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Lead Investigator */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-                  />
-                </svg>
-                <h4 className="font-semibold text-slate-900">Lead Investigator</h4>
-              </div>
-              <Badge variant="critical">LEAD</Badge>
+      {/* Unified List View */}
+      {assignments.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100">
+              <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
             </div>
-            {groupedAssignments.LEAD.length === 0 ? (
-              <p className="text-sm text-neutral-500">No lead investigator assigned</p>
-            ) : (
-              <div className="space-y-2">
-                {groupedAssignments.LEAD.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-start justify-between p-3 bg-red-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-900">{assignment.user.full_name}</p>
-                      <p className="text-sm text-slate-600">{assignment.user.email}</p>
-                      {assignment.user.org_unit && (
-                        <p className="text-xs text-slate-500 mt-1">{assignment.user.org_unit}</p>
-                      )}
-                      <p className="text-xs text-slate-500 mt-1">
-                        Assigned: {new Date(assignment.assigned_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnassign(assignment.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">No team members assigned</h3>
+            <p className="text-slate-600 mb-6">Start by assigning users to different roles in this case.</p>
+            <Button onClick={handleOpenModal} className="bg-slate-900 text-white hover:bg-slate-800">
+              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Assign First Member
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          {/* Table Header */}
+          <div className="bg-slate-50 px-6 py-3 border-b border-slate-200">
+            <div className="grid grid-cols-12 gap-6 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+              <div className="col-span-3">Member</div>
+              <div className="col-span-3">Role</div>
+              <div className="col-span-3">Contact</div>
+              <div className="col-span-2">Assigned</div>
+              <div className="col-span-1 text-center">Actions</div>
+            </div>
+          </div>
 
-        {/* Support Team */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-                <h4 className="font-semibold text-slate-900">Support Team</h4>
-              </div>
-              <Badge variant="default">SUPPORT</Badge>
-            </div>
-            {groupedAssignments.SUPPORT.length === 0 ? (
-              <p className="text-sm text-neutral-500">No support team members</p>
-            ) : (
-              <div className="space-y-2">
-                {groupedAssignments.SUPPORT.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-start justify-between p-3 bg-slate-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-900">{assignment.user.full_name}</p>
-                      <p className="text-sm text-slate-600">{assignment.user.email}</p>
-                      {assignment.user.org_unit && (
-                        <p className="text-xs text-slate-500 mt-1">{assignment.user.org_unit}</p>
-                      )}
-                      <p className="text-xs text-slate-500 mt-1">
-                        Assigned: {new Date(assignment.assigned_at).toLocaleDateString()}
-                      </p>
+          {/* Table Body */}
+          <div className="divide-y divide-slate-200">
+            {assignments.map((assignment) => (
+              <div
+                key={assignment.id}
+                className="px-6 py-4 hover:bg-slate-50 transition-colors group"
+              >
+                <div className="grid grid-cols-12 gap-6 items-center">
+                  {/* Member Info */}
+                  <div className="col-span-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold">
+                        {assignment.user.full_name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">{assignment.user.full_name}</p>
+                        {assignment.user.org_unit && (
+                          <p className="text-xs text-slate-500">{assignment.user.org_unit}</p>
+                        )}
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnassign(assignment.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Prosecutor */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
-                  />
-                </svg>
-                <h4 className="font-semibold text-slate-900">Prosecutor</h4>
-              </div>
-              <Badge variant="warning">PROSECUTOR</Badge>
-            </div>
-            {groupedAssignments.PROSECUTOR.length === 0 ? (
-              <p className="text-sm text-neutral-500">No prosecutor assigned</p>
-            ) : (
-              <div className="space-y-2">
-                {groupedAssignments.PROSECUTOR.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-start justify-between p-3 bg-amber-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-900">{assignment.user.full_name}</p>
-                      <p className="text-sm text-slate-600">{assignment.user.email}</p>
-                      {assignment.user.org_unit && (
-                        <p className="text-xs text-slate-500 mt-1">{assignment.user.org_unit}</p>
-                      )}
-                      <p className="text-xs text-slate-500 mt-1">
-                        Assigned: {new Date(assignment.assigned_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnassign(assignment.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
+                  {/* Role */}
+                  <div className="col-span-3">
+                    <Badge variant="default" className={`${getRoleColor(assignment.role)} border font-semibold whitespace-nowrap inline-flex items-center gap-1`}>
+                      <span>{getRoleIcon(assignment.role)}</span>
+                      <span>{assignment.role}</span>
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Liaison */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <h4 className="font-semibold text-slate-900">Liaison Officer</h4>
-              </div>
-              <Badge variant="info">LIAISON</Badge>
-            </div>
-            {groupedAssignments.LIAISON.length === 0 ? (
-              <p className="text-sm text-neutral-500">No liaison officer assigned</p>
-            ) : (
-              <div className="space-y-2">
-                {groupedAssignments.LIAISON.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-start justify-between p-3 bg-indigo-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-900">{assignment.user.full_name}</p>
-                      <p className="text-sm text-slate-600">{assignment.user.email}</p>
-                      {assignment.user.org_unit && (
-                        <p className="text-xs text-slate-500 mt-1">{assignment.user.org_unit}</p>
-                      )}
-                      <p className="text-xs text-slate-500 mt-1">
-                        Assigned: {new Date(assignment.assigned_at).toLocaleDateString()}
-                      </p>
+                  {/* Contact */}
+                  <div className="col-span-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span className="truncate">{assignment.user.email}</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnassign(assignment.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
                   </div>
-                ))}
+
+                  {/* Assigned Date */}
+                  <div className="col-span-2">
+                    <p className="text-sm text-slate-600">
+                      {new Date(assignment.assigned_at).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="col-span-1 text-center relative">
+                    <button
+                      onClick={() => setOpenDropdownId(openDropdownId === assignment.id ? null : assignment.id)}
+                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {openDropdownId === assignment.id && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setOpenDropdownId(null)}
+                        ></div>
+                        <div className="absolute right-0 top-8 z-20 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1">
+                          <button
+                            onClick={() => handleOpenEditModal(assignment)}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit Assignment
+                          </button>
+                          <button
+                            onClick={() => handleOpenDeleteModal(assignment)}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Remove from Case
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Assignment Modal */}
+      {isEditModalOpen && editingAssignment && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50"
+            onClick={handleCloseEditModal}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl">
+              <div className="relative px-8 pt-8 pb-6 border-b border-slate-200/60">
+                <button
+                  onClick={handleCloseEditModal}
+                  className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6 text-slate-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+                <h2 className="text-3xl font-bold text-slate-900">Edit Assignment</h2>
+                <p className="text-slate-600 mt-1">Update the user or role for this assignment</p>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="px-8 py-6 space-y-6">
+                {/* Current Assignment Info */}
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <p className="text-sm font-semibold text-slate-700 mb-2">Editing Assignment For</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold">
+                      {editingAssignment.user.full_name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-900">{editingAssignment.user.full_name}</p>
+                      <p className="text-xs text-slate-600">{editingAssignment.user.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Change Role <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['LEAD', 'SUPPORT', 'PROSECUTOR', 'LIAISON'] as AssignmentRole[]).map(
+                      (role) => {
+                        const roleIcon = getRoleIcon(role)
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => setSelectedRole(role)}
+                            className={`px-4 py-3 rounded-xl border-2 font-semibold transition-all flex items-center justify-center gap-2 ${
+                              selectedRole === role
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                            }`}
+                          >
+                            <span>{roleIcon}</span>
+                            <span>{role}</span>
+                          </button>
+                        )
+                      }
+                    )}
+                  </div>
+                  <div className="mt-3 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-900">
+                      {selectedRole === 'LEAD' &&
+                        '🌟 Lead investigator has full access and oversight of the case'}
+                      {selectedRole === 'SUPPORT' &&
+                        '👥 Support team members assist with investigation tasks'}
+                      {selectedRole === 'PROSECUTOR' &&
+                        '⚖️ Prosecutors handle legal proceedings and court matters'}
+                      {selectedRole === 'LIAISON' &&
+                        '🌍 Liaison officers coordinate international and inter-agency cooperation'}
+                    </p>
+                  </div>
+                </div>
+              </form>
+
+              <div className="px-8 py-6 border-t border-slate-200/60 flex justify-end gap-3">
+                <Button variant="outline" type="button" onClick={handleCloseEditModal}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleEditSubmit}
+                  disabled={isSubmitting}
+                  className="bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Updating...' : 'Update Role'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && deletingAssignment && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50"
+            onClick={handleCloseDeleteModal}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md">
+              {/* Icon */}
+              <div className="flex justify-center pt-8">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="px-8 pt-6 pb-6 text-center">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Remove Assignment?</h2>
+                <p className="text-slate-600 mb-4">
+                  Are you sure you want to remove <span className="font-semibold text-slate-900">{deletingAssignment.user.full_name}</span> from this case?
+                </p>
+                <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm text-red-800">
+                    <span className="font-semibold">Warning:</span> This will remove their access and all associated permissions for this case.
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-8 py-6 border-t border-slate-200/60 flex justify-end gap-3">
+                <Button variant="outline" onClick={handleCloseDeleteModal}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmDelete}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
+                  Remove Assignment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Assignment Modal */}
       {isModalOpen && (

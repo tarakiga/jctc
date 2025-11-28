@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     log_format: str = "json"
     
     # CORS
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
     
     # Security Headers
     allowed_hosts: List[str] = ["localhost", "127.0.0.1"]

@@ -14,13 +14,15 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer, Float, JSON, Index, ForeignKey, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer, Float, JSON, Index, ForeignKey, UniqueConstraint, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID
+from app.models.types import StringArray, UUIDArray
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql import func
 
 from app.database.base_class import Base
+from app.schemas.audit import ComplianceStatus
 
 
 class AuditLog(Base):
@@ -302,14 +304,14 @@ class ComplianceViolation(Base):
     remediation_steps = Column(Text, nullable=True)
     
     # Status tracking
-    status = Column(String(50), nullable=False, default="VIOLATION", index=True)
+    status = Column(SQLEnum(ComplianceStatus), nullable=False, default=ComplianceStatus.VIOLATION, index=True)
     detected_at = Column(DateTime(timezone=True), nullable=False, default=func.now(), index=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     resolution_notes = Column(Text, nullable=True)
     
     # Related audit logs (stored as JSON array of UUIDs)
-    related_audit_logs = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    related_audit_logs = Column(UUIDArray(), nullable=True)
     
     # Relationships
     resolver = relationship("User", back_populates="resolved_violations")
@@ -330,7 +332,7 @@ class ComplianceViolation(Base):
     
     def mark_resolved(self, user_id: uuid.UUID, resolution_notes: str = None):
         """Mark violation as resolved."""
-        self.status = "RESOLVED"
+        self.status = ComplianceStatus.COMPLIANT
         self.resolved_at = datetime.utcnow()
         self.resolved_by = user_id
         if resolution_notes:
@@ -351,8 +353,8 @@ class AuditConfiguration(Base):
     # Configuration target
     entity_type = Column(String(50), nullable=False, unique=True, index=True)
     
-    # Audit settings
-    actions_to_audit = Column(ARRAY(String(50)), nullable=False)
+# Audit settings
+    actions_to_audit = Column(StringArray(), nullable=False)
     include_details = Column(Boolean, nullable=False, default=True)
     retention_days = Column(Integer, nullable=False, default=365)
     alert_on_failure = Column(Boolean, nullable=False, default=True)
@@ -463,7 +465,7 @@ class AuditArchive(Base):
     
     # Archive content
     record_count = Column(Integer, nullable=False)
-    entity_types = Column(ARRAY(String(50)), nullable=False)
+    entity_types = Column(StringArray(), nullable=False)
     compressed_size = Column(Integer, nullable=False)  # Size in bytes
     original_size = Column(Integer, nullable=False)    # Original size in bytes
     

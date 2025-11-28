@@ -88,7 +88,7 @@ export function usePermissions() {
   function hasPermission(permission: Permission): boolean {
     if (!user) return false
 
-    const allowedRoles = PERMISSIONS[permission]
+    const allowedRoles = PERMISSIONS[permission] as readonly UserRole[]
     return allowedRoles.includes(user.role)
   }
 

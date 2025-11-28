@@ -3,18 +3,11 @@
 import { useState } from 'react'
 import { 
   FileText, 
-  Users, 
   ListChecks, 
   Activity, 
   Package, 
-  Cpu, 
-  Microscope, 
   Scale, 
-  Gavel, 
   Globe, 
-  Paperclip, 
-  Network,
-  Clock,
   ChevronDown,
   ChevronRight
 } from 'lucide-react'

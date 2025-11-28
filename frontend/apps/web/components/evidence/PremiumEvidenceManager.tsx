@@ -32,8 +32,8 @@ interface CustodyEntry {
   id: string
   evidence_id: string
   timestamp: string
-  action: 'COLLECTED' | 'TRANSFERRED' | 'EXAMINED' | 'ACCESSED' | 'RETURNED'
-  from_person: string | null
+  action: 'COLLECTED' | 'SEIZED' | 'TRANSFERRED' | 'ANALYZED' | 'EXAMINED' | 'ACCESSED' | 'PRESENTED_COURT' | 'RETURNED' | 'DISPOSED'
+  from_person?: string | null
   from_person_name?: string
   to_person: string
   to_person_name: string
@@ -41,9 +41,8 @@ interface CustodyEntry {
   purpose: string
   notes?: string
   signature_verified: boolean
-  created_by: string
-  created_by_name: string
-  created_at: string
+  performed_by?: string
+  performed_by_name?: string
 }
 
 interface PremiumEvidenceManagerProps {
@@ -52,7 +51,8 @@ interface PremiumEvidenceManagerProps {
   onAdd: () => void
   onEdit: (item: EvidenceItem) => void
   onDelete: (id: string) => void
-  onGenerateQR: (id: string) => Promise<string>
+  onView: (item: EvidenceItem) => void
+  onGenerateQR: (id: string) => Promise<void>
   onVerifyHash: (id: string) => Promise<boolean>
   custodyEntries: CustodyEntry[]
   onAddCustodyEntry: () => void
@@ -64,6 +64,7 @@ export function PremiumEvidenceManager({
   onAdd,
   onEdit,
   onDelete,
+  onView,
   onGenerateQR,
   onVerifyHash,
   custodyEntries,
@@ -131,6 +132,7 @@ export function PremiumEvidenceManager({
   const getActionIcon = (action: CustodyEntry['action']) => {
     switch (action) {
       case 'COLLECTED':
+      case 'SEIZED':
         return (
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         )
@@ -139,6 +141,7 @@ export function PremiumEvidenceManager({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
         )
       case 'EXAMINED':
+      case 'ANALYZED':
         return (
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         )
@@ -150,18 +153,34 @@ export function PremiumEvidenceManager({
         return (
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
         )
+      case 'PRESENTED_COURT':
+        return (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+        )
+      case 'DISPOSED':
+        return (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        )
+      default:
+        return (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        )
     }
   }
 
   const getActionColor = (action: CustodyEntry['action']) => {
-    const colors = {
+    const colors: Record<string, string> = {
       COLLECTED: 'from-emerald-500 to-emerald-600',
+      SEIZED: 'from-emerald-600 to-emerald-700',
       TRANSFERRED: 'from-blue-500 to-blue-600',
       EXAMINED: 'from-purple-500 to-purple-600',
+      ANALYZED: 'from-purple-500 to-purple-600',
       ACCESSED: 'from-amber-500 to-amber-600',
       RETURNED: 'from-indigo-500 to-indigo-600',
+      PRESENTED_COURT: 'from-orange-500 to-orange-600',
+      DISPOSED: 'from-red-500 to-red-600',
     }
-    return colors[action]
+    return colors[action] || 'from-gray-500 to-gray-600'
   }
 
   return (
@@ -228,7 +247,10 @@ export function PremiumEvidenceManager({
             filteredEvidence.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setSelectedEvidenceId(item.id)}
+                onClick={() => {
+                  setSelectedEvidenceId(item.id)
+                  onView(item)
+                }}
                 className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                   selectedEvidenceId === item.id
                     ? 'border-blue-500 bg-blue-50 shadow-md'

@@ -17,11 +17,10 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 
-from app.database.session import get_db
-from app.utils.auth import get_current_user, require_permissions
+from app.core.deps import get_db, get_current_user
 from app.utils.audit import AuditService, audit_action
 from app.utils.compliance_reporting import ComplianceReportGenerator
-from app.models.users import User
+from app.models.user import User
 from app.models.audit import (
     AuditLog, ComplianceViolation, ComplianceReport, 
     RetentionPolicy, AuditConfiguration, DataRetentionJob, AuditArchive
@@ -51,6 +50,26 @@ from app.schemas.audit import (
 
 
 router = APIRouter()
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+def require_permissions(user_role, allowed_roles: List[str]) -> bool:
+    """
+    Check if user's role is in the list of allowed roles.
+    
+    Args:
+        user_role: The user's role (UserRole enum or string)
+        allowed_roles: List of role names that are allowed
+    
+    Returns:
+        bool: True if user has permission, False otherwise
+    """
+    # Handle both enum and string role values
+    role_value = user_role.value if hasattr(user_role, 'value') else str(user_role)
+    return role_value.upper() in [r.upper() for r in allowed_roles]
 
 
 # =============================================================================

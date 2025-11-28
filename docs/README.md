@@ -27,21 +27,24 @@ The Joint Case Team on Cybercrimes Management System is an end-to-end platform t
 - [Mobile API](mobile-api.md) - Mobile optimization features
 - [Reporting System](reporting-system.md) - Automated report generation
 - [Task Management](task-management.md) - Advanced task workflows
+- [Audit System](audit-system.md) - Audit logging and compliance
+- [Compliance Reporting](compliance-reporting.md) - GDPR, SOX, HIPAA compliance
+- [Data Retention](data-retention.md) - Retention policies and disposal
 - [User Roles](user-roles.md) - Roles and permissions matrix
 - [Case Management](case-management.md) - Case handling workflows
 - [Security](security.md) - Authentication and authorization
-- [Deployment](deployment.md) - Production deployment guide
+- [Deployment](deployment-runbook-phase-2c.md) - Production deployment guide
 
 ## Delivery Phases & Commit Plan
 
 The documentation and codebase will be published to GitHub in weekly, phase-scoped commits.
 
-- [x] Phase 1 — Core Platform Foundation (1 week): Authentication, User Management, Case Management
-- [x] Phase 1A — Evidence Management System (1 week): Digital Evidence, Chain of Custody, File Handling
-- [x] Phase 1B — Advanced Platform Features (1 week): Analytics, Notifications, Reporting, Mobile
-- [ ] Phase 2 — Integration & Connectivity (1 week): External System Integration, Webhooks, Data Exchange, APIs
-- [ ] Phase 2A — Audit & Compliance System (1 week): Comprehensive Audit Trails, Compliance Reporting
-- [ ] Phase 2B — Testing, Deployment (1 week): Production Deployment, Documentation
+- [x] Phase 1A — Core Platform Foundation (1 week): Authentication, User Management, Case Management
+- [x] Phase 1B — Evidence Management System (1 week): Digital Evidence, Chain of Custody, File Handling
+- [x] Phase 1C — Advanced Platform Features (1 week): Analytics, Notifications, Reporting, Mobile
+- [x] Phase 2A — Integration & Connectivity (1 week): External System Integration, Webhooks, Data Exchange, APIs
+- [x] Phase 2B — Audit & Compliance System (1 week): Comprehensive Audit Trails, Compliance Reporting
+- [x] Phase 2C — Prosecution & Deployment (1 week): Prosecution Workflow, Production Deployment, Documentation
 
 Repository: https://github.com/tarakiga/jctc.git
 Cadence: Weekly, when prompted.

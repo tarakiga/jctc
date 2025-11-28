@@ -418,7 +418,7 @@ export function ChainOfCustody({
                         setFormData({
                           ...formData,
                           from_person: userId,
-                          from_person_name: user?.full_name,
+                          from_person_name: user?.full_name || '',
                         })
                       }}
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
@@ -446,7 +446,7 @@ export function ChainOfCustody({
                         setFormData({
                           ...formData,
                           to_person: userId,
-                          to_person_name: user?.full_name,
+                          to_person_name: user?.full_name || '',
                         })
                       }}
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"

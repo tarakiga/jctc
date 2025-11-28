@@ -29,10 +29,14 @@ import {
 
 interface CollaborationManagerProps {
   caseId: string;
+  collaborations?: any[];  // Optional mock collaborations
 }
 
-export default function CollaborationManager({ caseId }: CollaborationManagerProps) {
-  const { collaborations, isLoading, createCollaboration, updateCollaboration, deleteCollaboration, isCreating, isDeleting } = useCollaborations(caseId);
+export default function CollaborationManager({ caseId, collaborations: mockCollaborations }: CollaborationManagerProps) {
+  const { collaborations: apiCollaborations, isLoading, createCollaboration, updateCollaboration, deleteCollaboration, isCreating, isDeleting } = useCollaborations(caseId);
+  
+  // Use mock collaborations if provided, otherwise use API data
+  const collaborations = mockCollaborations || apiCollaborations;
   
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,6 +49,7 @@ export default function CollaborationManager({ caseId }: CollaborationManagerPro
     scope: '',
     mou_reference: '',
     notes: '',
+    status: 'INITIATED' as CollaborationStatus,
   });
   const [filterPartnerType, setFilterPartnerType] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<CollaborationStatus | 'ALL'>('ALL');
@@ -117,6 +122,7 @@ export default function CollaborationManager({ caseId }: CollaborationManagerPro
           data: {
             ...formData,
             partner_type: partnerInfo.type as any,
+            status: formData.status,
           },
         });
       } else {
@@ -139,6 +145,7 @@ export default function CollaborationManager({ caseId }: CollaborationManagerPro
         scope: '',
         mou_reference: '',
         notes: '',
+        status: 'INITIATED' as CollaborationStatus,
       });
     } catch (error) {
       console.error('Failed to save collaboration:', error);
@@ -156,6 +163,7 @@ export default function CollaborationManager({ caseId }: CollaborationManagerPro
       scope: collab.scope,
       mou_reference: collab.mou_reference || '',
       notes: collab.notes || '',
+      status: collab.status,
     });
     setShowForm(true);
   };
@@ -178,6 +186,7 @@ export default function CollaborationManager({ caseId }: CollaborationManagerPro
       scope: '',
       mou_reference: '',
       notes: '',
+      status: 'INITIATED' as CollaborationStatus,
     });
   };
 
@@ -250,7 +259,36 @@ export default function CollaborationManager({ caseId }: CollaborationManagerPro
                   </option>
                 ))}
               </select>
+              {formData.partner_org && (
+                <p className="text-xs text-neutral-600 mt-1">
+                  Partner Type: <span className="font-semibold">
+                    {PARTNER_ORGANIZATIONS.find(o => o.value === formData.partner_org)?.type.replace('_', ' ')}
+                  </span>
+                </p>
+              )}
             </div>
+
+            {/* Status (only show when editing) */}
+            {editingId && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Collaboration Status *
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as CollaborationStatus })}
+                  className="w-full px-4 py-2 bg-white border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+                >
+                  <option value="INITIATED">Initiated</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="SUSPENDED">Suspended</option>
+                </select>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Update the collaboration status to reflect current state
+                </p>
+              </div>
+            )}
 
             {/* Contact Details - Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { 
   FileText, 
-  Calendar, 
   Download, 
   Plus, 
   X, 
@@ -83,6 +82,7 @@ function ReportsPageContent() {
     try {
       await createSchedule({
         ...scheduleFormData,
+        report_type: scheduleFormData.report_type as ReportType,
         recipients: scheduleFormData.recipients.filter((r) => r.trim() !== ''),
       });
       setShowScheduleForm(false);

@@ -13,7 +13,10 @@ export interface Evidence {
   collected_date: string
   collected_by: string
   location_collected?: string
+  storage_location?: string
   chain_of_custody_status: string
+  notes?: string
+  files?: any[]
   created_at: string
   updated_at: string
 }
@@ -48,6 +51,20 @@ export interface ChainOfCustodyEntry {
   performed_at: string
   location?: string
   notes?: string
+  // Extended fields for comprehensive custody tracking
+  custodian_from?: string
+  custodian_to?: string
+  location_from?: string
+  location_to?: string
+  purpose?: string
+  signature_path?: string
+  signature_verified?: boolean
+  requires_approval?: boolean
+  approval_status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approved_by?: string
+  approval_timestamp?: string
+  created_by?: string
+  created_at?: string
 }
 
 export const evidenceService = {
@@ -66,8 +83,7 @@ export const evidenceService = {
     if (filters?.page) params.append('page', filters.page.toString())
     if (filters?.limit) params.append('limit', filters.limit.toString())
 
-    const response = await apiClient.get(`/evidence?${params.toString()}`)
-    // apiClient already unwraps response.data, so response IS the data
+    const response = await apiClient.get<{ items?: Evidence[]; total?: number }>(`/evidence?${params.toString()}`)
     // API returns { items, total }, transform to { evidence, total }
     return {
       evidence: response?.items || [],
@@ -76,19 +92,48 @@ export const evidenceService = {
   },
 
   /**
+   * Approve chain of custody entry (four-eyes approval)
+   */
+  async approveChainOfCustodyEntry(
+    evidenceId: string,
+    entryId: string
+  ): Promise<ChainOfCustodyEntry> {
+    return await apiClient.post<ChainOfCustodyEntry>(`/evidence/${evidenceId}/chain-of-custody/${entryId}/approve`)
+  },
+
+  /**
+   * Reject chain of custody entry
+   */
+  async rejectChainOfCustodyEntry(
+    evidenceId: string,
+    entryId: string,
+    reason?: string
+  ): Promise<ChainOfCustodyEntry> {
+    return await apiClient.post<ChainOfCustodyEntry>(`/evidence/${evidenceId}/chain-of-custody/${entryId}/reject`, {
+      reason
+    })
+  },
+
+  /**
+   * Generate custody transfer receipt
+   */
+  async generateCustodyReceipt(evidenceId: string, entryId: string): Promise<string> {
+    const response = await apiClient.get<{ receipt_url: string }>(`/evidence/${evidenceId}/chain-of-custody/${entryId}/receipt`)
+    return response.receipt_url
+  },
+
+  /**
    * Get a single evidence item by ID
    */
   async getEvidenceById(id: string): Promise<Evidence> {
-    const response = await apiClient.get(`/evidence/${id}`)
-    return response
+    return await apiClient.get<Evidence>(`/evidence/${id}`)
   },
 
   /**
    * Create new evidence (metadata only)
    */
   async createEvidence(data: CreateEvidenceData): Promise<Evidence> {
-    const response = await apiClient.post('/evidence', data)
-    return response
+    return await apiClient.post<Evidence>('/evidence', data)
   },
 
   /**
@@ -98,12 +143,11 @@ export const evidenceService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await apiClient.post(`/evidence/${evidenceId}/upload`, formData, {
+    return await apiClient.post<Evidence>(`/evidence/${evidenceId}/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
-    return response
   },
 
   /**
@@ -115,12 +159,11 @@ export const evidenceService = {
       formData.append('files', file)
     })
 
-    const response = await apiClient.post(`/evidence/${evidenceId}/upload-multiple`, formData, {
+    return await apiClient.post<Evidence>(`/evidence/${evidenceId}/upload-multiple`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
-    return response
   },
 
   /**
@@ -144,20 +187,18 @@ export const evidenceService = {
       formData.append('files', file)
     })
 
-    const response = await apiClient.post('/evidence/upload', formData, {
+    return await apiClient.post<Evidence>('/evidence/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
-    return response
   },
 
   /**
    * Update evidence metadata
    */
   async updateEvidence(id: string, data: UpdateEvidenceData): Promise<Evidence> {
-    const response = await apiClient.put(`/evidence/${id}`, data)
-    return response
+    return await apiClient.put<Evidence>(`/evidence/${id}`, data)
   },
 
   /**
@@ -171,8 +212,7 @@ export const evidenceService = {
    * Get chain of custody for evidence
    */
   async getChainOfCustody(evidenceId: string): Promise<ChainOfCustodyEntry[]> {
-    const response = await apiClient.get(`/evidence/${evidenceId}/chain-of-custody`)
-    return response
+    return await apiClient.get<ChainOfCustodyEntry[]>(`/evidence/${evidenceId}/chain-of-custody`)
   },
 
   /**
@@ -182,29 +222,36 @@ export const evidenceService = {
     evidenceId: string,
     data: {
       action: string
+      custodian_from?: string
+      custodian_to?: string
+      location_from?: string
+      location_to?: string
       location?: string
+      purpose?: string
       notes?: string
+      signature_path?: string
+      signature_verified?: boolean
+      requires_approval?: boolean
+      approval_status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+      timestamp?: string
     }
   ): Promise<ChainOfCustodyEntry> {
-    const response = await apiClient.post(`/evidence/${evidenceId}/chain-of-custody`, data)
-    return response
+    return await apiClient.post<ChainOfCustodyEntry>(`/evidence/${evidenceId}/chain-of-custody`, data)
   },
 
   /**
    * Download evidence file
    */
   async downloadEvidence(evidenceId: string): Promise<Blob> {
-    const response = await apiClient.get(`/evidence/${evidenceId}/download`, {
+    return await apiClient.get<Blob>(`/evidence/${evidenceId}/download`, {
       responseType: 'blob',
-    })
-    return response
+    } as any)
   },
 
   /**
    * Get evidence by case ID
    */
   async getEvidenceByCase(caseId: string): Promise<Evidence[]> {
-    const response = await apiClient.get(`/cases/${caseId}/evidence`)
-    return response
+    return await apiClient.get<Evidence[]>(`/cases/${caseId}/evidence`)
   },
 }

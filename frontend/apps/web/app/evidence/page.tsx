@@ -2,51 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Button, Card, Badge } from '@jctc/ui'
-import { useAuth } from '@/lib/contexts/AuthContext'
+import { Button } from '@jctc/ui'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 import { useEvidence } from '@/lib/hooks/useEvidence'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { AddEvidenceModal } from '@/components/evidence/AddEvidenceModal'
-
-const mockEvidenceRemoved = [
-  {
-    id: '1',
-    evidence_number: 'EVD-2025-001',
-    type: 'DIGITAL',
-    description: 'Email correspondence regarding fraudulent transaction',
-    case_number: 'JCTC-2025-A7B3C',
-    case_title: 'Business Email Compromise - ABC Corp',
-    collected_date: '2025-01-16',
-    collected_by: 'Jane Smith',
-    chain_of_custody_status: 'SECURE',
-  },
-  {
-    id: '2',
-    evidence_number: 'EVD-2025-002',
-    type: 'DIGITAL',
-    description: 'Bank transaction records showing wire transfer',
-    case_number: 'JCTC-2025-A7B3C',
-    case_title: 'Business Email Compromise - ABC Corp',
-    collected_date: '2025-01-17',
-    collected_by: 'John Doe',
-    chain_of_custody_status: 'SECURE',
-  },
-  {
-    id: '3',
-    evidence_number: 'EVD-2025-003',
-    type: 'PHYSICAL',
-    description: 'Hard drive containing suspect data',
-    case_number: 'JCTC-2025-B8C4D',
-    case_title: 'Corporate Data Breach',
-    collected_date: '2025-01-18',
-    collected_by: 'Sarah Johnson',
-    chain_of_custody_status: 'IN_TRANSIT',
-  },
-]
+import { EvidenceFormModal } from '@/components/evidence/EvidenceFormModal'
 
 function EvidenceListContent() {
-  const { logout } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -115,7 +77,7 @@ function EvidenceListContent() {
   ]
 
   // Fetch evidence from API with filters
-  const { evidence, total, loading, error, refetch } = useEvidence({
+  const { evidence, loading, error, refetch } = useEvidence({
     search: searchTerm || undefined,
     type: typeFilter !== 'ALL' ? typeFilter : undefined,
     chain_of_custody_status: statusFilter !== 'ALL' ? statusFilter : undefined,
@@ -565,7 +527,7 @@ function EvidenceListContent() {
                       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500"></div>
                       
                       <div className="space-y-6">
-                        {mockChainOfCustody.map((record, index) => {
+                        {mockChainOfCustody.map((record) => {
                           const actionColors = {
                             COLLECTED: 'from-emerald-500 to-emerald-600',
                             TRANSFERRED: 'from-blue-500 to-blue-600',
@@ -704,9 +666,16 @@ function EvidenceListContent() {
       )}
 
       {/* Add Evidence Modal */}
-      <AddEvidenceModal 
+      <EvidenceFormModal 
         isOpen={isAddEvidenceOpen} 
-        onClose={() => setIsAddEvidenceOpen(false)} 
+        onClose={() => setIsAddEvidenceOpen(false)}
+        onSubmit={async (evidence) => {
+          // TODO: Add API call to create evidence
+          console.log('Creating evidence:', evidence)
+          setIsAddEvidenceOpen(false)
+          // Refetch evidence list after adding
+          refetch()
+        }}
       />
     </DashboardLayout>
   )

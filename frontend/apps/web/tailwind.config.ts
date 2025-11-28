@@ -1,5 +1,6 @@
 import type { Config } from 'tailwindcss'
-import sharedConfig from '@jctc/tailwind-config/tailwind.config'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sharedConfig = require('@jctc/tailwind-config/tailwind.config')
 
 const config: Config = {
   ...sharedConfig,

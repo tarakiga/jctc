@@ -34,6 +34,7 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
   }
 
   const isActive = (path: string) => {
+    if (!pathname) return false
     // Treat exact match and nested routes as active
     if (pathname === path) return true
     return pathname.startsWith(path + '/')

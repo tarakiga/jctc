@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { 
   Upload, 
-  File, 
+  File as FileIcon, 
   FileText, 
   Image as ImageIcon, 
   FileVideo, 
@@ -32,10 +32,14 @@ import {
 
 interface AttachmentManagerProps {
   caseId: string;
+  attachments?: any[];  // Optional mock attachments
 }
 
-export default function AttachmentManager({ caseId }: AttachmentManagerProps) {
-  const { attachments, isLoading, createAttachment, deleteAttachment, verifyHash, isCreating, isDeleting } = useAttachments(caseId);
+export default function AttachmentManager({ caseId, attachments: mockAttachments }: AttachmentManagerProps) {
+  const { attachments: apiAttachments, isLoading, createAttachment, deleteAttachment, verifyHash, isCreating, isDeleting } = useAttachments(caseId);
+  
+  // Use mock attachments if provided, otherwise use API data
+  const attachments = mockAttachments || apiAttachments;
   
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -54,7 +58,7 @@ export default function AttachmentManager({ caseId }: AttachmentManagerProps) {
     if (fileType.startsWith('video/')) return <FileVideo className="w-5 h-5" />;
     if (fileType === 'application/pdf') return <FileText className="w-5 h-5" />;
     if (fileType.includes('zip') || fileType.includes('archive')) return <FileArchive className="w-5 h-5" />;
-    return <File className="w-5 h-5" />;
+    return <FileIcon className="w-5 h-5" />;
   };
 
   // Virus scan badge helper
@@ -273,6 +277,19 @@ export default function AttachmentManager({ caseId }: AttachmentManagerProps) {
               <p className="text-xs text-neutral-600 mt-1">
                 {CLASSIFICATION_OPTIONS.find((opt) => opt.value === formData.classification)?.description}
               </p>
+            </div>
+
+            {/* Security Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">Automatic Security Processing</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Upon upload, files are automatically scanned for viruses (status starts as "Pending") and a SHA-256 hash is computed for integrity verification. You can verify file integrity at any time using the "Verify Hash" button.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Notes */}

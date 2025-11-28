@@ -38,6 +38,66 @@ export function useEvidence(filters?: EvidenceFilters) {
     loading,
     error,
     refetch: fetchEvidence,
+
+    /**
+     * Approve chain of custody entry (four-eyes approval)
+     */
+    approveChainOfCustodyEntry: async (evidenceId: string, entryId: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await evidenceService.approveChainOfCustodyEntry(evidenceId, entryId)
+        console.log('Chain of custody entry approved successfully')
+        return result
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to approve chain of custody entry'
+        setError(new Error(errorMessage))
+        console.error('Error approving chain of custody entry:', errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+
+    /**
+     * Reject chain of custody entry
+     */
+    rejectChainOfCustodyEntry: async (evidenceId: string, entryId: string, reason?: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await evidenceService.rejectChainOfCustodyEntry(evidenceId, entryId, reason)
+        console.log('Chain of custody entry rejected successfully')
+        return result
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to reject chain of custody entry'
+        setError(new Error(errorMessage))
+        console.error('Error rejecting chain of custody entry:', errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+
+    /**
+     * Generate custody transfer receipt
+     */
+    generateCustodyReceipt: async (evidenceId: string, entryId: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const receiptUrl = await evidenceService.generateCustodyReceipt(evidenceId, entryId)
+        console.log('Custody receipt generated successfully')
+        return receiptUrl
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to generate custody receipt'
+        setError(new Error(errorMessage))
+        console.error('Error generating custody receipt:', errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    }
   }
 }
 
@@ -278,3 +338,6 @@ export function useEvidenceMutations() {
     error,
   }
 }
+
+
+

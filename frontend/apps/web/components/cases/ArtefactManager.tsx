@@ -477,7 +477,7 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
                     <p className="text-sm text-neutral-900 font-medium mb-2">{artefact.description}</p>
                     {artefact.file_name && (
                       <div className="text-xs text-neutral-600 space-y-1">
-                        <p className="font-mono">📎 {artefact.file_name} ({formatFileSize(artefact.file_size)})</p>
+                        <p className="font-mono">📎 {artefact.file_name} ({formatFileSize(artefact.file_size ?? 0)})</p>
                         <p className="font-mono break-all">🔒 SHA-256: {artefact.file_hash}</p>
                         <p>📅 Extracted: {format(new Date(artefact.extracted_at), 'PPp')}</p>
                       </div>

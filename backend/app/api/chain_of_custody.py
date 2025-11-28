@@ -49,6 +49,10 @@ async def create_custody_entry(
         location_to=custody_entry.location_to,
         purpose=custody_entry.purpose,
         notes=custody_entry.notes,
+        signature_path=custody_entry.signature_path,
+        signature_verified=custody_entry.signature_verified or False,
+        requires_approval=custody_entry.requires_approval or False,
+        approval_status=custody_entry.approval_status or "PENDING" if custody_entry.requires_approval else None,
         timestamp=custody_entry.timestamp or datetime.utcnow(),
         created_by=current_user.id,
         created_at=datetime.utcnow()
@@ -124,6 +128,161 @@ async def get_current_custodian(
             "last_action": None,
             "last_update": None
         }
+
+@router.post("/{evidence_id}/entries/{entry_id}/approve", response_model=ChainOfCustodyResponse)
+async def approve_custody_entry(
+    evidence_id: str,
+    entry_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Approve a custody entry that requires four-eyes approval"""
+    
+    # Check if evidence exists
+    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not evidence:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence not found"
+        )
+    
+    # Get the custody entry
+    entry = db.query(ChainOfCustodyEntry).filter(
+        ChainOfCustodyEntry.id == entry_id,
+        ChainOfCustodyEntry.evidence_id == evidence_id
+    ).first()
+    
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Custody entry not found"
+        )
+    
+    # Check if approval is required and pending
+    if not entry.requires_approval or entry.approval_status != "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This entry does not require approval or is not pending"
+        )
+    
+    # Check if user is not the same as the creator (four-eyes principle)
+    if entry.created_by == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot approve your own custody entry"
+        )
+    
+    # Update approval status
+    entry.approval_status = "APPROVED"
+    entry.approved_by = current_user.id
+    entry.approval_timestamp = datetime.utcnow()
+    
+    try:
+        db.commit()
+        db.refresh(entry)
+        return ChainOfCustodyResponse.from_orm(entry)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to approve custody entry: {str(e)}"
+        )
+
+@router.post("/{evidence_id}/entries/{entry_id}/reject", response_model=ChainOfCustodyResponse)
+async def reject_custody_entry(
+    evidence_id: str,
+    entry_id: str,
+    reason: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Reject a custody entry that requires four-eyes approval"""
+    
+    # Check if evidence exists
+    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not evidence:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence not found"
+        )
+    
+    # Get the custody entry
+    entry = db.query(ChainOfCustodyEntry).filter(
+        ChainOfCustodyEntry.id == entry_id,
+        ChainOfCustodyEntry.evidence_id == evidence_id
+    ).first()
+    
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Custody entry not found"
+        )
+    
+    # Check if approval is required and pending
+    if not entry.requires_approval or entry.approval_status != "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This entry does not require approval or is not pending"
+        )
+    
+    # Check if user is not the same as the creator (four-eyes principle)
+    if entry.created_by == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot reject your own custody entry"
+        )
+    
+    # Update approval status
+    entry.approval_status = "REJECTED"
+    entry.approved_by = current_user.id
+    entry.approval_timestamp = datetime.utcnow()
+    if reason:
+        entry.notes = f"{entry.notes or ''}\n\nRejection reason: {reason}".strip()
+    
+    try:
+        db.commit()
+        db.refresh(entry)
+        return ChainOfCustodyResponse.from_orm(entry)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reject custody entry: {str(e)}"
+        )
+
+@router.get("/{evidence_id}/entries/{entry_id}/receipt")
+async def generate_custody_receipt(
+    evidence_id: str,
+    entry_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate a custody transfer receipt"""
+    
+    # Check if evidence exists
+    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not evidence:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence not found"
+        )
+    
+    # Get the custody entry
+    entry = db.query(ChainOfCustodyEntry).filter(
+        ChainOfCustodyEntry.id == entry_id,
+        ChainOfCustodyEntry.evidence_id == evidence_id
+    ).first()
+    
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Custody entry not found"
+        )
+    
+    # Generate receipt URL (in a real implementation, this would generate a PDF or document)
+    receipt_url = f"/api/receipts/custody/{entry_id}.pdf"
+    
+    return {"receipt_url": receipt_url}
     
     return {
         "evidence_id": evidence_id,

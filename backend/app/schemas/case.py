@@ -1,8 +1,21 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator, EmailStr
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
-from app.models.case import CaseStatus, LocalInternational, AssignmentRole
+from app.models.case import CaseStatus, LocalInternational, AssignmentRole, IntakeChannel, ReporterType, RiskFlag
+
+
+class ReporterContact(BaseModel):
+    """Contact information for case reporter"""
+    phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=255)
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v != '' and '@' not in v:
+            raise ValueError('Invalid email format')
+        return v
 
 
 class CaseBase(BaseModel):
@@ -17,10 +30,46 @@ class CaseBase(BaseModel):
 
 
 class CaseCreate(CaseBase):
-    pass
+    """Schema for creating a new case with full intake information"""
+    # Intake fields
+    intake_channel: Optional[IntakeChannel] = IntakeChannel.WALK_IN
+    risk_flags: Optional[List[str]] = Field(default_factory=list)
+    platforms_implicated: Optional[List[str]] = Field(default_factory=list)
+    lga_state_location: Optional[str] = Field(None, max_length=255)
+    incident_datetime: Optional[datetime] = None
+    
+    # Reporter information
+    reporter_type: Optional[ReporterType] = ReporterType.ANONYMOUS
+    reporter_name: Optional[str] = Field(None, max_length=255)
+    reporter_contact: Optional[ReporterContact] = None
+    
+    @field_validator('risk_flags')
+    @classmethod
+    def validate_risk_flags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate that risk flags are valid RiskFlag values"""
+        if v is None:
+            return []
+        valid_flags = {f.value for f in RiskFlag}
+        for flag in v:
+            # Allow both enum values and frontend-style lowercase keys
+            normalized = flag.upper().replace(' ', '_')
+            if normalized not in valid_flags and flag not in ['child', 'imminent_harm', 'trafficking', 'sextortion']:
+                # Map frontend values to backend enum values
+                pass  # Allow flexible values for now, normalize on save
+        return v
+    
+    @field_validator('platforms_implicated')
+    @classmethod
+    def validate_platforms(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate and normalize platform names"""
+        if v is None:
+            return []
+        # Normalize platform names
+        return [p.strip() for p in v if p and p.strip()]
 
 
 class CaseUpdate(BaseModel):
+    """Schema for updating an existing case"""
     title: Optional[str] = Field(None, min_length=1, max_length=500)
     case_type_id: Optional[UUID] = None
     description: Optional[str] = None
@@ -31,9 +80,22 @@ class CaseUpdate(BaseModel):
     cooperating_countries: Optional[List[str]] = None
     mlat_reference: Optional[str] = Field(None, max_length=100)
     lead_investigator: Optional[UUID] = None
+    
+    # Intake fields (updatable)
+    intake_channel: Optional[IntakeChannel] = None
+    risk_flags: Optional[List[str]] = None
+    platforms_implicated: Optional[List[str]] = None
+    lga_state_location: Optional[str] = Field(None, max_length=255)
+    incident_datetime: Optional[datetime] = None
+    
+    # Reporter information (updatable)
+    reporter_type: Optional[ReporterType] = None
+    reporter_name: Optional[str] = Field(None, max_length=255)
+    reporter_contact: Optional[ReporterContact] = None
 
 
 class CaseResponse(CaseBase):
+    """Schema for case response including all intake fields"""
     id: UUID
     case_number: str
     status: CaseStatus
@@ -43,6 +105,18 @@ class CaseResponse(CaseBase):
     lead_investigator: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    
+    # Intake fields in response
+    intake_channel: Optional[IntakeChannel] = None
+    risk_flags: Optional[List[str]] = None
+    platforms_implicated: Optional[List[str]] = None
+    lga_state_location: Optional[str] = None
+    incident_datetime: Optional[datetime] = None
+    
+    # Reporter information in response
+    reporter_type: Optional[ReporterType] = None
+    reporter_name: Optional[str] = None
+    reporter_contact: Optional[Dict[str, Any]] = None
     
     class Config:
         from_attributes = True

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@jctc/ui'
-import { useAuth } from '@/lib/contexts/AuthContext'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useCase } from '@/lib/hooks/useCases'
@@ -13,11 +12,12 @@ import { PartiesManager } from '@/components/cases/PartiesManager'
 import { AssignmentManager } from '@/components/cases/AssignmentManager'
 import { TaskManager } from '@/components/tasks/TaskManager'
 import { ActionLog } from '@/components/cases/ActionLog'
-import { EvidenceItemManager } from '@/components/evidence/EvidenceItemManager'
-import { ChainOfCustody } from '@/components/evidence/ChainOfCustody'
 import { PremiumEvidenceManager } from '@/components/evidence/PremiumEvidenceManager'
+import { ChainOfCustodyForm } from '@/components/evidence/ChainOfCustodyForm'
 import { DeleteConfirmModal } from '@/components/evidence/DeleteConfirmModal'
 import { HashVerificationModal } from '@/components/evidence/HashVerificationModal'
+import { QRCodeModal } from '@/components/evidence/QRCodeModal'
+import { EvidenceFormModal } from '@/components/evidence/EvidenceFormModal'
 import { useParties, usePartyMutations } from '@/lib/hooks/useParties'
 import { useAssignments, useAvailableUsers, useAssignmentMutations } from '@/lib/hooks/useAssignments'
 import { useTasks, useTaskMutations } from '@/lib/hooks/useTasks'
@@ -25,8 +25,8 @@ import { useActionLog, useActionMutations } from '@/lib/hooks/useActionLog'
 import { useEvidenceItems, useEvidenceItemMutations, useChainOfCustody, useCustodyMutations } from '@/lib/hooks/useEvidenceManagement'
 import { SeizureManager } from '@/components/seizures/SeizureManager'
 import { DeviceInventory } from '@/components/seizures/DeviceInventory'
-import { useSeizures, useSeizureMutations } from '@/lib/hooks/useSeizures'
-import { useDevices, useDeviceMutations } from '@/lib/hooks/useDevices'
+import { useSeizures } from '@/lib/hooks/useSeizures'
+import { useDevices } from '@/lib/hooks/useDevices'
 import ArtefactManager from '@/components/cases/ArtefactManager'
 import ReportUploader from '@/components/cases/ReportUploader'
 import LegalInstrumentManager from '@/components/legal/LegalInstrumentManager'
@@ -37,53 +37,136 @@ import CollaborationManager from '@/components/collaboration/CollaborationManage
 import { CaseDetailSidebar } from '@/components/cases/CaseDetailSidebar'
 
 function CaseDetailContent() {
-  const { user, logout } = useAuth()
   const params = useParams()
-  const caseId = params.id as string
+  const caseId = params?.id as string
   const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'parties' | 'assignments' | 'tasks' | 'actions' | 'timeline' | 'seizures' | 'devices' | 'forensics' | 'legal' | 'prosecution' | 'international' | 'attachments' | 'collaboration'>('overview')
-  const [selectedEvidence, setSelectedEvidence] = useState<any>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showChainOfCustody, setShowChainOfCustody] = useState(false)
+  const [showChainOfCustodyForm, setShowChainOfCustodyForm] = useState(false)
   const [isAddEvidenceModalOpen, setIsAddEvidenceModalOpen] = useState(false)
   const [isEditEvidenceModalOpen, setIsEditEvidenceModalOpen] = useState(false)
   const [editingEvidence, setEditingEvidence] = useState<any>(null)
-  const [isAddCustodyModalOpen, setIsAddCustodyModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null)
   const [isHashVerifyModalOpen, setIsHashVerifyModalOpen] = useState(false)
   const [hashVerifyResult, setHashVerifyResult] = useState<{ isValid: boolean; evidenceName: string; hash?: string } | null>(null)
+  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false)
+  const [qrCodeEvidence, setQRCodeEvidence] = useState<{ id: string; number: string; label: string } | null>(null)
 
   // Fetch case details
   const { caseData, loading: caseLoading, error: caseError } = useCase(caseId)
 
   // Fetch related evidence
-  const { evidence, loading: evidenceLoading, error: evidenceError } = useEvidenceByCase(caseId)
+  const { evidence } = useEvidenceByCase(caseId)
 
   // Fetch parties
-  const { data: parties = [], isLoading: partiesLoading } = useParties(caseId)
+  const { data: parties = [] } = useParties(caseId)
   const { createParty, updateParty, deleteParty } = usePartyMutations(caseId)
 
   // Fetch assignments
-  const { data: assignments = [], isLoading: assignmentsLoading } = useAssignments(caseId)
-  const { data: availableUsers = [], isLoading: usersLoading } = useAvailableUsers()
+  const { data: assignments = [] } = useAssignments(caseId)
+  const { data: availableUsers = [] } = useAvailableUsers()
   const { assignUser, unassignUser } = useAssignmentMutations(caseId)
 
+  // Mock assignment data for UI testing
+  const mockAssignments = [
+    {
+      id: 'assign-1',
+      user_id: 'user-1',
+      user: {
+        id: 'user-1',
+        full_name: 'Jane Smith',
+        email: 'jane.smith@jctc.gov',
+        role: 'Senior Investigator',
+        org_unit: 'Cybercrime Division',
+      },
+      role: 'LEAD' as const,
+      assigned_at: '2025-01-10T08:00:00Z',
+    },
+    {
+      id: 'assign-2',
+      user_id: 'user-2',
+      user: {
+        id: 'user-2',
+        full_name: 'Michael Chen',
+        email: 'michael.chen@jctc.gov',
+        role: 'Digital Forensics Specialist',
+        org_unit: 'Forensics Lab',
+      },
+      role: 'SUPPORT' as const,
+      assigned_at: '2025-01-10T09:30:00Z',
+    },
+    {
+      id: 'assign-3',
+      user_id: 'user-3',
+      user: {
+        id: 'user-3',
+        full_name: 'Sarah Johnson',
+        email: 'sarah.johnson@prosecutor.gov',
+        role: 'Prosecutor',
+        org_unit: 'State Prosecution Office',
+      },
+      role: 'PROSECUTOR' as const,
+      assigned_at: '2025-01-12T14:00:00Z',
+    },
+    {
+      id: 'assign-4',
+      user_id: 'user-4',
+      user: {
+        id: 'user-4',
+        full_name: 'David Martinez',
+        email: 'david.martinez@jctc.gov',
+        role: 'International Liaison Officer',
+        org_unit: 'International Cooperation',
+      },
+      role: 'LIAISON' as const,
+      assigned_at: '2025-01-15T10:00:00Z',
+    },
+    {
+      id: 'assign-5',
+      user_id: 'user-5',
+      user: {
+        id: 'user-5',
+        full_name: 'Emma Wilson',
+        email: 'emma.wilson@jctc.gov',
+        role: 'Intelligence Analyst',
+        org_unit: 'Intelligence Unit',
+      },
+      role: 'SUPPORT' as const,
+      assigned_at: '2025-01-11T11:00:00Z',
+    },
+  ]
+
+  // Use mock assignments data for UI testing - bypass real API
+  const displayAssignments = mockAssignments
+
   // Fetch tasks
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks(caseId)
+  const { data: tasks = [] } = useTasks(caseId)
   const { createTask, updateTask, deleteTask } = useTaskMutations(caseId)
 
   // Fetch actions
-  const { data: actions = [], isLoading: actionsLoading } = useActionLog(caseId)
+  const { data: actions = [] } = useActionLog(caseId)
   const { addManualEntry } = useActionMutations(caseId)
 
+  // Mock timeline data for UI testing - only create when caseData exists
+  const timelineEvents = caseData ? [
+    { id: 1, type: 'created', title: 'Case Created', description: 'Case opened and assigned for investigation', timestamp: caseData.date_reported, user: 'System' },
+    { id: 2, type: 'evidence', title: 'Evidence Collected', description: 'Email server logs and transaction records secured', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 2).toISOString(), user: 'Jane Smith' },
+    { id: 3, type: 'update', title: 'Status Updated', description: 'Case status changed to Under Investigation', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 3).toISOString(), user: 'John Doe' },
+    { id: 4, type: 'evidence', title: 'Additional Evidence', description: 'Bank transaction records and IP logs added to case', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 5).toISOString(), user: 'Jane Smith' },
+    { id: 5, type: 'note', title: 'Investigation Note', description: 'Suspect identified. Preparing for arrest warrant', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 7).toISOString(), user: 'Lead Investigator' },
+  ] : []
+
   // Fetch evidence items (new detailed evidence management)
-  const { data: evidenceItems = [], isLoading: evidenceItemsLoading } = useEvidenceItems(caseId)
-  const { createEvidence, updateEvidence, deleteEvidence, generateQR, verifyHash } = useEvidenceItemMutations(caseId)
+  const { data: evidenceItems = [] } = useEvidenceItems(caseId)
+  const { createEvidence, updateEvidence, deleteEvidence, verifyHash } = useEvidenceItemMutations(caseId)
 
   // Selected evidence for chain of custody view
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null)
-  const { data: custodyEntries = [], isLoading: custodyLoading } = useChainOfCustody(selectedEvidenceId || '')
-  const { addCustodyEntry, approveEntry, rejectEntry, generateReceipt } = useCustodyMutations(selectedEvidenceId || '')
+  const selectedEvidence = evidenceItems.find(e => e.id === selectedEvidenceId)
+  const { data: custodyEntries = [] } = useChainOfCustody(selectedEvidenceId || '')
+  const { addCustodyEntry } = useCustodyMutations(selectedEvidenceId || '')
+  // const { addCustodyEntry, approveEntry, rejectEntry, generateReceipt } = useCustodyMutations(selectedEvidenceId || '')
 
   // Mock chain of custody data for evidence items (when API returns empty)
   const mockCustodyData = [
@@ -178,10 +261,356 @@ function CaseDetailContent() {
   const displayCustodyEntries = custodyEntries.length > 0 ? custodyEntries : mockCustodyData
 
   // Fetch seizures and devices
-  const { data: seizures = [], isLoading: seizuresLoading } = useSeizures(caseId)
-  const { createSeizure, updateSeizure, deleteSeizure } = useSeizureMutations(caseId)
-  const { data: devices = [], isLoading: devicesLoading } = useDevices(caseId)
-  const { createDevice, updateDevice, deleteDevice, linkDevice } = useDeviceMutations(caseId)
+  useSeizures(caseId)
+  // const { createSeizure, updateSeizure, deleteSeizure } = useSeizureMutations(caseId)
+  useDevices(caseId)
+  // const { createDevice, updateDevice, deleteDevice, linkDevice } = useDeviceMutations(caseId)
+
+  // Mock seizures data for UI testing
+  const mockSeizures = [
+    {
+      id: 'seizure-1',
+      case_id: caseId,
+      seizure_date: '2025-01-16T08:30:00Z',
+      seized_at: '2025-01-16T08:30:00Z',
+      location: 'ABC Corporation Headquarters, 123 Tech Street, Floor 3, Room 305',
+      seized_by: 'user-1',
+      seized_by_name: 'Jane Smith',
+      officer_id: 'user-1',
+      officer_name: 'Jane Smith',
+      warrant_number: 'WRT-2025-00147',
+      warrant_type: 'SEARCH_WARRANT' as const,
+      issuing_authority: 'District Court Judge Maria Rodriguez',
+      items_count: 8,
+      description: 'Execution of search warrant at suspect\'s workplace. Multiple digital devices and documents seized from cubicle and file cabinets.',
+      notes: 'All items photographed in situ before seizure. Chain of custody forms completed on-site. Building security footage preserved.',
+      status: 'COMPLETED' as const,
+      photos: [
+        { id: 'photo-1', url: '/evidence/seizure-1-photo-1.jpg', filename: 'cubicle_overview.jpg' },
+        { id: 'photo-2', url: '/evidence/seizure-1-photo-2.jpg', filename: 'laptop_in_situ.jpg' },
+        { id: 'photo-3', url: '/evidence/seizure-1-photo-3.jpg', filename: 'desk_items.jpg' },
+        { id: 'photo-4', url: '/evidence/seizure-1-photo-4.jpg', filename: 'filing_cabinet.jpg' },
+      ],
+      witnesses: ['Security Guard - Robert Martinez', 'HR Manager - Lisa Thompson'],
+      created_at: '2025-01-16T08:30:00Z',
+      updated_at: '2025-01-16T15:00:00Z',
+    },
+    {
+      id: 'seizure-2',
+      case_id: caseId,
+      seizure_date: '2025-01-18T14:00:00Z',
+      seized_at: '2025-01-18T14:00:00Z',
+      location: '456 Residential Ave, Apartment 12B, Suspect\'s Residence',
+      seized_by: 'user-1',
+      seized_by_name: 'Jane Smith',
+      officer_id: 'user-1',
+      officer_name: 'Jane Smith',
+      warrant_number: 'WRT-2025-00148',
+      warrant_type: 'SEARCH_WARRANT' as const,
+      issuing_authority: 'District Court Judge Thomas Williams',
+      items_count: 12,
+      description: 'Residential search warrant execution. Additional computing devices, storage media, and financial documents recovered.',
+      notes: 'Suspect not present during search. Landlord present as witness. Items inventoried and documented with detailed photographs.',
+      status: 'COMPLETED' as const,
+      photos: [
+        { id: 'photo-5', url: '/evidence/seizure-2-photo-1.jpg', filename: 'home_office.jpg' },
+        { id: 'photo-6', url: '/evidence/seizure-2-photo-2.jpg', filename: 'desktop_setup.jpg' },
+        { id: 'photo-7', url: '/evidence/seizure-2-photo-3.jpg', filename: 'storage_devices.jpg' },
+        { id: 'photo-8', url: '/evidence/seizure-2-photo-4.jpg', filename: 'documents_found.jpg' },
+        { id: 'photo-9', url: '/evidence/seizure-2-photo-5.jpg', filename: 'bedroom_tablet.jpg' },
+        { id: 'photo-10', url: '/evidence/seizure-2-photo-6.jpg', filename: 'evidence_bags.jpg' },
+      ],
+      witnesses: ['Landlord - Thomas Anderson', 'Neighbor - Maria Gonzalez'],
+      created_at: '2025-01-18T14:00:00Z',
+      updated_at: '2025-01-18T18:30:00Z',
+    },
+    {
+      id: 'seizure-3',
+      case_id: caseId,
+      seizure_date: '2025-01-20T10:30:00Z',
+      seized_at: '2025-01-20T10:30:00Z',
+      location: 'Cloud Storage Provider - Legal Compliance Office, 789 Data Center Blvd',
+      seized_by: 'user-2',
+      seized_by_name: 'Michael Chen',
+      officer_id: 'user-2',
+      officer_name: 'Michael Chen',
+      warrant_number: 'WRT-2025-00151',
+      warrant_type: 'PRODUCTION_ORDER' as const,
+      issuing_authority: 'District Court Judge Patricia Anderson',
+      items_count: 3,
+      description: 'Production order executed for cloud storage account data. Email communications, file metadata, and access logs obtained.',
+      notes: 'Data provided in encrypted format with decryption keys. Legal counsel for provider present during handover. 30-day preservation order remains active.',
+      status: 'COMPLETED' as const,
+      photos: [
+        { id: 'photo-11', url: '/evidence/seizure-3-photo-1.jpg', filename: 'handover_document.jpg' },
+        { id: 'photo-12', url: '/evidence/seizure-3-photo-2.jpg', filename: 'encrypted_drive.jpg' },
+      ],
+      witnesses: ['Legal Counsel - Jennifer Lee', 'Compliance Officer - David Park'],
+      created_at: '2025-01-20T10:30:00Z',
+      updated_at: '2025-01-20T16:00:00Z',
+    },
+  ]
+
+  // Use mock seizures data for UI testing - bypass real API
+  const displaySeizures = mockSeizures
+
+  // Mock devices data for UI testing
+  const mockDevices = [
+    {
+      id: 'device-1',
+      case_id: caseId,
+      seizure_id: 'seizure-1',
+      device_type: 'LAPTOP' as const,
+      make: 'Dell',
+      model: 'Latitude 5520',
+      serial_number: 'DL5520-2024-X7J9K3',
+      imei: null,
+      storage_capacity: '512GB SSD',
+      operating_system: 'Windows 11 Pro',
+      condition: 'GOOD' as const,
+      powered_on: false,
+      password_protected: true,
+      encryption_status: 'BITLOCKER' as const,
+      description: 'Primary work laptop found on suspect\'s desk. Contains business documents and email client.',
+      forensic_notes: 'Device imaged using write blocker. Full disk encryption detected. Acquisition completed successfully.',
+      status: 'ANALYZED' as const,
+      created_at: '2025-01-16T09:00:00Z',
+      updated_at: '2025-01-17T14:30:00Z',
+    },
+    {
+      id: 'device-2',
+      case_id: caseId,
+      seizure_id: 'seizure-1',
+      device_type: 'MOBILE_PHONE' as const,
+      make: 'Apple',
+      model: 'iPhone 14 Pro',
+      serial_number: 'FKWQ7N2PQR',
+      imei: '356789012345678',
+      storage_capacity: '256GB',
+      operating_system: 'iOS 17.2',
+      condition: 'EXCELLENT' as const,
+      powered_on: false,
+      password_protected: true,
+      encryption_status: 'ENCRYPTED' as const,
+      description: 'Personal smartphone found in desk drawer. Multiple encrypted messaging apps installed.',
+      forensic_notes: 'Device in airplane mode. SIM card removed and catalogued separately. Logical extraction attempted - partial success.',
+      status: 'IN_PROGRESS' as const,
+      created_at: '2025-01-16T09:15:00Z',
+      updated_at: '2025-01-22T10:00:00Z',
+    },
+    {
+      id: 'device-3',
+      case_id: caseId,
+      seizure_id: 'seizure-1',
+      device_type: 'EXTERNAL_STORAGE' as const,
+      make: 'Samsung',
+      model: 'T7 Portable SSD',
+      serial_number: 'S6XNNS0T123456',
+      imei: null,
+      storage_capacity: '1TB',
+      operating_system: null,
+      condition: 'GOOD' as const,
+      powered_on: false,
+      password_protected: false,
+      encryption_status: 'NONE' as const,
+      description: 'External SSD found connected to laptop via USB. Contains archived project files and backups.',
+      forensic_notes: 'No encryption detected. Full bit-by-bit image created. Contains deleted files recovered during analysis.',
+      status: 'ANALYZED' as const,
+      created_at: '2025-01-16T09:20:00Z',
+      updated_at: '2025-01-17T16:00:00Z',
+    },
+    {
+      id: 'device-4',
+      case_id: caseId,
+      seizure_id: 'seizure-2',
+      device_type: 'DESKTOP' as const,
+      make: 'Custom Built',
+      model: 'Gaming PC',
+      serial_number: 'N/A',
+      imei: null,
+      storage_capacity: '2TB NVMe + 4TB HDD',
+      operating_system: 'Windows 11 Home',
+      condition: 'EXCELLENT' as const,
+      powered_on: false,
+      password_protected: true,
+      encryption_status: 'PARTIAL' as const,
+      description: 'High-performance desktop computer from suspect\'s home office. Multiple storage drives installed.',
+      forensic_notes: 'System drive encrypted, data drives unencrypted. Evidence of file wiping software. RAM imaging performed.',
+      status: 'IN_PROGRESS' as const,
+      created_at: '2025-01-18T15:00:00Z',
+      updated_at: '2025-01-22T09:00:00Z',
+    },
+    {
+      id: 'device-5',
+      case_id: caseId,
+      seizure_id: 'seizure-2',
+      device_type: 'TABLET' as const,
+      make: 'Samsung',
+      model: 'Galaxy Tab S9',
+      serial_number: 'RF8T1234567',
+      imei: '352468098765432',
+      storage_capacity: '128GB',
+      operating_system: 'Android 14',
+      condition: 'GOOD' as const,
+      powered_on: false,
+      password_protected: true,
+      encryption_status: 'ENCRYPTED' as const,
+      description: 'Android tablet recovered from bedroom nightstand. Used for personal browsing and communication.',
+      forensic_notes: 'Device locked with pattern lock. ADB debugging disabled. Attempting alternative extraction methods.',
+      status: 'PENDING' as const,
+      created_at: '2025-01-18T15:30:00Z',
+      updated_at: '2025-01-18T15:30:00Z',
+    },
+    {
+      id: 'device-6',
+      case_id: caseId,
+      seizure_id: 'seizure-2',
+      device_type: 'USB_DRIVE' as const,
+      make: 'SanDisk',
+      model: 'Ultra Flair',
+      serial_number: '1234567890ABCD',
+      imei: null,
+      storage_capacity: '64GB',
+      operating_system: null,
+      condition: 'GOOD' as const,
+      powered_on: false,
+      password_protected: true,
+      encryption_status: 'ENCRYPTED' as const,
+      description: 'Encrypted USB flash drive found in desk drawer. Password-protected with BitLocker To Go.',
+      forensic_notes: 'Strong encryption detected. Attempting password recovery through suspect interview and related documents.',
+      status: 'PENDING' as const,
+      created_at: '2025-01-18T16:00:00Z',
+      updated_at: '2025-01-20T11:00:00Z',
+    },
+  ]
+
+  // Use mock devices data for UI testing - bypass real API
+  const displayDevices = mockDevices
+
+  // Mock attachments data (matches Attachment interface from useAttachments)
+  const mockAttachments = [
+    {
+      id: 'attach-1',
+      case_id: caseId,
+      title: 'Forensic Analysis Report - January 2025',
+      filename: 'Forensic_Analysis_Report_Jan2025.pdf',
+      file_type: 'application/pdf',
+      file_size: 2458624, // 2.4 MB
+      classification: 'LE_SENSITIVE' as const,
+      sha256_hash: 'a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890',
+      virus_scan_status: 'CLEAN' as const,
+      uploaded_by: 'Michael Chen',
+      uploaded_at: '2025-01-22T16:30:00Z',
+      notes: 'Comprehensive forensic analysis report covering all digital devices seized. Contains chat log extracts, timeline analysis, and financial traces.',
+    },
+    {
+      id: 'attach-2',
+      case_id: caseId,
+      title: 'Witness Statement - Security Guard',
+      filename: 'Witness_Statement_Robert_Martinez.docx',
+      file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      file_size: 156789, // 156 KB
+      classification: 'PRIVILEGED' as const,
+      sha256_hash: 'b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890ab',
+      virus_scan_status: 'CLEAN' as const,
+      uploaded_by: 'Jane Smith',
+      uploaded_at: '2025-01-17T09:15:00Z',
+      notes: 'Witness statement from Robert Martinez, building security guard present during seizure at ABC Corporation.',
+    },
+    {
+      id: 'attach-3',
+      case_id: caseId,
+      title: 'Crime Scene Photography Archive',
+      filename: 'Crime_Scene_Photos_ABC_Corp.zip',
+      file_type: 'application/zip',
+      file_size: 15728640, // 15 MB
+      classification: 'LE_SENSITIVE' as const,
+      sha256_hash: 'c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890abcd',
+      virus_scan_status: 'CLEAN' as const,
+      uploaded_by: 'Jane Smith',
+      uploaded_at: '2025-01-16T14:45:00Z',
+      notes: 'High-resolution photographs of crime scene at ABC Corporation workstation and surrounding area. 47 images total.',
+    },
+    {
+      id: 'attach-4',
+      case_id: caseId,
+      title: 'Bank Transaction Records Q4 2024',
+      filename: 'Bank_Transaction_Records_Q4_2024.xlsx',
+      file_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      file_size: 892456, // 892 KB
+      classification: 'PRIVILEGED' as const,
+      sha256_hash: 'd4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      virus_scan_status: 'CLEAN' as const,
+      uploaded_by: 'Emma Wilson',
+      uploaded_at: '2025-01-19T11:00:00Z',
+      notes: 'Detailed bank transaction records for suspect accounts obtained via production order. Shows suspicious patterns in October-December 2024.',
+    },
+  ]
+
+  // Mock collaboration data (matches Collaboration interface from useCollaborations)
+  const mockCollaborations = [
+    {
+      id: 'collab-1',
+      case_id: caseId,
+      partner_org: 'FBI',
+      partner_type: 'INTERNATIONAL' as const,
+      contact_person: 'Agent Sarah Mitchell',
+      contact_email: 'sarah.mitchell@ic.fbi.gov',
+      contact_phone: '+1-202-324-3000',
+      reference_no: 'FBI-IC-2025-0087',
+      scope: 'Cross-border financial fraud investigation. FBI Cyber Division providing intelligence on related cases in the United States. Information sharing under mutual legal assistance framework.',
+      mou_reference: 'MOU-JCTC-FBI-2024-003',
+      status: 'ACTIVE' as const,
+      initiated_at: '2025-01-18T10:00:00Z',
+      notes: 'Weekly coordination calls scheduled every Friday 14:00 GMT. Primary contact: Cyber Division, International Operations Unit.',
+    },
+    {
+      id: 'collab-2',
+      case_id: caseId,
+      partner_org: 'EUROPOL',
+      partner_type: 'INTERNATIONAL' as const,
+      contact_person: 'Inspector Lars Andersson',
+      contact_email: 'lars.andersson@europol.europa.eu',
+      contact_phone: '+31-70-302-5000',
+      reference_no: 'EC3-2025-0234',
+      scope: 'Joint investigation into international cybercrime network operating across EU and West Africa. Europol EC3 coordinating with multiple EU member states. Formal MLA request submitted.',
+      mou_reference: 'EUROPOL-JCTC-Framework-2023',
+      status: 'ACTIVE' as const,
+      initiated_at: '2025-01-20T09:30:00Z',
+      notes: 'Active joint investigation team (JIT) established. Evidence sharing through SIENA platform.',
+    },
+    {
+      id: 'collab-3',
+      case_id: caseId,
+      partner_org: 'NCA_UK',
+      partner_type: 'INTERNATIONAL' as const,
+      contact_person: 'Detective Inspector James Cooper',
+      contact_email: 'james.cooper@nca.gov.uk',
+      contact_phone: '+44-370-496-7622',
+      reference_no: 'NCA-CYBER-2025-0156',
+      scope: 'Evidence exchange request for server logs hosted in London data center. Metropolitan Police Cyber Crime Unit assisting with physical evidence collection. Requires UK Home Office approval.',
+      mou_reference: 'MOU-JCTC-NCA-2024-008',
+      status: 'INITIATED' as const,
+      initiated_at: '2025-01-22T11:00:00Z',
+      notes: 'Awaiting UK Home Office approval. Estimated timeline: 2-3 weeks. Expedited request submitted due to data preservation concerns.',
+    },
+    {
+      id: 'collab-4',
+      case_id: caseId,
+      partner_org: 'INTERPOL',
+      partner_type: 'INTERNATIONAL' as const,
+      contact_person: 'Officer Wei Zhang',
+      contact_email: 'w.zhang@interpol.int',
+      contact_phone: '+65-6550-2200',
+      reference_no: 'INTERPOL-RN-2025-0089',
+      scope: 'Red Notice request processed for primary suspect with international travel history. Notice distributed to all 195 member countries. Subject has known connections to Singapore and Malaysia.',
+      mou_reference: 'INTERPOL-JCTC-Framework-Agreement',
+      status: 'COMPLETED' as const,
+      initiated_at: '2025-01-12T08:00:00Z',
+      completed_at: '2025-01-16T15:30:00Z',
+      notes: 'Red Notice successfully published. INTERPOL reference: A-0089/1-2025. All border agencies notified.',
+    },
+  ]
 
   // Edit case modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -231,14 +660,7 @@ function CaseDetailContent() {
     return map[severity] || map[3]
   }
 
-  // Mock timeline data
-  const timelineEvents = [
-    { id: 1, type: 'created', title: 'Case Created', description: 'Case opened and assigned for investigation', timestamp: caseData.date_reported, user: 'System' },
-    { id: 2, type: 'evidence', title: 'Evidence Collected', description: 'Email server logs and transaction records secured', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 2).toISOString(), user: 'Jane Smith' },
-    { id: 3, type: 'update', title: 'Status Updated', description: 'Case status changed to Under Investigation', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 3).toISOString(), user: 'John Doe' },
-    { id: 4, type: 'evidence', title: 'Additional Evidence', description: 'Bank transaction records and IP logs added to case', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 5).toISOString(), user: 'Jane Smith' },
-    { id: 5, type: 'note', title: 'Investigation Note', description: 'Suspect identified. Preparing for arrest warrant', timestamp: new Date(new Date(caseData.date_reported).getTime() + 86400000 * 7).toISOString(), user: 'Lead Investigator' },
-  ]
+
 
   // Mock chain of custody data
   const mockChainOfCustody = [
@@ -299,19 +721,6 @@ function CaseDetailContent() {
     },
   ]
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'SECURE':
-        return { variant: 'success' as const, label: 'Secure' }
-      case 'IN_TRANSIT':
-        return { variant: 'warning' as const, label: 'In Transit' }
-      case 'COMPROMISED':
-        return { variant: 'critical' as const, label: 'Compromised' }
-      default:
-        return { variant: 'default' as const, label: status }
-    }
-  }
-
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'DIGITAL':
@@ -363,7 +772,7 @@ function CaseDetailContent() {
           onSectionChange={setActiveTab}
           stats={{
             evidenceCount: evidenceItems.length,
-            taskCount: tasks.filter(t => t.status !== 'COMPLETED').length,
+            taskCount: tasks.filter(t => t.status !== 'DONE').length,
             teamCount: assignments.length
           }}
           className="flex-shrink-0"
@@ -423,7 +832,7 @@ function CaseDetailContent() {
                           Date Reported
                         </label>
                         <p className="text-neutral-900">
-                          {new Date(caseData.date_reported).toLocaleDateString()}
+                          {caseData ? new Date(caseData.date_reported).toLocaleDateString() : 'Loading...'}
                         </p>
                       </div>
                       <div>
@@ -512,46 +921,19 @@ function CaseDetailContent() {
                 setDeletingEvidenceId(id)
                 setIsDeleteModalOpen(true)
               }}
+              onView={(item) => {
+                setSelectedEvidenceId(item.id)
+                setIsDrawerOpen(true)
+              }}
               onGenerateQR={async (id) => {
-                try {
-                  const qrCode = await generateQR(id)
-                  const evidence = evidenceItems.find(e => e.id === id)
-                  // Open QR code in new window for printing
-                  const printWindow = window.open('', '_blank')
-                  if (printWindow) {
-                    printWindow.document.write(`
-                      <html>
-                        <head>
-                          <title>Evidence QR Code</title>
-                          <style>
-                            body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background: linear-gradient(to br, #f8fafc, #e0e7ff); }
-                            .qr-container { text-align: center; background: white; padding: 3rem; border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
-                            img { width: 300px; height: 300px; border: 4px solid #3b82f6; border-radius: 1rem; margin-bottom: 1.5rem; }
-                            h2 { color: #1e293b; margin-bottom: 0.5rem; font-size: 1.5rem; }
-                            p { color: #64748b; margin-bottom: 1.5rem; }
-                            button { background: linear-gradient(to right, #3b82f6, #6366f1); color: white; border: none; padding: 0.75rem 2rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; font-size: 1rem; }
-                            button:hover { opacity: 0.9; }
-                            @media print { button { display: none; } }
-                          </style>
-                        </head>
-                        <body>
-                          <div class="qr-container">
-                            <h2>Evidence QR Code</h2>
-                            <p>${evidence?.evidence_number || 'Unknown'}</p>
-                            <img src="${qrCode}" alt="Evidence QR Code" />
-                            <p><strong>${evidence?.label || 'Evidence Item'}</strong></p>
-                            <button onclick="window.print()">🖨️ Print Label</button>
-                          </div>
-                        </body>
-                      </html>
-                    `)
-                    printWindow.document.close()
-                  }
-                  return qrCode
-                } catch (error) {
-                  console.error('Error generating QR code:', error)
-                  alert('Failed to generate QR code')
-                  return ''
+                const evidence = evidenceItems.find(e => e.id === id)
+                if (evidence) {
+                  setQRCodeEvidence({
+                    id: evidence.id,
+                    number: evidence.evidence_number || 'Unknown',
+                    label: evidence.label || 'Evidence Item'
+                  })
+                  setIsQRCodeModalOpen(true)
                 }
               }}
               onVerifyHash={async (id) => {
@@ -566,7 +948,7 @@ function CaseDetailContent() {
                 return isValid
               }}
               custodyEntries={displayCustodyEntries}
-              onAddCustodyEntry={() => setIsAddCustodyModalOpen(true)}
+              onAddCustodyEntry={() => setShowChainOfCustodyForm(true)}
             />
           </div>
         )}
@@ -593,8 +975,8 @@ function CaseDetailContent() {
           <div>
             <AssignmentManager
               caseId={caseId}
-              assignments={assignments}
-              availableUsers={availableUsers}
+              assignments={displayAssignments}
+              availableUsers={displayAssignments.map(a => a.user)} // Use mock users
               onAssign={async (userId, role) => {
                 await assignUser(userId, role)
               }}
@@ -642,7 +1024,7 @@ function CaseDetailContent() {
             <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500"></div>
             
             <div className="space-y-8">
-              {timelineEvents.map((event, index) => (
+              {timelineEvents.map((event) => (
                 <div key={event.id} className="relative pl-16">
                   {/* Timeline Node */}
                   <div className="absolute left-0 flex items-center justify-center">
@@ -700,13 +1082,13 @@ function CaseDetailContent() {
 
         {activeTab === 'seizures' && (
           <div>
-            <SeizureManager caseId={caseId} />
+            <SeizureManager caseId={caseId} seizures={displaySeizures} />
           </div>
         )}
 
         {activeTab === 'devices' && (
           <div>
-            <DeviceInventory caseId={caseId} />
+            <DeviceInventory caseId={caseId} devices={displayDevices} seizures={displaySeizures} />
           </div>
         )}
 
@@ -739,13 +1121,13 @@ function CaseDetailContent() {
 
         {activeTab === 'attachments' && (
           <div>
-            <AttachmentManager caseId={caseId} />
+            <AttachmentManager caseId={caseId} attachments={mockAttachments} />
           </div>
         )}
 
         {activeTab === 'collaboration' && (
           <div>
-            <CollaborationManager caseId={caseId} />
+            <CollaborationManager caseId={caseId} collaborations={mockCollaborations} />
           </div>
         )}
         </div>
@@ -776,18 +1158,11 @@ function CaseDetailContent() {
                       <h2 className="text-2xl font-bold text-slate-900">{selectedEvidence.evidence_number}</h2>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          selectedEvidence.type === 'DIGITAL' ? 'bg-blue-100 text-blue-700' :
-                          selectedEvidence.type === 'PHYSICAL' ? 'bg-purple-100 text-purple-700' :
+                          selectedEvidence.category === 'DIGITAL' ? 'bg-blue-100 text-blue-700' :
+                          selectedEvidence.category === 'PHYSICAL' ? 'bg-purple-100 text-purple-700' :
                           'bg-amber-100 text-amber-700'
                         }`}>
-                          {getTypeBadge(selectedEvidence.type).label}
-                        </span>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          selectedEvidence.chain_of_custody_status === 'SECURE' ? 'bg-green-100 text-green-700' :
-                          selectedEvidence.chain_of_custody_status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {getStatusBadge(selectedEvidence.chain_of_custody_status).label}
+                          {getTypeBadge(selectedEvidence.category).label}
                         </span>
                       </div>
                     </div>
@@ -823,21 +1198,7 @@ function CaseDetailContent() {
                     </div>
                     <div>
                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Type</p>
-                      <p className="text-base font-bold text-slate-900">{getTypeBadge(selectedEvidence.type).label}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-emerald-100 rounded-lg">
-                      <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Status</p>
-                      <p className="text-base font-bold text-slate-900">{getStatusBadge(selectedEvidence.chain_of_custody_status).label}</p>
+                      <p className="text-base font-bold text-slate-900">{getTypeBadge(selectedEvidence.category).label}</p>
                     </div>
                   </div>
                 </div>
@@ -852,7 +1213,7 @@ function CaseDetailContent() {
                     <div>
                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected</p>
                       <p className="text-base font-bold text-slate-900">
-                        {new Date(selectedEvidence.collected_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(selectedEvidence.collected_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                   </div>
@@ -936,7 +1297,7 @@ function CaseDetailContent() {
                       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500"></div>
                       
                       <div className="space-y-6">
-                        {mockChainOfCustody.map((record, index) => {
+                        {mockChainOfCustody.map((record) => {
                           const actionColors = {
                             COLLECTED: 'from-emerald-500 to-emerald-600',
                             TRANSFERRED: 'from-blue-500 to-blue-600',
@@ -1225,51 +1586,68 @@ function CaseDetailContent() {
         />
       )}
 
-      {/* Add Evidence Modal - TODO: Implement premium modal */}
-      {isAddEvidenceModalOpen && (
-        <>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50" onClick={() => setIsAddEvidenceModalOpen(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md">
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Add Evidence</h2>
-                <p className="text-slate-600 mb-6">Feature coming soon - evidence modal will be implemented here</p>
-                <Button onClick={() => setIsAddEvidenceModalOpen(false)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
+      {/* Add/Edit Evidence Modal */}
+      <EvidenceFormModal
+        isOpen={isAddEvidenceModalOpen || isEditEvidenceModalOpen}
+        onClose={() => {
+          setIsAddEvidenceModalOpen(false)
+          setIsEditEvidenceModalOpen(false)
+          setEditingEvidence(null)
+        }}
+        onSubmit={async (evidence) => {
+          if (editingEvidence) {
+            await updateEvidence(editingEvidence.id, evidence)
+          } else {
+            await createEvidence(evidence)
+          }
+          setEditingEvidence(null)
+        }}
+        editingEvidence={editingEvidence}
+      />
+
+      {/* QR Code Modal */}
+      {qrCodeEvidence && (
+        <QRCodeModal
+          isOpen={isQRCodeModalOpen}
+          onClose={() => {
+            setIsQRCodeModalOpen(false)
+            setQRCodeEvidence(null)
+          }}
+          evidenceNumber={qrCodeEvidence.number}
+          evidenceLabel={qrCodeEvidence.label}
+          evidenceId={qrCodeEvidence.id}
+        />
       )}
 
-      {/* Edit Evidence Modal - TODO: Implement premium modal */}
-      {isEditEvidenceModalOpen && editingEvidence && (
-        <>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50" onClick={() => { setIsEditEvidenceModalOpen(false); setEditingEvidence(null); }} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md">
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Edit Evidence</h2>
-                <p className="text-slate-600 mb-2">Editing: <span className="font-semibold text-slate-900">{editingEvidence.label}</span></p>
-                <p className="text-slate-500 text-sm mb-6">Feature coming soon - edit modal will be implemented here</p>
-                <Button onClick={() => { setIsEditEvidenceModalOpen(false); setEditingEvidence(null); }} className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
+      {/* Chain of Custody Form Modal */}
+      {showChainOfCustodyForm && (
+        <ChainOfCustodyForm
+          opened={showChainOfCustodyForm}
+          onClose={() => setShowChainOfCustodyForm(false)}
+          evidenceId={selectedEvidenceId || ''}
+          evidenceNumber={selectedEvidence?.evidence_number || ''}
+          currentCustodian={selectedEvidence?.collected_by}
+          currentLocation={selectedEvidence?.storage_location}
+          availableUsers={availableUsers.map(u => ({ id: u.id, name: u.full_name, role: u.role }))}
+          onSubmit={async (data) => {
+            const toUser = availableUsers.find(u => u.id === data.custodian_to)
+            const fromUser = availableUsers.find(u => u.id === data.custodian_from)
+            
+            await addCustodyEntry({
+              action: data.action,
+              to_person: data.custodian_to || '',
+              to_person_name: toUser ? toUser.full_name : 'Unknown',
+              from_person: data.custodian_from,
+              from_person_name: fromUser ? fromUser.full_name : undefined,
+              location: data.location_to || '',
+              purpose: data.purpose,
+              notes: data.notes,
+              signature_verified: data.signature_verified,
+              requires_approval: data.requires_approval
+            })
+            setShowChainOfCustodyForm(false)
+          }}
+        />
       )}
     </DashboardLayout>
   )

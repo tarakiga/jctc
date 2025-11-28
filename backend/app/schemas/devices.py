@@ -10,7 +10,10 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 from uuid import UUID
 
-from app.models import ImagingStatus, DeviceType, ArtefactType, CustodyStatus
+from app.models import (
+    ImagingStatus, DeviceType, ArtefactType, CustodyStatus,
+    WarrantType, SeizureStatus, DeviceCondition, EncryptionStatus, AnalysisStatus
+)
 
 
 # ==================== SEIZURE SCHEMAS ====================
@@ -21,6 +24,20 @@ class SeizureBase(BaseModel):
     location: str = Field(..., min_length=1, max_length=500, description="Location of seizure")
     officer_id: Optional[UUID] = Field(None, description="ID of seizing officer")
     notes: Optional[str] = Field(None, max_length=2000, description="Additional notes about seizure")
+    
+    # Warrant and legal information
+    warrant_number: Optional[str] = Field(None, max_length=100, description="Warrant/court order number")
+    warrant_type: Optional[WarrantType] = Field(None, description="Type of legal authorization")
+    issuing_authority: Optional[str] = Field(None, max_length=255, description="Authority that issued the warrant")
+    
+    # Seizure details
+    description: Optional[str] = Field(None, max_length=5000, description="Detailed description of seizure")
+    items_count: Optional[int] = Field(None, ge=0, description="Total number of items seized")
+    status: Optional[SeizureStatus] = Field(SeizureStatus.COMPLETED, description="Current status of seizure")
+    
+    # Documentation
+    witnesses: Optional[List[Dict[str, Any]]] = Field(None, description="List of witnesses present during seizure")
+    photos: Optional[List[Dict[str, Any]]] = Field(None, description="Photos taken during seizure")
 
 
 class SeizureCreate(SeizureBase):
@@ -34,6 +51,14 @@ class SeizureUpdate(BaseModel):
     location: Optional[str] = Field(None, min_length=1, max_length=500)
     officer_id: Optional[UUID] = None
     notes: Optional[str] = Field(None, max_length=2000)
+    warrant_number: Optional[str] = Field(None, max_length=100)
+    warrant_type: Optional[WarrantType] = None
+    issuing_authority: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=5000)
+    items_count: Optional[int] = Field(None, ge=0)
+    status: Optional[SeizureStatus] = None
+    witnesses: Optional[List[Dict[str, Any]]] = None
+    photos: Optional[List[Dict[str, Any]]] = None
 
 
 class SeizureResponse(SeizureBase):
@@ -67,6 +92,22 @@ class DeviceBase(BaseModel):
     model: Optional[str] = Field(None, max_length=100, description="Device model")
     serial_no: Optional[str] = Field(None, max_length=200, description="Serial number")
     imei: Optional[str] = Field(None, max_length=20, description="IMEI number for mobile devices")
+    
+    # Physical device characteristics
+    storage_capacity: Optional[str] = Field(None, max_length=100, description="Storage capacity (e.g., '512GB SSD')")
+    operating_system: Optional[str] = Field(None, max_length=100, description="Operating system and version")
+    condition: Optional[DeviceCondition] = Field(None, description="Physical condition of device")
+    description: Optional[str] = Field(None, max_length=2000, description="General description of device and context")
+    
+    # Security and state at seizure
+    powered_on: Optional[bool] = Field(False, description="Whether device was powered on when seized")
+    password_protected: Optional[bool] = Field(False, description="Whether device is password protected")
+    encryption_status: Optional[EncryptionStatus] = Field(EncryptionStatus.UNKNOWN, description="Encryption status")
+    
+    # Analysis
+    status: Optional[AnalysisStatus] = Field(AnalysisStatus.PENDING, description="Analysis status")
+    forensic_notes: Optional[str] = Field(None, max_length=5000, description="Detailed forensic analysis notes")
+    
     current_location: Optional[str] = Field(None, max_length=500, description="Current physical location")
     notes: Optional[str] = Field(None, max_length=2000, description="Additional notes")
 
@@ -84,6 +125,15 @@ class DeviceUpdate(BaseModel):
     model: Optional[str] = Field(None, max_length=100)
     serial_no: Optional[str] = Field(None, max_length=200)
     imei: Optional[str] = Field(None, max_length=20)
+    storage_capacity: Optional[str] = Field(None, max_length=100)
+    operating_system: Optional[str] = Field(None, max_length=100)
+    condition: Optional[DeviceCondition] = None
+    description: Optional[str] = Field(None, max_length=2000)
+    powered_on: Optional[bool] = None
+    password_protected: Optional[bool] = None
+    encryption_status: Optional[EncryptionStatus] = None
+    status: Optional[AnalysisStatus] = None
+    forensic_notes: Optional[str] = Field(None, max_length=5000)
     current_location: Optional[str] = Field(None, max_length=500)
     notes: Optional[str] = Field(None, max_length=2000)
 
@@ -96,6 +146,7 @@ class DeviceLinkRequest(BaseModel):
 class DeviceResponse(DeviceBase):
     """Response schema for device information."""
     id: UUID
+    case_id: Optional[UUID] = Field(None, description="Direct case reference")
     seizure_id: UUID
     imaged: bool = Field(description="Whether device has been successfully imaged")
     imaging_status: ImagingStatus = Field(description="Current imaging status")
@@ -105,7 +156,7 @@ class DeviceResponse(DeviceBase):
     image_hash: Optional[str] = Field(None, description="Hash of the forensic image")
     image_size_bytes: Optional[int] = Field(None, description="Size of image in bytes")
     imaging_technician_id: Optional[UUID] = Field(None, description="ID of imaging technician")
-    forensic_notes: Optional[str] = Field(None, description="Forensic analysis notes")
+    custody_status: Optional[CustodyStatus] = Field(None, description="Current custody status")
     created_at: datetime
     updated_at: datetime
     

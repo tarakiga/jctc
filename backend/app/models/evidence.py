@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean, Integer, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 import enum
@@ -47,16 +47,54 @@ class ImagingStatus(str, enum.Enum):
 
 
 class DeviceType(str, enum.Enum):
-    MOBILE_PHONE = "MOBILE_PHONE"
-    COMPUTER = "COMPUTER"
     LAPTOP = "LAPTOP"
+    DESKTOP = "DESKTOP"
+    MOBILE_PHONE = "MOBILE_PHONE"
     TABLET = "TABLET"
-    HARD_DRIVE = "HARD_DRIVE"
+    EXTERNAL_STORAGE = "EXTERNAL_STORAGE"
     USB_DRIVE = "USB_DRIVE"
-    SD_CARD = "SD_CARD"
-    SIM_CARD = "SIM_CARD"
-    ROUTER = "ROUTER"
+    MEMORY_CARD = "MEMORY_CARD"
+    SERVER = "SERVER"
+    NETWORK_DEVICE = "NETWORK_DEVICE"
     OTHER = "OTHER"
+
+
+class WarrantType(str, enum.Enum):
+    SEARCH_WARRANT = "SEARCH_WARRANT"
+    PRODUCTION_ORDER = "PRODUCTION_ORDER"
+    COURT_ORDER = "COURT_ORDER"
+    SEIZURE_ORDER = "SEIZURE_ORDER"
+
+
+class SeizureStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    DISPUTED = "DISPUTED"
+    RETURNED = "RETURNED"
+
+
+class DeviceCondition(str, enum.Enum):
+    EXCELLENT = "EXCELLENT"
+    GOOD = "GOOD"
+    FAIR = "FAIR"
+    POOR = "POOR"
+    DAMAGED = "DAMAGED"
+
+
+class EncryptionStatus(str, enum.Enum):
+    NONE = "NONE"
+    ENCRYPTED = "ENCRYPTED"
+    BITLOCKER = "BITLOCKER"
+    FILEVAULT = "FILEVAULT"
+    PARTIAL = "PARTIAL"
+    UNKNOWN = "UNKNOWN"
+
+
+class AnalysisStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    ANALYZED = "ANALYZED"
+    BLOCKED = "BLOCKED"
 
 
 class Seizure(BaseModel):
@@ -68,6 +106,20 @@ class Seizure(BaseModel):
     officer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     notes = Column(Text)
     
+    # Warrant and legal information
+    warrant_number = Column(String(100))
+    warrant_type = Column(SQLEnum(WarrantType))
+    issuing_authority = Column(String(255))
+    
+    # Seizure details
+    description = Column(Text)
+    items_count = Column(Integer)
+    status = Column(SQLEnum(SeizureStatus), default=SeizureStatus.COMPLETED)
+    
+    # Documentation
+    witnesses = Column(JSONB)  # Array of witness names/details
+    photos = Column(JSONB)  # Array of photo metadata {id, url, filename}
+    
     # Relationships
     case = relationship("Case", back_populates="seizures")
     officer = relationship("User")
@@ -77,6 +129,7 @@ class Seizure(BaseModel):
 class Device(BaseModel):
     __tablename__ = "devices"
     
+    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"))  # Direct case reference
     seizure_id = Column(UUID(as_uuid=True), ForeignKey("seizures.id", ondelete="CASCADE"), nullable=False)
     label = Column(String(255))
     device_type = Column(SQLEnum(DeviceType), default=DeviceType.OTHER)
@@ -84,6 +137,17 @@ class Device(BaseModel):
     model = Column(String(100))
     serial_no = Column(String(100))
     imei = Column(String(20))
+    
+    # Physical device characteristics
+    storage_capacity = Column(String(100))  # e.g., "512GB SSD", "256GB"
+    operating_system = Column(String(100))  # e.g., "Windows 11 Pro", "iOS 17.2"
+    condition = Column(SQLEnum(DeviceCondition))
+    description = Column(Text)  # General description of device and seizure context
+    
+    # Security and state at seizure
+    powered_on = Column(Boolean, default=False)
+    password_protected = Column(Boolean, default=False)
+    encryption_status = Column(SQLEnum(EncryptionStatus), default=EncryptionStatus.UNKNOWN)
     
     # Imaging and forensic fields
     imaged = Column(Boolean, default=False)
@@ -96,13 +160,18 @@ class Device(BaseModel):
     image_size_bytes = Column(String(50))
     imaging_technician_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     
+    # Analysis
+    status = Column(SQLEnum(AnalysisStatus), default=AnalysisStatus.PENDING)
+    forensic_notes = Column(Text)  # Detailed forensic analysis notes
+    
     # Device status and custody
     custody_status = Column(SQLEnum(CustodyStatus), default=CustodyStatus.IN_VAULT)
     current_location = Column(String(255))
-    analysis_notes = Column(Text)
-    notes = Column(Text)
+    analysis_notes = Column(Text)  # Deprecated - use forensic_notes
+    notes = Column(Text)  # General notes
     
     # Relationships
+    case = relationship("Case", foreign_keys=[case_id])
     seizure = relationship("Seizure", back_populates="devices")
     imaging_technician = relationship("User", foreign_keys=[imaging_technician_id])
     artefacts = relationship("Artefact", back_populates="device", cascade="all, delete-orphan")

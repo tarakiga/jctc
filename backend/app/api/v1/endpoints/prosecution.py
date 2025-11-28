@@ -14,11 +14,11 @@ from uuid import UUID
 from datetime import datetime, date
 
 from app.core.deps import get_db, get_current_user
-from app.core.permissions import check_case_access, require_roles
 from app.models import (
     Case, Charge, CourtSession, Outcome, User, 
     ChargeStatus, Disposition
 )
+from app.models.user import UserRole
 from app.schemas.prosecution import (
     ChargeCreate, ChargeUpdate, ChargeResponse,
     CourtSessionCreate, CourtSessionUpdate, CourtSessionResponse,
@@ -30,6 +30,58 @@ from app.utils.audit_integration import (
 )
 
 router = APIRouter(prefix="/prosecution", tags=["prosecution"])
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+def require_roles(current_user: User, allowed_roles: list) -> None:
+    """
+    Check if user's role is in the list of allowed roles.
+    Raises HTTPException if not authorized.
+    
+    Args:
+        current_user: The authenticated user
+        allowed_roles: List of role names that are allowed
+    """
+    # Handle both enum and string role values
+    role_value = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if role_value.upper() not in [r.upper() for r in allowed_roles]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Required roles: {allowed_roles}"
+        )
+
+
+def check_case_access(db: Session, case_id, current_user: User):
+    """
+    Check if user has access to a specific case.
+    Returns the case if accessible, None otherwise.
+    """
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        return None
+    
+    # Admins have access to all cases
+    role_value = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if role_value.upper() == "ADMIN":
+        return case
+    
+    # Supervisors have access to all cases
+    if role_value.upper() == "SUPERVISOR":
+        return case
+    
+    # Check if user is assigned to the case
+    if hasattr(case, 'assigned_officer_id') and case.assigned_officer_id == current_user.id:
+        return case
+    
+    # Allow prosecution-related roles
+    allowed_roles = ["INVESTIGATOR", "PROSECUTOR", "FORENSIC", "INTAKE", "LIAISON"]
+    if role_value.upper() in allowed_roles:
+        return case
+    
+    return None
 
 
 # ==================== CHARGE MANAGEMENT APIs ====================

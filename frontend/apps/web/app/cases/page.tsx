@@ -2,18 +2,16 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Button, Input, Card, Badge } from '@jctc/ui'
-import { useAuth } from '@/lib/contexts/AuthContext'
+import { Button } from '@jctc/ui'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
-import { CaseStatus } from '@jctc/types'
-import { useCases } from '@/lib/hooks/useCases'
+import { useCases, useCaseMutations } from '@/lib/hooks/useCases'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { CreateCaseData } from '@/lib/services/cases'
 
 type SortField = 'case_number' | 'date_reported' | 'severity' | 'status'
 type SortOrder = 'asc' | 'desc'
 
 function CasesContent() {
-  const { user, logout } = useAuth()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [severityFilter, setSeverityFilter] = useState<string>('all')
@@ -137,11 +135,92 @@ function CasesContent() {
     }
   }
   
-  const handleSubmit = () => {
-    // TODO: Implement API call to create case
-    console.log('Creating case:', formData)
-    handleModalClose()
-    refetch()
+  // Form validation state
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Case mutations hook
+  const { createCase } = useCaseMutations()
+
+  // Validate form fields
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {}
+    
+    if (!formData.title.trim()) {
+      errors.title = 'Case title is required'
+    } else if (formData.title.length < 5) {
+      errors.title = 'Title must be at least 5 characters'
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required'
+    } else if (formData.description.length < 10) {
+      errors.description = 'Description must be at least 10 characters'
+    }
+    
+    if (formData.reporter_type !== 'ANONYMOUS' && !formData.reporter_name.trim()) {
+      errors.reporter_name = 'Reporter name is required for non-anonymous reports'
+    }
+    
+    if (formData.reporter_contact.email && !formData.reporter_contact.email.includes('@')) {
+      errors.reporter_email = 'Invalid email format'
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSubmit = async () => {
+    // Validate form
+    if (!validateForm()) {
+      console.error('Form validation failed:', formErrors)
+      return
+    }
+    
+    setIsSubmitting(true)
+    setSubmitError(null)
+    
+    try {
+      // Transform form data to API format
+      const apiData: CreateCaseData = {
+        title: formData.title,
+        description: formData.description,
+        severity: formData.severity,
+        local_or_international: formData.local_or_international as 'LOCAL' | 'INTERNATIONAL',
+        originating_country: formData.originating_country || 'NG',
+        cooperating_countries: formData.cooperating_countries,
+        // Intake fields
+        intake_channel: formData.intake_channel as any,
+        risk_flags: formData.risk_flags,
+        platforms_implicated: formData.platforms_implicated,
+        lga_state_location: formData.lga_state_location || undefined,
+        incident_datetime: formData.incident_datetime || undefined,
+        // Reporter fields
+        reporter_type: formData.reporter_type as any,
+        reporter_name: formData.reporter_name || undefined,
+        reporter_contact: (formData.reporter_contact.phone || formData.reporter_contact.email) 
+          ? formData.reporter_contact 
+          : undefined,
+      }
+      
+      console.log('Submitting case to API:', apiData)
+      
+      const result = await createCase(apiData)
+      
+      if (result) {
+        console.log('Case created successfully:', result)
+        handleModalClose()
+        refetch()
+      } else {
+        setSubmitError('Failed to create case. Please try again.')
+      }
+    } catch (err) {
+      console.error('Error creating case:', err)
+      setSubmitError(err instanceof Error ? err.message : 'An unexpected error occurred')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Helper functions for multi-select fields
@@ -215,15 +294,6 @@ function CasesContent() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortOrder('asc')
-    }
-  }
 
   const getSeverityBadge = (severity: number) => {
     const map: Record<number, { variant: any; label: string }> = {
@@ -685,6 +755,21 @@ function CasesContent() {
 
               {/* Modal Content */}
               <div className="px-8 py-8 max-h-[60vh] overflow-y-auto">
+                {/* Submit Error Alert */}
+                {submitError && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="font-semibold text-red-800">Error Creating Case</h4>
+                        <p className="text-sm text-red-700 mt-1">{submitError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Step 1: Case Information */}
                 {modalStep === 1 && (
                   <div className="space-y-6">
@@ -695,10 +780,20 @@ function CasesContent() {
                       <input
                         type="text"
                         value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, title: e.target.value })
+                          if (formErrors.title) {
+                            setFormErrors({ ...formErrors, title: '' })
+                          }
+                        }}
                         placeholder="Enter a descriptive case title"
-                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all ${
+                          formErrors.title ? 'border-red-500 bg-red-50' : 'border-slate-300'
+                        }`}
                       />
+                      {formErrors.title && (
+                        <p className="mt-1 text-sm text-red-600">{formErrors.title}</p>
+                      )}
                     </div>
 
                     <div>
@@ -707,11 +802,21 @@ function CasesContent() {
                       </label>
                       <textarea
                         value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, description: e.target.value })
+                          if (formErrors.description) {
+                            setFormErrors({ ...formErrors, description: '' })
+                          }
+                        }}
                         placeholder="Provide detailed information about the case"
                         rows={4}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all resize-none"
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all resize-none ${
+                          formErrors.description ? 'border-red-500 bg-red-50' : 'border-slate-300'
+                        }`}
                       />
+                      {formErrors.description && (
+                        <p className="mt-1 text-sm text-red-600">{formErrors.description}</p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
@@ -1187,13 +1292,25 @@ function CasesContent() {
                   ) : (
                     <Button
                       onClick={handleSubmit}
-                      disabled={!formData.title || !formData.description}
+                      disabled={!formData.title || !formData.description || isSubmitting}
                       className="bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/20"
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Create Case
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Create Case
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>

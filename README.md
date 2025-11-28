@@ -111,7 +111,17 @@ To run both backend and frontend together:
 
 4. **Access the application:**
    - Web Application: http://localhost:3000
-   - Login with default credentials (if backend has seed data)
+
+### Test Login Credentials
+
+For development and testing, use the following default administrator credentials:
+
+| Field    | Value              |
+|----------|--------------------|
+| Email    | `admin@jctc.gov.ng` |
+| Password | `admin123`         |
+
+> ⚠️ **Security Warning:** These credentials are for development/testing only. Change them immediately in production environments.
 
 ### Testing
 

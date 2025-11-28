@@ -37,6 +37,7 @@ interface UpdateArtefactInput {
   source_tool?: SourceTool
   description?: string
   tags?: string[]
+  extracted_at?: string
 }
 
 // Helper function to compute SHA-256 hash

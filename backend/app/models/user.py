@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Boolean, Integer, Text, Enum as SQLEnum
+from sqlalchemy import Column, String, Boolean, Integer, Text, Enum as SQLEnum, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 import enum
@@ -14,6 +15,13 @@ class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
 
 
+class WorkActivity(str, enum.Enum):
+    MEETING = "meeting"
+    TRAVEL = "travel"
+    TRAINING = "training"
+    LEAVE = "leave"
+
+
 class User(BaseModel):
     __tablename__ = "users"
     
@@ -23,6 +31,7 @@ class User(BaseModel):
     org_unit = Column(String(255))  # e.g., JCTC HQ, Zonal Command
     is_active = Column(Boolean, default=True)
     hashed_password = Column(String(255), nullable=False)
+    work_activity = Column(SQLEnum(WorkActivity), nullable=True)
     
     # Relationships
     created_cases = relationship("Case", foreign_keys="Case.created_by", back_populates="creator")
@@ -30,6 +39,7 @@ class User(BaseModel):
     case_assignments = relationship("CaseAssignment", back_populates="user")
     tasks = relationship("Task", back_populates="assignee")
     actions = relationship("ActionLog", back_populates="user")
+    team_activities = relationship("TeamActivity", back_populates="user")
 
     # Audit and compliance relationships (reverse mappings)
     # These align with back_populates defined in audit models
@@ -51,3 +61,17 @@ class LookupCaseType(BaseModel):
     
     # Relationships
     cases = relationship("Case", back_populates="case_type")
+
+
+class TeamActivity(BaseModel):
+    __tablename__ = "team_activities"
+    
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    activity_type = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="team_activities")

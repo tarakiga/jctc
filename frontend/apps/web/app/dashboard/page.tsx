@@ -4,6 +4,7 @@ import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@jctc/u
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 import Link from 'next/link'
 import { useCaseStats } from '@/lib/hooks/useCases'
+import { TeamActivityCalendar } from '@/components/TeamActivityCalendar'
 
 function DashboardContent() {
   const { stats, loading, error } = useCaseStats()
@@ -166,84 +167,11 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Charts and Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <Card variant="elevated" className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Cases by Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {stats?.by_status &&
-                  Object.entries(stats.by_status).map(([status, count]) => {
-                    const total = stats.total || 1
-                    const percentage = Math.round((Number(count) / total) * 100)
-                    const statusLabels: Record<string, { label: string; color: string }> = {
-                      OPEN: { label: 'Open', color: 'bg-blue-500' },
-                      UNDER_INVESTIGATION: { label: 'Investigating', color: 'bg-amber-500' },
-                      PENDING_PROSECUTION: { label: 'Pending', color: 'bg-purple-500' },
-                      IN_COURT: { label: 'In Court', color: 'bg-indigo-500' },
-                      CLOSED: { label: 'Closed', color: 'bg-green-500' },
-                      ARCHIVED: { label: 'Archived', color: 'bg-neutral-400' },
-                    }
-                    const statusInfo = statusLabels[status] || { label: status, color: 'bg-neutral-500' }
-                    return (
-                      <div key={status}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-neutral-700">{statusInfo.label}</span>
-                          <span className="text-sm text-neutral-600">{count} ({percentage}%)</span>
-                        </div>
-                        <div className="w-full bg-neutral-200 rounded-full h-2">
-                          <div className={`${statusInfo.color} h-2 rounded-full`} style={{ width: `${percentage}%` }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card variant="elevated">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button variant="primary" className="w-full justify-start" asChild>
-                  <Link href="/cases/new">
-                    <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Case
-                  </Link>
-                </Button>
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link href="/cases">
-                    <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Add Evidence
-                  </Link>
-                </Button>
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link href="/cases">
-                    <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    Search Cases
-                  </Link>
-                </Button>
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link href="/evidence">
-                    <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    View Evidence
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+
+        {/* Team Activity Calendar */}
+        <div className="mb-8">
+          <TeamActivityCalendar />
         </div>
 
         {/* Recent Cases */}

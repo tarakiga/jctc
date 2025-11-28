@@ -6,11 +6,15 @@ import { useSeizures, useSeizureMutations } from '../../lib/hooks/useSeizures'
 
 interface SeizureManagerProps {
   caseId: string
+  seizures?: any[]
 }
 
-export function SeizureManager({ caseId }: SeizureManagerProps) {
-  const { data: seizures = [], isLoading } = useSeizures(caseId)
+export function SeizureManager({ caseId, seizures: propSeizures }: SeizureManagerProps) {
+  const { data: fetchedSeizures = [], isLoading } = useSeizures(caseId)
   const { createSeizure, loading: mutationLoading } = useSeizureMutations(caseId)
+  
+  // Use prop seizures if provided, otherwise use fetched data
+  const seizures = propSeizures || fetchedSeizures
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSeizureId, setSelectedSeizureId] = useState<string | null>(null)
@@ -23,6 +27,12 @@ export function SeizureManager({ caseId }: SeizureManagerProps) {
     location: '',
     officer_id: 'user-003', // Default to current user
     notes: '',
+    warrant_number: '',
+    warrant_type: '',
+    issuing_authority: '',
+    description: '',
+    items_count: '',
+    status: 'COMPLETED' as const,
   })
 
   const handleOpenModal = () => {
@@ -31,6 +41,12 @@ export function SeizureManager({ caseId }: SeizureManagerProps) {
       location: '',
       officer_id: 'user-003',
       notes: '',
+      warrant_number: '',
+      warrant_type: '',
+      issuing_authority: '',
+      description: '',
+      items_count: '',
+      status: 'COMPLETED',
     })
     setWitnesses([])
     setWitnessInput('')
@@ -207,7 +223,7 @@ export function SeizureManager({ caseId }: SeizureManagerProps) {
                       Witnesses
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {seizure.witnesses.map((witness, idx) => (
+                      {seizure.witnesses.map((witness: string, idx: number) => (
                         <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-800 text-xs font-medium rounded-full border border-blue-200">
                           {witness}
                         </span>
@@ -239,7 +255,7 @@ export function SeizureManager({ caseId }: SeizureManagerProps) {
                       Photo Documentation ({seizure.photos.length})
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                      {seizure.photos.map((photo) => (
+                      {seizure.photos.map((photo: { id: string; file_name: string; file_size: number }) => (
                         <div key={photo.id} className="group relative bg-neutral-100 rounded-lg border border-neutral-200 hover:border-blue-300 transition-all overflow-hidden">
                           <div className="aspect-video flex items-center justify-center p-4">
                             <svg className="w-12 h-12 text-neutral-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -337,6 +353,96 @@ export function SeizureManager({ caseId }: SeizureManagerProps) {
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
                     placeholder="e.g., 45 Allen Avenue, Ikeja, Lagos State"
+                  />
+                </div>
+
+                {/* Legal Authorization Section */}
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Legal Authorization
+                  </h4>
+                  <div className="space-y-4">
+                    {/* Warrant Type & Number */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Warrant Type</label>
+                        <select
+                          value={formData.warrant_type}
+                          onChange={(e) => setFormData({ ...formData, warrant_type: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                        >
+                          <option value="">Select type...</option>
+                          <option value="SEARCH_WARRANT">Search Warrant</option>
+                          <option value="PRODUCTION_ORDER">Production Order</option>
+                          <option value="COURT_ORDER">Court Order</option>
+                          <option value="SEIZURE_ORDER">Seizure Order</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Warrant Number</label>
+                        <input
+                          type="text"
+                          value={formData.warrant_number}
+                          onChange={(e) => setFormData({ ...formData, warrant_number: e.target.value })}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                          placeholder="e.g., SW/2024/123"
+                        />
+                      </div>
+                    </div>
+                    {/* Issuing Authority */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Issuing Authority</label>
+                      <input
+                        type="text"
+                        value={formData.issuing_authority}
+                        onChange={(e) => setFormData({ ...formData, issuing_authority: e.target.value })}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                        placeholder="e.g., High Court of Lagos State"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seizure Details */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Items Count</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.items_count}
+                      onChange={(e) => setFormData({ ...formData, items_count: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                      placeholder="Total items seized"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="DISPUTED">Disputed</option>
+                      <option value="RETURNED">Returned</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Seizure Description</label>
+                  <textarea
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all resize-none"
+                    placeholder="Detailed description of what was seized and circumstances..."
                   />
                 </div>
 

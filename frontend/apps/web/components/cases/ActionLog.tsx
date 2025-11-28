@@ -38,7 +38,7 @@ interface ActionLogProps {
   onAddManualEntry: (action: Omit<Action, 'id' | 'timestamp' | 'case_id' | 'performed_by' | 'performed_by_name'>) => Promise<void>
 }
 
-export function ActionLog({ caseId, actions, onAddManualEntry }: ActionLogProps) {
+export function ActionLog({ caseId: _caseId, actions, onAddManualEntry }: ActionLogProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<ActionType | 'ALL'>('ALL')
   const [formData, setFormData] = useState({
@@ -148,14 +148,14 @@ export function ActionLog({ caseId, actions, onAddManualEntry }: ActionLogProps)
   const sortedActions = [...filteredActions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header with Add Button and Filter */}
       <div className="flex justify-between items-center">
         <div className="flex gap-3">
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as ActionType | 'ALL')}
-            className="px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+            className="px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-white hover:border-slate-400 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
           >
             <option value="ALL">All Actions ({actions.length})</option>
             <option value="CASE_CREATED">Case Created</option>
@@ -175,7 +175,7 @@ export function ActionLog({ caseId, actions, onAddManualEntry }: ActionLogProps)
             <option value="MANUAL_ENTRY">Manual Entry</option>
           </select>
         </div>
-        <Button onClick={handleOpenModal} className="bg-black text-white hover:bg-neutral-800">
+        <Button onClick={handleOpenModal} className="bg-slate-900 text-white hover:bg-slate-800 shadow-lg">
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
@@ -186,58 +186,69 @@ export function ActionLog({ caseId, actions, onAddManualEntry }: ActionLogProps)
       {/* Timeline */}
       <div className="relative">
         {sortedActions.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8 text-neutral-500">
-              No actions recorded yet. Activity will appear here as the case progresses.
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100">
+                <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">No actions recorded</h3>
+              <p className="text-slate-600 mb-6">
+                {filterType !== 'ALL'
+                  ? `No ${formatActionType(filterType)} actions found.`
+                  : 'Activity will appear here as the case progresses.'}
+              </p>
+            </div>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Vertical line */}
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-200"></div>
+            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-slate-200"></div>
 
-            {sortedActions.map((action, index) => (
-              <div key={action.id} className="relative flex gap-4">
+            {sortedActions.map((action) => (
+              <div key={action.id} className="relative flex gap-3">
                 {/* Timeline dot */}
-                <div className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full border-4 border-white flex items-center justify-center text-xl ${getActionColor(action.action_type)}`}>
+                <div className={`relative z-10 flex-shrink-0 w-10 h-10 rounded-full border-3 border-white shadow-sm flex items-center justify-center text-lg ${getActionColor(action.action_type)}`}>
                   {getActionIcon(action.action_type)}
                 </div>
 
-                {/* Action card */}
-                <Card className="flex-1">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="text-base font-semibold text-neutral-900">
-                          {formatActionType(action.action_type)}
-                        </h3>
-                        <p className="text-sm text-neutral-600 mt-1">{action.action_details}</p>
+                {/* Action card - more compact */}
+                <Card className="flex-1 hover:shadow-md transition-shadow">
+                  <CardContent className="p-3">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            {formatActionType(action.action_type)}
+                          </h3>
+                          <Badge variant="default" className="text-xs bg-slate-100 text-slate-600">
+                            {formatTimestamp(action.timestamp)}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-slate-700">{action.action_details}</p>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            {action.performed_by_name}
+                          </span>
+                          <span>•</span>
+                          <span>{new Date(action.timestamp).toLocaleString()}</span>
+                        </div>
                       </div>
-                      <Badge variant="default" className="text-xs bg-neutral-100 whitespace-nowrap">
-                        {formatTimestamp(action.timestamp)}
-                      </Badge>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-neutral-500 mt-3">
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        {action.performed_by_name}
-                      </span>
-                      <span>•</span>
-                      <span>{new Date(action.timestamp).toLocaleString()}</span>
-                    </div>
-
-                    {/* Metadata display (if available) */}
+                    {/* Metadata display (if available) - more compact */}
                     {action.metadata && Object.keys(action.metadata).length > 0 && (
-                      <div className="mt-3 p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                        <p className="text-xs font-semibold text-neutral-700 mb-2">Additional Details:</p>
-                        <div className="text-xs text-neutral-600 space-y-1">
+                      <div className="mt-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <p className="text-xs font-semibold text-slate-700 mb-1">Details:</p>
+                        <div className="text-xs text-slate-600 space-y-0.5">
                           {Object.entries(action.metadata).map(([key, value]) => (
                             <div key={key} className="flex gap-2">
                               <span className="font-medium">{key.replace(/_/g, ' ')}:</span>
-                              <span>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                              <span className="truncate">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
                             </div>
                           ))}
                         </div>

@@ -3,17 +3,23 @@
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@jctc/ui'
-import { useEvidenceItem } from '@/lib/hooks/useEvidence'
+import { useEvidenceItem, useChainOfCustody } from '@/lib/hooks/useEvidence'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
+import { ChainOfCustodyManager } from '@/components/evidence/ChainOfCustodyManager'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAvailableUsers } from '@/lib/hooks/useAssignments'
 
 function EvidenceDetailContent() {
   const params = useParams()
   const router = useRouter()
-  const evidenceId = params.id as string
+  const evidenceId = params?.id as string
+  const { user } = useAuth()
+  const { data: availableUsers = [], isLoading: usersLoading } = useAvailableUsers()
 
   const { evidence, loading, error } = useEvidenceItem(evidenceId)
+  const { entries: chainOfCustody } = useChainOfCustody(evidenceId)
 
-  if (loading) {
+  if (loading || usersLoading) {
     return (
       <div className="min-h-screen bg-neutral-50">
         <header className="bg-white border-b border-neutral-200">
@@ -63,8 +69,6 @@ function EvidenceDetailContent() {
     )
   }
 
-  const chainOfCustody = evidence.chain_of_custody || []
-
   return (
     <div className="min-h-screen bg-neutral-50">
       <header className="bg-white border-b border-neutral-200">
@@ -81,7 +85,7 @@ function EvidenceDetailContent() {
                 <span className="text-neutral-600 hover:text-neutral-900 cursor-pointer">Evidence</span>
               </Link>
               <span className="text-neutral-400">|</span>
-              <span className="text-neutral-700">{evidence.item_number}</span>
+              <span className="text-neutral-700">{evidence.evidence_number}</span>
             </div>
             <Button variant="outline" size="sm" onClick={() => router.push(`/evidence/${evidenceId}/edit`)}>
               Edit Evidence
@@ -96,7 +100,7 @@ function EvidenceDetailContent() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-bold text-neutral-900">{evidence.item_number}</h2>
+                <h2 className="text-3xl font-bold text-neutral-900">{evidence.evidence_number}</h2>
                 <Badge variant="default">{evidence.type}</Badge>
               </div>
               <p className="text-lg text-neutral-700">{evidence.description}</p>
@@ -120,7 +124,7 @@ function EvidenceDetailContent() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-neutral-600">Item Number</label>
-                    <p className="text-neutral-900 mt-1 font-semibold">{evidence.item_number}</p>
+                    <p className="text-neutral-900 mt-1 font-semibold">{evidence.evidence_number}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-neutral-600">Type</label>
@@ -129,7 +133,7 @@ function EvidenceDetailContent() {
                   <div>
                     <label className="text-sm font-medium text-neutral-600">Collection Date</label>
                     <p className="text-neutral-900 mt-1">
-                      {new Date(evidence.collection_date).toLocaleString()}
+                      {new Date(evidence.collected_date).toLocaleString()}
                     </p>
                   </div>
                   <div>
@@ -142,10 +146,10 @@ function EvidenceDetailContent() {
                       <p className="text-neutral-900 mt-1">{evidence.storage_location}</p>
                     </div>
                   )}
-                  {evidence.hash_value && (
+                  {evidence.file_hash && (
                     <div className="col-span-2">
                       <label className="text-sm font-medium text-neutral-600">Hash Value</label>
-                      <p className="text-neutral-900 mt-1 font-mono text-sm break-all">{evidence.hash_value}</p>
+                      <p className="text-neutral-900 mt-1 font-mono text-sm break-all">{evidence.file_hash}</p>
                     </div>
                   )}
                 </div>
@@ -153,48 +157,20 @@ function EvidenceDetailContent() {
             </Card>
 
             {/* Chain of Custody */}
-            <Card variant="elevated">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Chain of Custody</CardTitle>
-                  <Button variant="primary" size="sm">+ Add Entry</Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {chainOfCustody.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="w-12 h-12 mx-auto text-neutral-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-neutral-600 text-sm">No chain of custody entries yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {chainOfCustody.map((entry: any, index: number) => (
-                      <div key={index} className="flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-primary-600' : 'bg-neutral-400'}`}></div>
-                          {index < chainOfCustody.length - 1 && <div className="w-0.5 h-full bg-neutral-300 mt-2"></div>}
-                        </div>
-                        <div className="flex-1 pb-6">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-semibold text-neutral-900">{entry.action}</p>
-                            <p className="text-xs text-neutral-500">{new Date(entry.timestamp).toLocaleString()}</p>
-                          </div>
-                          <p className="text-sm text-neutral-700 mb-1">
-                            {entry.transferred_from ? `From: ${entry.transferred_from}` : ''}
-                            {entry.transferred_from && entry.transferred_to && ' → '}
-                            {entry.transferred_to ? `To: ${entry.transferred_to}` : ''}
-                          </p>
-                          {entry.purpose && <p className="text-sm text-neutral-600">Purpose: {entry.purpose}</p>}
-                          {entry.notes && <p className="text-sm text-neutral-500 mt-1">{entry.notes}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <ChainOfCustodyManager 
+              evidenceId={evidenceId}
+              evidenceNumber={evidence.evidence_number}
+              currentUser={{
+                id: user?.id || '',
+                name: user?.full_name || '',
+                role: user?.role || ''
+              }}
+              availableUsers={availableUsers.map(user => ({
+                id: user.id,
+                name: user.full_name || '',
+                role: user.role || 'Unknown'
+              }))}
+            />
 
             {/* Notes */}
             {evidence.notes && (

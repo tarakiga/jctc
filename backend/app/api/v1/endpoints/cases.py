@@ -31,7 +31,24 @@ async def create_case(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.INTAKE, UserRole.INVESTIGATOR, UserRole.SUPERVISOR, UserRole.ADMIN))
 ):
-    """Create a new case."""
+    """
+    Create a new case with full intake information.
+    
+    Accepts intake fields including:
+    - risk_flags: List of risk indicators (child_safety, imminent_harm, trafficking, sextortion)
+    - platforms_implicated: List of social media/tech platforms involved
+    - intake_channel: How the case was reported (WALK_IN, HOTLINE, EMAIL, REFERRAL, API)
+    - reporter_type: Type of reporter (ANONYMOUS, VICTIM, PARENT, LEA, NGO)
+    - reporter_name: Name if not anonymous
+    - reporter_contact: Contact info {phone, email}
+    - lga_state_location: Location in Nigeria (LGA/State)
+    - incident_datetime: When the incident occurred
+    
+    Returns 422 Validation Error if required fields are missing or invalid.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Generate unique case number
     case_number = generate_case_number()
     
@@ -42,7 +59,28 @@ async def create_case(
             break
         case_number = generate_case_number()
     
-    # Create new case
+    # Normalize risk flags from frontend format to backend format
+    risk_flags = []
+    if case_data.risk_flags:
+        flag_mapping = {
+            'child': 'CHILD_SAFETY',
+            'imminent_harm': 'IMMINENT_HARM',
+            'trafficking': 'TRAFFICKING',
+            'sextortion': 'SEXTORTION',
+        }
+        for flag in case_data.risk_flags:
+            normalized = flag_mapping.get(flag, flag.upper().replace(' ', '_'))
+            risk_flags.append(normalized)
+    
+    # Prepare reporter contact as dict for JSONB storage
+    reporter_contact_dict = None
+    if case_data.reporter_contact:
+        reporter_contact_dict = {
+            'phone': case_data.reporter_contact.phone,
+            'email': case_data.reporter_contact.email
+        }
+    
+    # Create new case with all intake fields
     db_case = Case(
         case_number=case_number,
         title=case_data.title,
@@ -53,14 +91,31 @@ async def create_case(
         originating_country=case_data.originating_country,
         cooperating_countries=case_data.cooperating_countries,
         mlat_reference=case_data.mlat_reference,
-        created_by=current_user.id
+        created_by=current_user.id,
+        # New intake fields
+        intake_channel=case_data.intake_channel,
+        risk_flags=risk_flags,
+        platforms_implicated=case_data.platforms_implicated,
+        lga_state_location=case_data.lga_state_location,
+        incident_datetime=case_data.incident_datetime,
+        reporter_type=case_data.reporter_type,
+        reporter_name=case_data.reporter_name,
+        reporter_contact=reporter_contact_dict
     )
     
-    db.add(db_case)
-    await db.commit()
-    await db.refresh(db_case)
-    
-    return db_case
+    try:
+        db.add(db_case)
+        await db.commit()
+        await db.refresh(db_case)
+        logger.info(f"Case created successfully: {case_number} by user {current_user.id}")
+        return db_case
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create case: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create case: {str(e)}"
+        )
 
 @router.get("/", response_model=List[CaseResponse])
 async def list_cases(

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Boolean, CheckConstraint, Enum as SQLEnum, ARRAY
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Boolean, CheckConstraint, Enum as SQLEnum
+from app.models.types import StringArray
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 from app.models.user import User, LookupCaseType
@@ -28,6 +29,39 @@ class AssignmentRole(str, enum.Enum):
     LIAISON = "LIAISON"
 
 
+class IntakeChannel(str, enum.Enum):
+    """Channel through which the case was reported"""
+    WALK_IN = "WALK_IN"
+    HOTLINE = "HOTLINE"
+    EMAIL = "EMAIL"
+    REFERRAL = "REFERRAL"
+    API = "API"
+    ONLINE_FORM = "ONLINE_FORM"
+    PARTNER_AGENCY = "PARTNER_AGENCY"
+
+
+class ReporterType(str, enum.Enum):
+    """Type of person reporting the case"""
+    ANONYMOUS = "ANONYMOUS"
+    VICTIM = "VICTIM"
+    PARENT = "PARENT"  # Parent/Guardian
+    LEA = "LEA"  # Law Enforcement Agency
+    NGO = "NGO"
+    CORPORATE = "CORPORATE"
+    WHISTLEBLOWER = "WHISTLEBLOWER"
+
+
+class RiskFlag(str, enum.Enum):
+    """Risk flags for case prioritization"""
+    CHILD_SAFETY = "CHILD_SAFETY"
+    IMMINENT_HARM = "IMMINENT_HARM"
+    TRAFFICKING = "TRAFFICKING"
+    SEXTORTION = "SEXTORTION"
+    FINANCIAL_CRITICAL = "FINANCIAL_CRITICAL"
+    HIGH_PROFILE = "HIGH_PROFILE"
+    CROSS_BORDER = "CROSS_BORDER"
+
+
 class Case(BaseModel):
     __tablename__ = "cases"
     
@@ -39,12 +73,24 @@ class Case(BaseModel):
     status = Column(SQLEnum(CaseStatus), default=CaseStatus.OPEN)
     local_or_international = Column(SQLEnum(LocalInternational), nullable=False)
     originating_country = Column(String(2), default="NG")  # ISO country code
-    cooperating_countries = Column(ARRAY(String))  # Array of ISO country codes
+    cooperating_countries = Column(StringArray())  # Array of ISO country codes
     mlat_reference = Column(String(100))
     date_reported = Column(DateTime(timezone=True), server_default="now()")
     date_assigned = Column(DateTime(timezone=True))
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     lead_investigator = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    
+    # Intake and Risk Assessment fields
+    intake_channel = Column(SQLEnum(IntakeChannel), default=IntakeChannel.WALK_IN)
+    risk_flags = Column(StringArray())  # Array of RiskFlag values
+    platforms_implicated = Column(StringArray())  # Social media/tech platforms involved
+    lga_state_location = Column(String(255))  # LGA / State location in Nigeria
+    incident_datetime = Column(DateTime(timezone=True))  # When the incident occurred
+    
+    # Reporter information
+    reporter_type = Column(SQLEnum(ReporterType), default=ReporterType.ANONYMOUS)
+    reporter_name = Column(String(255))  # Name of reporter (if not anonymous)
+    reporter_contact = Column(JSONB)  # {"phone": "...", "email": "..."}
     
     # Relationships
     case_type = relationship("LookupCaseType", back_populates="cases")

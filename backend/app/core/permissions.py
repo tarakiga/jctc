@@ -96,3 +96,31 @@ def require_forensic_access(current_user: User = Depends(get_current_user)) -> U
             detail="Forensic, Supervisor, or Admin access required"
         )
     return current_user
+
+
+def check_audit_permissions(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Check if user has audit access permissions.
+    
+    Audit access is granted to:
+    - ADMIN: Full audit access
+    - SUPERVISOR: Can view audit logs for their team
+    - PROSECUTOR: Can view case-related audit logs
+    """
+    allowed_roles = [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.PROSECUTOR]
+    if current_user.role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Audit access requires Admin, Supervisor, or Prosecutor role"
+        )
+    return current_user
+
+
+def require_audit_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Require admin role for audit configuration changes."""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required for audit configuration"
+        )
+    return current_user
