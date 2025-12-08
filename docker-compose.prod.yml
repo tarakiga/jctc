@@ -101,7 +101,7 @@ services:
       retries: 3
 
   traefik:
-    image: traefik:v3.2
+    image: traefik:latest
     container_name: jctc_traefik
     restart: unless-stopped
     ports:
