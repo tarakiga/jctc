@@ -32,3 +32,4 @@ redis
 # Utilities
 python-dotenv
 greenlet
+jinja2
