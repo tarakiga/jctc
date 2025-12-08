@@ -37,8 +37,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: jctc_web
     restart: unless-stopped
     ports:
