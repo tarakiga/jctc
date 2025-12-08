@@ -13,8 +13,8 @@ RUN pnpm install --frozen-lockfile
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build the web app
-RUN npx turbo run build --filter=web
+# Build the web app (Direct pnpm build to debug)
+RUN pnpm --filter web build
 
 FROM node:18-alpine AS runner
 WORKDIR /app
