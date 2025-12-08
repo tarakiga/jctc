@@ -16,6 +16,7 @@ python-multipart
 # Data validation
 pydantic
 pydantic-settings
+email-validator
 
 # File handling and hashing
 aiofiles
