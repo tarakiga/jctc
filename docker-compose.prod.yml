@@ -39,6 +39,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.jctc.ng
     container_name: jctc_web
     restart: unless-stopped
     ports:
