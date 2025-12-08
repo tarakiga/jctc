@@ -102,4 +102,5 @@ tests/
 
 # Global ignore for documentation as per user request
 *.md
+!README.md
 *.docx
