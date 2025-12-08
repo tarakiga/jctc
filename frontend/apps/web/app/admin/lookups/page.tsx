@@ -132,8 +132,9 @@ function LookupManagementContent() {
             setFormData({ value: '', label: '', description: '', color: '#3B82F6', is_active: true })
             loadCategoryValues(selectedCategory)
             loadCategories() // Refresh counts
-        } catch (error: any) {
-            setFormError(error.message || 'Failed to create value')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to create value'
+            setFormError(message)
         } finally {
             setSubmitting(false)
         }
@@ -156,8 +157,9 @@ function LookupManagementContent() {
             if (selectedCategory) {
                 loadCategoryValues(selectedCategory)
             }
-        } catch (error: any) {
-            setFormError(error.message || 'Failed to update value')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to update value'
+            setFormError(message)
         } finally {
             setSubmitting(false)
         }
@@ -175,7 +177,7 @@ function LookupManagementContent() {
                 loadCategoryValues(selectedCategory)
                 loadCategories() // Refresh counts
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to delete value:', error)
         } finally {
             setSubmitting(false)

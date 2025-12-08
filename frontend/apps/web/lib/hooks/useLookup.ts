@@ -35,9 +35,10 @@ export function useLookup(category: string, options: UseLookupOptions = {}): Use
             setError(null)
             const data = await lookupService.getDropdownValues(category)
             setValues(data)
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(`Failed to fetch lookup values for ${category}:`, err)
-            setError(err.message || 'Failed to fetch values')
+            const message = err instanceof Error ? err.message : 'Failed to fetch values'
+            setError(message)
             setValues([])
         } finally {
             setLoading(false)
@@ -80,8 +81,9 @@ export function useLookups(categories: string[]): Record<string, UseLookupResult
                 try {
                     const data = await lookupService.getDropdownValues(category)
                     return { category, values: data, error: null }
-                } catch (err: any) {
-                    return { category, values: [], error: err.message }
+                } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : 'Failed to fetch values'
+                    return { category, values: [], error: message }
                 }
             })
 

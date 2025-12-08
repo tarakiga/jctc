@@ -281,7 +281,7 @@ function CasesContent() {
   const filteredAndSortedCases = useMemo(() => {
     if (!cases) return []
 
-    let filtered = cases.filter((caseItem) => {
+    const filtered = cases.filter((caseItem) => {
       const matchesSearch =
         !search ||
         caseItem.case_number.toLowerCase().includes(search.toLowerCase()) ||

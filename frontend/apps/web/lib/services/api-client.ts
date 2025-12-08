@@ -6,7 +6,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 interface RequestOptions extends RequestInit {
-  params?: Record<string, any>
+  params?: Record<string, string | number | boolean | undefined>
 }
 
 class ApiClient {
@@ -25,7 +25,7 @@ class ApiClient {
     }
   }
 
-  private buildUrl(endpoint: string, params?: Record<string, any>): string {
+  private buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
     const url = new URL(`${this.baseUrl}${endpoint}`)
 
     if (params) {
@@ -62,7 +62,7 @@ class ApiClient {
       return data
     }
 
-    return response.text() as any
+    return response.text() as unknown as T
   }
 
   async get<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
@@ -80,7 +80,7 @@ class ApiClient {
     return this.handleResponse<T>(response)
   }
 
-  async post<T>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options: RequestOptions = {}): Promise<T> {
     const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
 
@@ -101,7 +101,7 @@ class ApiClient {
     return this.handleResponse<T>(response)
   }
 
-  async put<T>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown, options: RequestOptions = {}): Promise<T> {
     const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
 
@@ -122,7 +122,7 @@ class ApiClient {
     return this.handleResponse<T>(response)
   }
 
-  async patch<T>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<T> {
+  async patch<T>(endpoint: string, data?: unknown, options: RequestOptions = {}): Promise<T> {
     const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
 

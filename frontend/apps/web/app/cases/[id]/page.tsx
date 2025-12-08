@@ -47,7 +47,7 @@ function CaseDetailContent() {
   const [showChainOfCustodyForm, setShowChainOfCustodyForm] = useState(false)
   const [isAddEvidenceModalOpen, setIsAddEvidenceModalOpen] = useState(false)
   const [isEditEvidenceModalOpen, setIsEditEvidenceModalOpen] = useState(false)
-  const [editingEvidence, setEditingEvidence] = useState<any>(null)
+  const [editingEvidence, setEditingEvidence] = useState<{ id: string; name?: string; description?: string } | null>(null)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [deletingCustodyEntry, setDeletingCustodyEntry] = useState<{ id: string; action: string; timestamp: string; evidenceId: string } | null>(null)
   const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null)
@@ -81,7 +81,7 @@ function CaseDetailContent() {
   const { addManualEntry } = useActionMutations(caseId)
 
   // Transform actions into timeline events
-  const timelineEvents = actions.map((action: any) => ({
+  const timelineEvents = actions.map((action: { id: string; action?: string; details?: string; created_at: string; user?: { full_name?: string } }) => ({
     id: action.id,
     type: action.action?.toLowerCase().includes('evidence') ? 'evidence' :
       action.action?.toLowerCase().includes('create') ? 'created' :
