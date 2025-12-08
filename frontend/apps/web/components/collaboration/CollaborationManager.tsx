@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { 
-  Users, 
-  Plus, 
-  X, 
-  Mail, 
-  Phone, 
-  Building2, 
-  FileText, 
+import {
+  Users,
+  Plus,
+  X,
+  Mail,
+  Phone,
+  Building2,
+  FileText,
   CheckCircle2,
   Clock,
   Pause,
@@ -20,24 +20,30 @@ import {
   Edit2,
   Trash2
 } from 'lucide-react';
-import { 
-  useCollaborations, 
+import {
+  useCollaborations,
   PARTNER_ORGANIZATIONS,
   type CollaborationStatus,
-  type Collaboration 
+  type Collaboration
 } from '@/lib/hooks/useCollaborations';
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup';
 
 interface CollaborationManagerProps {
   caseId: string;
-  collaborations?: any[];  // Optional mock collaborations
 }
 
-export default function CollaborationManager({ caseId, collaborations: mockCollaborations }: CollaborationManagerProps) {
-  const { collaborations: apiCollaborations, isLoading, createCollaboration, updateCollaboration, deleteCollaboration, isCreating, isDeleting } = useCollaborations(caseId);
-  
-  // Use mock collaborations if provided, otherwise use API data
-  const collaborations = mockCollaborations || apiCollaborations;
-  
+export default function CollaborationManager({ caseId }: CollaborationManagerProps) {
+  const { collaborations, isLoading, createCollaboration, updateCollaboration, deleteCollaboration, isCreating, isDeleting } = useCollaborations(caseId);
+
+  // Fetch collaboration-related lookup values
+  const {
+    [LOOKUP_CATEGORIES.PARTNER_ORGANIZATION]: partnerOrganizationLookup,
+    [LOOKUP_CATEGORIES.COLLABORATION_STATUS]: collaborationStatusLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.PARTNER_ORGANIZATION,
+    LOOKUP_CATEGORIES.COLLABORATION_STATUS
+  ]);
+
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -240,7 +246,7 @@ export default function CollaborationManager({ caseId, collaborations: mockColla
           <h3 className="font-semibold text-neutral-900 mb-4">
             {editingId ? 'Edit Collaboration' : 'New Collaboration'}
           </h3>
-          
+
           <div className="space-y-4">
             {/* Partner Organization */}
             <div>
@@ -420,16 +426,15 @@ export default function CollaborationManager({ caseId, collaborations: mockColla
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium text-neutral-700">Filter:</span>
-        
+
         {/* Partner Type Filter */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterPartnerType('ALL')}
-            className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
-              filterPartnerType === 'ALL'
+            className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${filterPartnerType === 'ALL'
                 ? 'bg-black text-white shadow-sm'
                 : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-300'
-            }`}
+              }`}
           >
             All Types ({collaborations.length})
           </button>
@@ -437,11 +442,10 @@ export default function CollaborationManager({ caseId, collaborations: mockColla
             <button
               key={type}
               onClick={() => setFilterPartnerType(type)}
-              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
-                filterPartnerType === type
+              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${filterPartnerType === type
                   ? 'bg-black text-white shadow-sm'
                   : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-300'
-              }`}
+                }`}
             >
               {type.replace('_', ' ')} ({collaborations.filter(c => c.partner_type === type).length})
             </button>
@@ -456,13 +460,12 @@ export default function CollaborationManager({ caseId, collaborations: mockColla
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
-                filterStatus === status
+              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${filterStatus === status
                   ? 'bg-black text-white shadow-sm'
                   : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-300'
-              }`}
+                }`}
             >
-              {status === 'ALL' ? 'All Status' : status.charAt(0) + status.slice(1).toLowerCase()} 
+              {status === 'ALL' ? 'All Status' : status.charAt(0) + status.slice(1).toLowerCase()}
               {status === 'ALL' ? ` (${collaborations.length})` : ` (${collaborations.filter(c => c.status === status).length})`}
             </button>
           ))}
@@ -474,8 +477,8 @@ export default function CollaborationManager({ caseId, collaborations: mockColla
         <div className="text-center py-12 bg-neutral-50 rounded-xl border border-neutral-200">
           <Users className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
           <p className="text-neutral-600">
-            {collaborations.length === 0 
-              ? 'No collaborations tracked yet' 
+            {collaborations.length === 0
+              ? 'No collaborations tracked yet'
               : 'No collaborations match the selected filters'}
           </p>
         </div>
@@ -483,7 +486,7 @@ export default function CollaborationManager({ caseId, collaborations: mockColla
         <div className="space-y-4">
           {filteredCollaborations.map((collab) => {
             const partnerInfo = PARTNER_ORGANIZATIONS.find((p) => p.value === collab.partner_org);
-            
+
             return (
               <div
                 key={collab.id}

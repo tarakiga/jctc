@@ -10,12 +10,12 @@ class ChainOfCustodyBase(BaseModel):
     action: CustodyAction
     location_from: Optional[str] = Field(None, max_length=255)
     location_to: Optional[str] = Field(None, max_length=255)
-    purpose: str = Field(..., max_length=500)
+    purpose: Optional[str] = Field(None, max_length=500)
     notes: Optional[str] = None
     signature_path: Optional[str] = Field(None, max_length=500)
     signature_verified: bool = False
     requires_approval: bool = False
-    approval_status: Optional[str] = Field(None, regex="^(PENDING|APPROVED|REJECTED)$")
+    approval_status: Optional[str] = Field(None, pattern="^(PENDING|APPROVED|REJECTED)$")
     approval_timestamp: Optional[datetime] = None
 
 
@@ -36,8 +36,8 @@ class ChainOfCustodyResponse(ChainOfCustodyBase):
     timestamp: datetime
     created_by: UUID
     created_by_name: str
-    approved_by: Optional[UUID]
-    approved_by_name: Optional[str]
+    approved_by: Optional[UUID] = None
+    approved_by_name: Optional[str] = None
     
     class Config:
         from_attributes = True

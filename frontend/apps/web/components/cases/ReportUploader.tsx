@@ -5,6 +5,8 @@ import { useForensicReports, useForensicReportMutations } from '@/lib/hooks/useF
 import { useDevices } from '@/lib/hooks/useDevices'
 import { FileText, Upload, Plus, X, Trash2, Download, CheckCircle, XCircle, Shield } from 'lucide-react'
 import { format } from 'date-fns'
+import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 
 interface ReportUploaderProps {
   caseId: string
@@ -33,6 +35,9 @@ export default function ReportUploader({ caseId }: ReportUploaderProps) {
   const { data: devices = [] } = useDevices(caseId)
   const { uploadReport, deleteReport, validateTool, loading, validationResult } = useForensicReportMutations(caseId)
 
+  // Fetch report_type lookup values
+  const reportTypeLookup = useLookup(LOOKUP_CATEGORIES.REPORT_TYPE)
+
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [showValidationForm, setShowValidationForm] = useState(false)
 
@@ -57,7 +62,7 @@ export default function ReportUploader({ caseId }: ReportUploaderProps) {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.file) {
       alert('Please select a report file')
       return
@@ -85,7 +90,7 @@ export default function ReportUploader({ caseId }: ReportUploaderProps) {
 
   const handleValidate = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validationData.binary_file) {
       alert('Please select a tool binary file')
       return
@@ -116,7 +121,7 @@ export default function ReportUploader({ caseId }: ReportUploaderProps) {
 
   const handleDelete = async (reportId: string) => {
     if (!confirm('Are you sure you want to delete this report?')) return
-    
+
     try {
       await deleteReport(reportId)
     } catch (error) {
@@ -346,15 +351,12 @@ export default function ReportUploader({ caseId }: ReportUploaderProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Report Generated Date & Time *
-                </label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
+                  label="Report Generated Date & Time"
                   value={formData.generated_at}
-                  onChange={(e) => setFormData(prev => ({ ...prev, generated_at: e.target.value }))}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onChange={(value) => setFormData(prev => ({ ...prev, generated_at: value }))}
                   required
+                  placeholder="Select report generated date and time"
                 />
               </div>
 

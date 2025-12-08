@@ -30,7 +30,7 @@ class ChainOfCustodyEntry(BaseModel):
     created_at = Column(DateTime(timezone=True), server_default="now()")
     
     # Relationships
-    evidence = relationship("EvidenceItem", backref="custody_entries")
+    # evidence = relationship("Evidence", backref="custody_entries") # Removed to prevent conflict with Evidence.chain_entries and non-existent table
     from_custodian = relationship("User", foreign_keys=[custodian_from])
     to_custodian = relationship("User", foreign_keys=[custodian_to])
     approver = relationship("User", foreign_keys=[approved_by])

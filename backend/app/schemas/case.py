@@ -20,7 +20,7 @@ class ReporterContact(BaseModel):
 
 class CaseBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
-    case_type_id: Optional[UUID] = None
+    case_type: Optional[str] = None  # References lookup_values category='case_type'
     description: Optional[str] = None
     severity: Optional[int] = Field(None, ge=1, le=5)
     local_or_international: LocalInternational
@@ -31,6 +31,13 @@ class CaseBase(BaseModel):
 
 class CaseCreate(CaseBase):
     """Schema for creating a new case with full intake information"""
+    # Case type as string (e.g., 'FRAUD', 'THEFT') - will be used to look up case_type_id
+    case_type: Optional[str] = None
+    # Initial status
+    status: Optional[str] = None
+    # Date when case was reported
+    date_reported: Optional[datetime] = None
+    
     # Intake fields
     intake_channel: Optional[IntakeChannel] = IntakeChannel.WALK_IN
     risk_flags: Optional[List[str]] = Field(default_factory=list)
@@ -71,7 +78,7 @@ class CaseCreate(CaseBase):
 class CaseUpdate(BaseModel):
     """Schema for updating an existing case"""
     title: Optional[str] = Field(None, min_length=1, max_length=500)
-    case_type_id: Optional[UUID] = None
+    case_type: Optional[str] = None  # References lookup_values category='case_type'
     description: Optional[str] = None
     severity: Optional[int] = Field(None, ge=1, le=5)
     status: Optional[CaseStatus] = None
@@ -99,6 +106,7 @@ class CaseResponse(CaseBase):
     id: UUID
     case_number: str
     status: CaseStatus
+    case_type: Optional[str] = None  # Human-readable case type label
     date_reported: datetime
     date_assigned: Optional[datetime] = None
     created_by: Optional[UUID] = None
@@ -137,11 +145,4 @@ class CaseAssignmentResponse(BaseModel):
         from_attributes = True
 
 
-class LookupCaseTypeResponse(BaseModel):
-    id: UUID
-    code: str
-    label: str
-    description: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
+# LookupCaseTypeResponse deprecated - case types now use lookup_values table

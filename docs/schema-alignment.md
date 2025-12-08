@@ -55,6 +55,19 @@ The case intake form collects comprehensive information when registering a new c
 - `HIGH_PROFILE` - High-profile case
 - `CROSS_BORDER` - Cross-border crime
 
+## Country Code Handling
+
+The backend expects **2-character ISO 3166-1 alpha-2 codes** for country fields.
+
+| Field | Type | Example | Notes |
+|-------|------|---------|-------|
+| `originating_country` | String(2) | `"BS"` for Bahamas | Default: `"NG"` (Nigeria) |
+| `cooperating_countries` | Array[String(2)] | `["US", "GB", "DE"]` | Array of ISO codes |
+
+The frontend provides a country utility at `frontend/apps/web/lib/utils/countries.ts` that:
+- Maps country names to ISO codes in dropdown selectors
+- Provides helper functions: `getCountryName(code)`, `getCountryCode(name)`
+
 ## API Changes
 
 ### POST /api/v1/cases
@@ -68,7 +81,7 @@ The case creation endpoint now accepts additional fields:
   "severity": 1-5,
   "local_or_international": "LOCAL|INTERNATIONAL",
   "originating_country": "NG",
-  "cooperating_countries": ["US", "UK"],
+  "cooperating_countries": ["US", "GB"],
   "intake_channel": "WALK_IN",
   "risk_flags": ["CHILD_SAFETY", "IMMINENT_HARM"],
   "platforms_implicated": ["Instagram", "WhatsApp"],

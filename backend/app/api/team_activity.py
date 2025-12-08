@@ -30,8 +30,8 @@ async def list_team_activities(
     limit: int = 50,
     user_id: Optional[UUID] = None,
     activity_type: Optional[WorkActivity] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     include_user_info: bool = True,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -40,15 +40,33 @@ async def list_team_activities(
     
     query = select(TeamActivity)
     
+    # Parse date strings to datetime
+    parsed_start_date = None
+    parsed_end_date = None
+    if start_date:
+        try:
+            parsed_start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        except ValueError:
+            # Try parsing as date only
+            from datetime import date
+            parsed_start_date = datetime.combine(date.fromisoformat(start_date), datetime.min.time())
+    if end_date:
+        try:
+            parsed_end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        except ValueError:
+            # Try parsing as date only
+            from datetime import date
+            parsed_end_date = datetime.combine(date.fromisoformat(end_date), datetime.max.time())
+    
     # Apply filters
     if user_id:
         query = query.filter(TeamActivity.user_id == user_id)
     if activity_type:
         query = query.filter(TeamActivity.activity_type == activity_type)
-    if start_date:
-        query = query.filter(TeamActivity.start_time >= start_date)
-    if end_date:
-        query = query.filter(TeamActivity.end_time <= end_date)
+    if parsed_start_date:
+        query = query.filter(TeamActivity.start_time >= parsed_start_date)
+    if parsed_end_date:
+        query = query.filter(TeamActivity.end_time <= parsed_end_date)
     
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
@@ -228,8 +246,8 @@ async def list_user_activities(
     user_id: UUID,
     skip: int = 0,
     limit: int = 50,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -246,10 +264,21 @@ async def list_user_activities(
     
     query = select(TeamActivity).filter(TeamActivity.user_id == user_id)
     
+    # Parse date strings to datetime
     if start_date:
-        query = query.filter(TeamActivity.start_time >= start_date)
+        try:
+            parsed_start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        except ValueError:
+            from datetime import date
+            parsed_start = datetime.combine(date.fromisoformat(start_date), datetime.min.time())
+        query = query.filter(TeamActivity.start_time >= parsed_start)
     if end_date:
-        query = query.filter(TeamActivity.end_time <= end_date)
+        try:
+            parsed_end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        except ValueError:
+            from datetime import date
+            parsed_end = datetime.combine(date.fromisoformat(end_date), datetime.max.time())
+        query = query.filter(TeamActivity.end_time <= parsed_end)
     
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())

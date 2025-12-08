@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek } from 'date-fns'
 import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Users, Briefcase, Plane, GraduationCap, Coffee } from 'lucide-react'
 import { Button } from '@jctc/ui'
@@ -41,117 +41,6 @@ export function TeamActivityCalendar({ className }: TeamActivityCalendarProps) {
   
   const { user } = useAuth()
   
-  // Get current date for mock data
-  const today = new Date()
-  const thisWeek = new Date(today)
-  
-  // Mock data for team activities - using current dates
-  const nowIso = today.toISOString()
-  const mockActivities: TeamActivityWithUser[] = [
-    {
-      id: '1',
-      activity_type: TeamActivityType.MEETING,
-      title: 'Daily Standup',
-      description: 'Daily team standup meeting',
-      start_time: `${format(today, 'yyyy-MM-dd')}T09:00:00`,
-      end_time: `${format(today, 'yyyy-MM-dd')}T09:30:00`,
-      user_id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-      created_at: nowIso,
-      updated_at: nowIso,
-      user: {
-        id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-        email: 'admin@jctc.gov.ng',
-        full_name: 'System Administrator'
-      }
-    },
-    {
-      id: '2',
-      activity_type: TeamActivityType.TRAINING,
-      title: 'Security Training',
-      description: 'Cybersecurity awareness training',
-      start_time: `${format(new Date(today.getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T14:00:00`,
-      end_time: `${format(new Date(today.getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T16:00:00`,
-      user_id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-      created_at: nowIso,
-      updated_at: nowIso,
-      user: {
-        id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-        email: 'admin@jctc.gov.ng',
-        full_name: 'System Administrator'
-      }
-    },
-    {
-      id: '3',
-      activity_type: TeamActivityType.TRAVEL,
-      title: 'Site Visit',
-      description: 'Visit to partner organization',
-      start_time: `${format(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T10:00:00`,
-      end_time: `${format(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T16:00:00`,
-      user_id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-      created_at: nowIso,
-      updated_at: nowIso,
-      user: {
-        id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-        email: 'admin@jctc.gov.ng',
-        full_name: 'System Administrator'
-      }
-    },
-    {
-      id: '4',
-      activity_type: TeamActivityType.LEAVE,
-      title: 'Personal Day',
-      description: 'Personal time off',
-      start_time: `${format(new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T09:00:00`,
-      end_time: `${format(new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T17:00:00`,
-      user_id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-      created_at: nowIso,
-      updated_at: nowIso,
-      user: {
-        id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-        email: 'admin@jctc.gov.ng',
-        full_name: 'System Administrator'
-      }
-    },
-    {
-      id: '5',
-      activity_type: TeamActivityType.MEETING,
-      title: 'Project Review',
-      description: 'Quarterly project review meeting',
-      start_time: `${format(new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T15:00:00`,
-      end_time: `${format(new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T16:30:00`,
-      user_id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-      created_at: nowIso,
-      updated_at: nowIso,
-      user: {
-        id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-        email: 'admin@jctc.gov.ng',
-        full_name: 'System Administrator'
-      }
-    },
-    {
-      id: '6',
-      activity_type: TeamActivityType.TRAINING,
-      title: 'New System Training',
-      description: 'Training on new case management system',
-      start_time: `${format(new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T10:00:00`,
-      end_time: `${format(new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}T12:00:00`,
-      user_id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-      created_at: nowIso,
-      updated_at: nowIso,
-      user: {
-        id: '3e2869a0-9d52-4449-afcf-2ded2e74b99b',
-        email: 'admin@jctc.gov.ng',
-        full_name: 'System Administrator'
-      }
-    }
-  ]
-  
-  // Use mock data for now, replace with API call later
-  const activities = { items: mockActivities }
-  const isLoading = false
-  const error: Error | null = null
-  const refetch = () => {}
-  
   // Calculate date range based on view mode
   const getDateRange = () => {
     if (viewMode === 'weekly') {
@@ -170,6 +59,14 @@ export function TeamActivityCalendar({ className }: TeamActivityCalendarProps) {
       }
     }
   }
+
+  // Use actual API data with date range filtering
+  const { activities, loading: isLoading, error, refetch } = useTeamActivities(getDateRange())
+    
+  // Refetch activities when date range changes
+  useEffect(() => {
+    refetch()
+  }, [currentDate, viewMode])
   const createMutation = useCreateTeamActivity()
   const updateMutation = useUpdateTeamActivity()
   const deleteMutation = useDeleteTeamActivity()
@@ -192,7 +89,7 @@ export function TeamActivityCalendar({ className }: TeamActivityCalendarProps) {
   const calendarDays = getCalendarDays()
 
   const getActivitiesForDate = (date: Date) => {
-    return activities?.items?.filter((activity) => 
+    return activities?.filter((activity) => 
       isSameDay(new Date(activity.start_time), date)
     ) || []
   }

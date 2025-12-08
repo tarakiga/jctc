@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Button, Card, CardContent, Badge } from '@jctc/ui'
 import { DeleteTaskModal, StartTaskModal, CompleteTaskModal, BlockTaskModal } from './TaskActionModals'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 // Task types
 type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED'
@@ -39,7 +41,16 @@ export function TaskManager({ caseId, tasks, availableUsers, onAdd, onEdit, onDe
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'ALL'>('ALL')
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL')
   const [showOverdueOnly, setShowOverdueOnly] = useState(false)
-  
+
+  // Fetch task_status and task_priority lookup values
+  const {
+    [LOOKUP_CATEGORIES.TASK_STATUS]: taskStatusLookup,
+    [LOOKUP_CATEGORIES.TASK_PRIORITY]: taskPriorityLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.TASK_STATUS,
+    LOOKUP_CATEGORIES.TASK_PRIORITY
+  ])
+
   // Premium modal states
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; task: Task | null }>({ isOpen: false, task: null })
   const [startModal, setStartModal] = useState<{ isOpen: boolean; task: Task | null }>({ isOpen: false, task: null })
@@ -210,11 +221,10 @@ export function TaskManager({ caseId, tasks, availableUsers, onAdd, onEdit, onDe
               <button
                 key={filter.status}
                 onClick={() => setFilterStatus(filter.status)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${isActive
+                  ? 'bg-slate-900 text-white shadow-md'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
               >
                 {filter.icon} {filter.label} ({count})
               </button>
@@ -285,9 +295,8 @@ export function TaskManager({ caseId, tasks, availableUsers, onAdd, onEdit, onDe
             return (
               <Card
                 key={task.id}
-                className={`group hover:shadow-md transition-all ${
-                  overdue && task.status !== 'DONE' ? 'border-red-300 bg-red-50/30' : ''
-                }`}
+                className={`group hover:shadow-md transition-all ${overdue && task.status !== 'DONE' ? 'border-red-300 bg-red-50/30' : ''
+                  }`}
               >
                 <CardContent className="p-4">
                   {/* Priority bar */}
@@ -344,9 +353,8 @@ export function TaskManager({ caseId, tasks, availableUsers, onAdd, onEdit, onDe
                       </div>
                     )}
                     {task.due_at && (
-                      <div className={`flex items-center gap-2 ${
-                        overdue && task.status !== 'DONE' ? 'text-red-600 font-medium' : ''
-                      }`}>
+                      <div className={`flex items-center gap-2 ${overdue && task.status !== 'DONE' ? 'text-red-600 font-medium' : ''
+                        }`}>
                         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
@@ -476,12 +484,11 @@ export function TaskManager({ caseId, tasks, availableUsers, onAdd, onEdit, onDe
 
                   {/* Due Date */}
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
-                    <input
-                      type="date"
-                      value={formData.due_at}
-                      onChange={(e) => setFormData({ ...formData, due_at: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                    <DatePicker
+                      label="Due Date"
+                      value={formData.due_at || ''}
+                      onChange={(value) => setFormData({ ...formData, due_at: value })}
+                      placeholder="Select due date"
                     />
                   </div>
                 </div>

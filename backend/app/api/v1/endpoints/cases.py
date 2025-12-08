@@ -7,12 +7,13 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import joinedload
 from app.database.base import get_db
 from app.models.case import Case, CaseStatus, CaseAssignment, AssignmentRole
-from app.models.user import User, UserRole, LookupCaseType
+from app.models.user import User, UserRole
+from app.models.task import ActionLog, Task
 from app.schemas.case import (
     CaseCreate, CaseUpdate, CaseResponse, 
-    CaseAssignmentCreate, CaseAssignmentResponse,
-    LookupCaseTypeResponse
+    CaseAssignmentCreate, CaseAssignmentResponse
 )
+from app.models.lookup_value import LookupValue
 from app.utils.dependencies import get_current_active_user, require_role
 import secrets
 import string
@@ -80,13 +81,27 @@ async def create_case(
             'email': case_data.reporter_contact.email
         }
     
+    # Store case_type directly as string (references lookup_values category='case_type')
+    case_type_value = case_data.case_type  # Use the value directly
+    
     # Create new case with all intake fields
+    # Determine initial status
+    initial_status = CaseStatus.OPEN
+    if case_data.status:
+        try:
+            initial_status = CaseStatus(case_data.status)
+        except ValueError:
+            # If invalid status, use default
+            pass
+    
     db_case = Case(
         case_number=case_number,
         title=case_data.title,
-        case_type_id=case_data.case_type_id,
+        case_type=case_type_value,  # Store case_type string directly
         description=case_data.description,
         severity=case_data.severity,
+        status=initial_status,  # Use the status from form or default to OPEN
+        date_reported=case_data.date_reported or datetime.utcnow(),
         local_or_international=case_data.local_or_international,
         originating_country=case_data.originating_country,
         cooperating_countries=case_data.cooperating_countries,
@@ -111,7 +126,10 @@ async def create_case(
         return db_case
     except Exception as e:
         await db.rollback()
+        import traceback
+        error_trace = traceback.format_exc()
         logger.error(f"Failed to create case: {str(e)}")
+        print(f"=== CASE CREATION ERROR ===\n{error_trace}\n=== END ERROR ===")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create case: {str(e)}"
@@ -253,7 +271,26 @@ async def get_case(
                     detail="Not authorized to view this case"
                 )
     
-    return case
+    # Look up case_type label from lookup_values table
+    case_type_label = None
+    if case.case_type:
+        case_type_result = await db.execute(
+            select(LookupValue).filter(
+                LookupValue.category == 'case_type',
+                LookupValue.value == case.case_type
+            )
+        )
+        case_type_obj = case_type_result.scalar_one_or_none()
+        if case_type_obj:
+            case_type_label = case_type_obj.label
+        else:
+            # Fallback to case_type value itself if no label found
+            case_type_label = case.case_type
+    
+    # Create response with case_type label
+    response = CaseResponse.model_validate(case)
+    response.case_type = case_type_label
+    return response
 
 @router.put("/{case_id}", response_model=CaseResponse)
 async def update_case(
@@ -305,6 +342,46 @@ async def update_case(
     await db.refresh(case)
     
     return case
+
+@router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_case(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete a case.
+    
+    Only the following users can delete a case:
+    - Admin users
+    - The user who created the case
+    """
+    result = await db.execute(select(Case).filter(Case.id == case_id))
+    case = result.scalar_one_or_none()
+    
+    if not case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found"
+        )
+    
+    # Check permissions: Admin or case creator only
+    can_delete = (
+        current_user.role == UserRole.ADMIN or
+        case.created_by == current_user.id
+    )
+    
+    if not can_delete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this case. Only admins or the case creator can delete cases."
+        )
+    
+    # Delete the case
+    await db.delete(case)
+    await db.commit()
+    
+    return None
 
 @router.post("/{case_id}/assign", response_model=CaseAssignmentResponse)
 async def assign_user_to_case(
@@ -506,12 +583,141 @@ async def get_case_evidence(
     return formatted_evidence
 
 # Case types endpoints
-@router.get("/types/", response_model=List[LookupCaseTypeResponse])
+@router.get("/types/")
 async def list_case_types(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """List available case types."""
-    result = await db.execute(select(LookupCaseType).order_by(LookupCaseType.label))
+    """List available case types from lookup_values table."""
+    result = await db.execute(
+        select(LookupValue)
+        .filter(LookupValue.category == 'case_type')
+        .order_by(LookupValue.sort_order, LookupValue.label)
+    )
     case_types = result.scalars().all()
-    return case_types
+    return [
+        {
+            "id": str(ct.id),
+            "value": ct.value,
+            "label": ct.label,
+            "color": ct.color
+        }
+        for ct in case_types
+    ]
+
+# Action log endpoints
+@router.get("/{case_id}/actions/")
+async def get_case_actions(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get action log entries for a case."""
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    # Fetch action log entries with user info
+    actions_query = (
+        select(ActionLog)
+        .options(joinedload(ActionLog.user))
+        .where(ActionLog.case_id == case_id)
+        .order_by(ActionLog.created_at.desc())
+    )
+    
+    result = await db.execute(actions_query)
+    actions = result.scalars().all()
+    
+    # Format response
+    formatted_actions = []
+    for action in actions:
+        formatted_actions.append({
+            "id": str(action.id),
+            "case_id": str(action.case_id),
+            "action_type": action.action or "MANUAL_ENTRY",
+            "action_details": action.details or "",
+            "performed_by": str(action.user_id) if action.user_id else "",
+            "performed_by_name": action.user.full_name if action.user else "System",
+            "timestamp": action.created_at.isoformat() if action.created_at else None,
+            "metadata": {}
+        })
+    
+    return formatted_actions
+
+@router.post("/{case_id}/actions/manual/")
+async def create_manual_action(
+    case_id: UUID,
+    action_data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a manual action log entry."""
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    # Create action log entry
+    new_action = ActionLog(
+        case_id=case_id,
+        user_id=current_user.id,
+        action=action_data.get("action_type", "MANUAL_ENTRY"),
+        details=action_data.get("action_details", "")
+    )
+    
+    db.add(new_action)
+    await db.commit()
+    await db.refresh(new_action)
+    
+    return {
+        "id": str(new_action.id),
+        "case_id": str(new_action.case_id),
+        "action_type": new_action.action,
+        "action_details": new_action.details,
+        "performed_by": str(current_user.id),
+        "performed_by_name": current_user.full_name,
+        "timestamp": new_action.created_at.isoformat() if new_action.created_at else None,
+        "metadata": {}
+    }
+
+@router.get("/{case_id}/tasks/")
+async def get_case_tasks(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all tasks for a specific case."""
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    # Get tasks for the case
+    tasks_result = await db.execute(
+        select(Task)
+        .options(joinedload(Task.assignee))
+        .where(Task.case_id == case_id)
+        .order_by(Task.created_at.desc())
+    )
+    tasks = tasks_result.scalars().unique().all()
+    
+    return [{
+        "id": str(task.id),
+        "case_id": str(task.case_id),
+        "title": task.title,
+        "description": task.description,
+        "assigned_to": str(task.assigned_to) if task.assigned_to else None,
+        "assigned_to_name": task.assignee.full_name if task.assignee else None,
+        "due_at": task.due_at.isoformat() if task.due_at else None,
+        "priority": task.priority,
+        "status": task.status.value if task.status else "OPEN",
+        "created_at": task.created_at.isoformat() if task.created_at else None,
+        "updated_at": task.updated_at.isoformat() if task.updated_at else None
+    } for task in tasks]

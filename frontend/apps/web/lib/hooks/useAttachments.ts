@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../services/api-client';
 
 export type AttachmentClassification = 'PUBLIC' | 'LE_SENSITIVE' | 'PRIVILEGED';
 
@@ -41,133 +42,29 @@ export const CLASSIFICATION_OPTIONS: { value: AttachmentClassification; label: s
   },
 ];
 
-// Mock data
-const MOCK_ATTACHMENTS: Attachment[] = [
-  {
-    id: '1',
-    case_id: '1',
-    title: 'Initial Complaint Form',
-    filename: 'complaint_form_2025-01-10.pdf',
-    file_size: 245760, // 240KB
-    file_type: 'application/pdf',
-    classification: 'LE_SENSITIVE',
-    sha256_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    virus_scan_status: 'CLEAN',
-    uploaded_by: 'John Okafor',
-    uploaded_at: '2025-01-10T09:30:00Z',
-    notes: 'Original complaint form from victim',
-  },
-  {
-    id: '2',
-    case_id: '1',
-    title: 'Bank Statement - GTBank',
-    filename: 'bank_statement_gtb_jan_2025.pdf',
-    file_size: 1048576, // 1MB
-    file_type: 'application/pdf',
-    classification: 'PRIVILEGED',
-    sha256_hash: 'a3b5c21398fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b123',
-    virus_scan_status: 'CLEAN',
-    uploaded_by: 'Jane Adeyemi',
-    uploaded_at: '2025-01-10T11:15:00Z',
-    notes: 'Financial records showing suspicious transactions',
-  },
-  {
-    id: '3',
-    case_id: '1',
-    title: 'Screenshot Evidence',
-    filename: 'whatsapp_chat_screenshot.png',
-    file_size: 524288, // 512KB
-    file_type: 'image/png',
-    classification: 'LE_SENSITIVE',
-    sha256_hash: 'b4c6d32498fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b456',
-    virus_scan_status: 'CLEAN',
-    uploaded_by: 'John Okafor',
-    uploaded_at: '2025-01-10T14:20:00Z',
-    notes: 'WhatsApp conversation showing threat messages',
-  },
-  {
-    id: '4',
-    case_id: '1',
-    title: 'Legal Opinion - Prosecutor',
-    filename: 'legal_opinion_cybercrimes_s27.docx',
-    file_size: 102400, // 100KB
-    file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    classification: 'PRIVILEGED',
-    sha256_hash: 'c5d7e43598fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b789',
-    virus_scan_status: 'CLEAN',
-    uploaded_by: 'Chidi Nwosu',
-    uploaded_at: '2025-01-11T08:45:00Z',
-    notes: 'Prosecutor assessment of charges under S27 Cybercrimes Act',
-  },
-  {
-    id: '5',
-    case_id: '1',
-    title: 'Media Coverage - Premium Times',
-    filename: 'premium_times_article_jan11.pdf',
-    file_size: 307200, // 300KB
-    file_type: 'application/pdf',
-    classification: 'PUBLIC',
-    sha256_hash: 'd6e8f54698fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b890',
-    virus_scan_status: 'CLEAN',
-    uploaded_by: 'Fatima Bello',
-    uploaded_at: '2025-01-11T10:30:00Z',
-    notes: 'Public news article covering the case',
-  },
-  {
-    id: '6',
-    case_id: '1',
-    title: 'Malware Sample',
-    filename: 'suspicious_file.exe',
-    file_size: 2097152, // 2MB
-    file_type: 'application/x-msdownload',
-    classification: 'LE_SENSITIVE',
-    sha256_hash: 'e7f9g65798fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b901',
-    virus_scan_status: 'INFECTED',
-    virus_scan_details: 'Detected: Trojan.GenericKD.12345678',
-    uploaded_by: 'John Okafor',
-    uploaded_at: '2025-01-11T11:00:00Z',
-    notes: 'Malware executable recovered from suspect device - DO NOT EXECUTE',
-  },
-];
-
-// Simulated API functions
+// API functions
 const fetchAttachments = async (caseId: string): Promise<Attachment[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return MOCK_ATTACHMENTS.filter((att) => att.case_id === caseId);
+  try {
+    const response = await apiClient.get<Attachment[]>(`/cases/${caseId}/attachments/`);
+    return response;
+  } catch (error) {
+    console.warn('Attachments API not available:', error);
+    return [];
+  }
 };
 
 const createAttachment = async (data: Partial<Attachment>): Promise<Attachment> => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  const newAttachment: Attachment = {
-    id: String(Date.now()),
-    case_id: data.case_id!,
-    title: data.title!,
-    filename: data.filename!,
-    file_size: data.file_size!,
-    file_type: data.file_type!,
-    classification: data.classification!,
-    sha256_hash: data.sha256_hash!,
-    virus_scan_status: 'PENDING', // Simulated - would be async in real system
-    uploaded_by: 'Current User',
-    uploaded_at: new Date().toISOString(),
-    notes: data.notes,
-  };
-  return newAttachment;
+  return await apiClient.post<Attachment>(`/cases/${data.case_id}/attachments/`, data);
 };
 
 const deleteAttachment = async (id: string): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await apiClient.delete(`/attachments/${id}/`);
 };
 
 const verifyAttachmentHash = async (id: string, file: File): Promise<boolean> => {
-  // Simulate re-hashing the file and comparing
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  const attachment = MOCK_ATTACHMENTS.find((att) => att.id === id);
-  if (!attachment) return false;
-  
-  // In reality, would compute hash of downloaded file and compare
-  // For mock purposes, randomly return true 95% of time
-  return Math.random() > 0.05;
+  const computedHash = await computeSHA256Hash(file);
+  const response = await apiClient.post<{ valid: boolean }>(`/attachments/${id}/verify-hash/`, { hash: computedHash });
+  return response.valid;
 };
 
 // Helper function to compute SHA-256 hash of a file

@@ -52,15 +52,8 @@ class User(BaseModel):
     audit_archives = relationship("AuditArchive", back_populates="creator")
 
 
-class LookupCaseType(BaseModel):
-    __tablename__ = "lookup_case_type"
-    
-    code = Column(String(100), unique=True, nullable=False)
-    label = Column(String(255), nullable=False)
-    description = Column(Text)
-    
-    # Relationships
-    cases = relationship("Case", back_populates="case_type")
+# LookupCaseType deprecated - case types now use lookup_values table
+# Table kept for migration compatibility, will be dropped after migration
 
 
 class TeamActivity(BaseModel):

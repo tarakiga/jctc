@@ -48,92 +48,7 @@ export interface DisposalRequest {
   notes?: string;
 }
 
-// Mock retention policies
-const MOCK_RETENTION_POLICIES: RetentionPolicy[] = [
-  {
-    id: '1',
-    case_type: 'FRAUD',
-    retention_years: 10,
-    description: 'Financial fraud cases must be retained for 10 years per regulatory requirements',
-    disposal_method: 'CRYPTOGRAPHIC_ERASURE',
-    requires_dual_approval: true,
-    active: true,
-    created_at: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '2',
-    case_type: 'HARASSMENT',
-    retention_years: 7,
-    description: 'Cyber harassment cases retained for 7 years',
-    disposal_method: 'SECURE_DELETE',
-    requires_dual_approval: false,
-    active: true,
-    created_at: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '3',
-    case_type: 'HACKING',
-    retention_years: 10,
-    description: 'Hacking and unauthorized access cases retained for 10 years',
-    disposal_method: 'CRYPTOGRAPHIC_ERASURE',
-    requires_dual_approval: true,
-    active: true,
-    created_at: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '4',
-    case_type: 'IDENTITY_THEFT',
-    retention_years: 10,
-    description: 'Identity theft cases retained for 10 years',
-    disposal_method: 'CRYPTOGRAPHIC_ERASURE',
-    requires_dual_approval: true,
-    active: true,
-    created_at: '2024-01-01T00:00:00Z',
-  },
-];
-
-// Mock legal holds
-const MOCK_LEGAL_HOLDS: LegalHold[] = [
-  {
-    id: '1',
-    case_id: '5',
-    reason: 'Ongoing appeal process',
-    placed_by: 'Legal Team',
-    placed_at: '2024-06-15T10:00:00Z',
-    active: true,
-  },
-];
-
-// Mock disposal requests
-const MOCK_DISPOSAL_REQUESTS: DisposalRequest[] = [
-  {
-    id: '1',
-    case_id: '10',
-    case_number: 'JCTC-2015-00042',
-    case_type: 'HARASSMENT',
-    retention_policy_id: '2',
-    eligible_date: '2022-01-01T00:00:00Z',
-    requested_by: 'System',
-    requested_at: '2025-01-01T00:00:00Z',
-    status: 'PENDING_APPROVAL',
-    has_legal_hold: false,
-    disposal_method: 'SECURE_DELETE',
-  },
-  {
-    id: '2',
-    case_id: '5',
-    case_number: 'JCTC-2014-00089',
-    case_type: 'FRAUD',
-    retention_policy_id: '1',
-    eligible_date: '2024-05-01T00:00:00Z',
-    requested_by: 'System',
-    requested_at: '2025-01-01T00:00:00Z',
-    status: 'ON_HOLD',
-    has_legal_hold: true,
-    disposal_method: 'CRYPTOGRAPHIC_ERASURE',
-    notes: 'Legal hold active - ongoing appeal',
-  },
-];
+import { apiClient } from '../services/api-client';
 
 export const CASE_TYPES: { value: CaseType; label: string }[] = [
   { value: 'FRAUD', label: 'Fraud' },
@@ -174,85 +89,56 @@ export const calculateDisposalEligibility = (
   return { eligible, eligibleDate };
 };
 
-// Simulated API functions
+// API functions
 const fetchRetentionPolicies = async (): Promise<RetentionPolicy[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return MOCK_RETENTION_POLICIES;
+  try {
+    return await apiClient.get<RetentionPolicy[]>('/retention/policies/');
+  } catch (error) {
+    console.warn('Retention policies API not available:', error);
+    return [];
+  }
 };
 
 const fetchLegalHolds = async (): Promise<LegalHold[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return MOCK_LEGAL_HOLDS;
+  try {
+    return await apiClient.get<LegalHold[]>('/retention/legal-holds/');
+  } catch (error) {
+    console.warn('Legal holds API not available:', error);
+    return [];
+  }
 };
 
 const fetchDisposalRequests = async (): Promise<DisposalRequest[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return MOCK_DISPOSAL_REQUESTS;
+  try {
+    return await apiClient.get<DisposalRequest[]>('/retention/disposal-requests/');
+  } catch (error) {
+    console.warn('Disposal requests API not available:', error);
+    return [];
+  }
 };
 
 const createRetentionPolicy = async (data: Partial<RetentionPolicy>): Promise<RetentionPolicy> => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return {
-    id: String(Date.now()),
-    case_type: data.case_type!,
-    retention_years: data.retention_years!,
-    description: data.description!,
-    disposal_method: data.disposal_method!,
-    requires_dual_approval: data.requires_dual_approval!,
-    active: true,
-    created_at: new Date().toISOString(),
-  };
+  return await apiClient.post<RetentionPolicy>('/retention/policies/', data);
 };
 
 const updateRetentionPolicy = async (id: string, data: Partial<RetentionPolicy>): Promise<RetentionPolicy> => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-  const existing = MOCK_RETENTION_POLICIES.find(p => p.id === id);
-  if (!existing) throw new Error('Policy not found');
-  return { ...existing, ...data, id };
+  return await apiClient.patch<RetentionPolicy>(`/retention/policies/${id}/`, data);
 };
 
 const createLegalHold = async (data: Partial<LegalHold>): Promise<LegalHold> => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return {
-    id: String(Date.now()),
-    case_id: data.case_id!,
-    reason: data.reason!,
-    placed_by: 'Current User',
-    placed_at: new Date().toISOString(),
-    expires_at: data.expires_at,
-    active: true,
-  };
+  return await apiClient.post<LegalHold>('/retention/legal-holds/', data);
 };
 
 const releaseLegalHold = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 800));
+  await apiClient.delete(`/retention/legal-holds/${id}/`);
 };
 
 const approveDisposal = async (id: string, witness?: string): Promise<DisposalRequest> => {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  const existing = MOCK_DISPOSAL_REQUESTS.find(r => r.id === id);
-  if (!existing) throw new Error('Disposal request not found');
-  
-  return {
-    ...existing,
-    status: 'APPROVED',
-    approved_by: 'Current User',
-    approved_at: new Date().toISOString(),
-    witness,
-  };
+  return await apiClient.post<DisposalRequest>(`/retention/disposal-requests/${id}/approve/`, { witness });
 };
 
 const completeDisposal = async (id: string): Promise<DisposalRequest> => {
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  const existing = MOCK_DISPOSAL_REQUESTS.find(r => r.id === id);
-  if (!existing) throw new Error('Disposal request not found');
-  
-  return {
-    ...existing,
-    status: 'COMPLETED',
-    completed_by: 'Current User',
-    completed_at: new Date().toISOString(),
-  };
+  return await apiClient.post<DisposalRequest>(`/retention/disposal-requests/${id}/complete/`, {});
 };
 
 // Custom hooks

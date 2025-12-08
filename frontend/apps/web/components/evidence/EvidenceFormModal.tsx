@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@jctc/ui'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 
-type EvidenceCategory = 'DIGITAL' | 'PHYSICAL' | 'DOCUMENT'
-type RetentionPolicy = 'PERMANENT' | 'CASE_CLOSE_PLUS_7' | 'CASE_CLOSE_PLUS_1' | 'DESTROY_AFTER_TRIAL'
+type EvidenceCategory = string
+type RetentionPolicy = string
 
 interface EvidenceFormData {
   label: string
@@ -12,12 +14,14 @@ interface EvidenceFormData {
   description: string
   storage_location: string
   sha256_hash?: string
+  files?: File[]
   file_path?: string
   file_size?: number
   retention_policy: RetentionPolicy
   collected_at: string
   notes: string
 }
+
 
 interface EvidenceItem extends EvidenceFormData {
   id: string
@@ -43,9 +47,20 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
     file_path: '',
     file_size: undefined,
     retention_policy: 'CASE_CLOSE_PLUS_7',
-    collected_at: new Date().toISOString().split('T')[0],
+    collected_at: new Date().toISOString().slice(0, 16),
     notes: '',
+    files: [],
   })
+
+  const {
+    [LOOKUP_CATEGORIES.EVIDENCE_CATEGORY]: categoryLookup,
+    [LOOKUP_CATEGORIES.RETENTION_POLICY]: retentionLookup,
+    [LOOKUP_CATEGORIES.STORAGE_LOCATION]: storageLocationLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.EVIDENCE_CATEGORY,
+    LOOKUP_CATEGORIES.RETENTION_POLICY,
+    LOOKUP_CATEGORIES.STORAGE_LOCATION
+  ])
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -61,7 +76,7 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
         file_path: editingEvidence.file_path || '',
         file_size: editingEvidence.file_size,
         retention_policy: editingEvidence.retention_policy,
-        collected_at: editingEvidence.collected_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        collected_at: editingEvidence.collected_at?.slice(0, 16) || new Date().toISOString().slice(0, 16),
         notes: editingEvidence.notes || '',
       })
     } else {
@@ -75,7 +90,7 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
         file_path: '',
         file_size: undefined,
         retention_policy: 'CASE_CLOSE_PLUS_7',
-        collected_at: new Date().toISOString().split('T')[0],
+        collected_at: new Date().toISOString().slice(0, 16),
         notes: '',
       })
     }
@@ -83,7 +98,7 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.label || !formData.description) {
       alert('Please fill in all required fields')
       return
@@ -160,9 +175,10 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
                   onChange={(e) => setFormData({ ...formData, category: e.target.value as EvidenceCategory })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
                 >
-                  <option value="DIGITAL">Digital Evidence</option>
-                  <option value="PHYSICAL">Physical Evidence</option>
-                  <option value="DOCUMENT">Document Evidence</option>
+                  <option value="">Select Category</option>
+                  {categoryLookup.values.map((v) => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -177,10 +193,10 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
                   onChange={(e) => setFormData({ ...formData, retention_policy: e.target.value as RetentionPolicy })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
                 >
-                  <option value="PERMANENT">Permanent</option>
-                  <option value="CASE_CLOSE_PLUS_7">Case Close + 7 Years</option>
-                  <option value="CASE_CLOSE_PLUS_1">Case Close + 1 Year</option>
-                  <option value="DESTROY_AFTER_TRIAL">Destroy After Trial</option>
+                  <option value="">Select Policy</option>
+                  {retentionLookup.values.map((v) => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -204,40 +220,81 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
               {/* Storage Location */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Storage Location
+                  Storage Location <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
+                  required
                   value={formData.storage_location}
                   onChange={(e) => setFormData({ ...formData, storage_location: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
-                  placeholder="e.g., Vault A, Shelf 3, Box 12"
-                />
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                >
+                  <option value="">Select Location</option>
+                  {storageLocationLookup?.values?.map((v) => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Collection Date */}
+              {/* Collection Date & Time */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Collection Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
+                <DateTimePicker
+                  label="Collection Date & Time"
                   value={formData.collected_at}
-                  onChange={(e) => setFormData({ ...formData, collected_at: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                  onChange={(value) => setFormData({ ...formData, collected_at: value })}
+                  required
+                  placeholder="Select collection date and time"
+                  maxDate={new Date()}
                 />
               </div>
             </div>
 
-            {/* Digital Evidence Fields */}
-            {formData.category === 'DIGITAL' && (
+            {/* Digital/Document/Testimonial Evidence Fields */}
+            {['DIGITAL', 'DOCUMENT', 'TESTIMONIAL'].includes(formData.category) && (
               <div className="border-t border-slate-200 pt-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Digital Evidence Details</h3>
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">File & Evidence Details</h3>
+
+                {/* File Upload */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Upload File
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-slate-300 rounded-xl shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-slate-900">
+                      <svg className="w-5 h-5 mr-2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      Choose File
+                      <input
+                        type="file"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || [])
+                          if (files.length > 0) {
+                            setFormData({
+                              ...formData,
+                              files: files,
+                              file_path: files[0].name,
+                              file_size: files[0].size
+                            })
+                          }
+                        }}
+                      />
+                    </label>
+                    {formData.files && formData.files.length > 0 && (
+                      <span className="text-sm text-slate-600">
+                        {formData.files[0].name} ({formatFileSize(formData.files[0].size || 0)})
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    SHA-256 hash will be automatically calculated upon upload.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      File Path
+                      File Path / Name
                     </label>
                     <input
                       type="text"
@@ -273,9 +330,10 @@ export function EvidenceFormModal({ isOpen, onClose, onSubmit, editingEvidence }
                     type="text"
                     value={formData.sha256_hash || ''}
                     onChange={(e) => setFormData({ ...formData, sha256_hash: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all font-mono text-sm"
-                    placeholder="64-character SHA-256 hash (optional)"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all font-mono text-sm bg-slate-50"
+                    placeholder="Calculated automatically if file uploaded, or enter manually"
                     maxLength={64}
+                    readOnly={!!(formData.files && formData.files.length > 0)}
                   />
                   {formData.sha256_hash && formData.sha256_hash.length > 0 && formData.sha256_hash.length !== 64 && (
                     <p className="text-sm text-orange-600 mt-1">⚠️ SHA-256 hash should be exactly 64 characters</p>

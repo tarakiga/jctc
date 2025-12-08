@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useCharges, useChargeMutations, CYBERCRIMES_ACT_SECTIONS } from '@/lib/hooks/useCharges'
 import { Gavel, Plus, X, Trash2, Edit, AlertCircle, Calendar, CheckCircle } from 'lucide-react'
 import { format } from 'date-fns'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 
 interface ProsecutionManagerProps {
   caseId: string
@@ -27,6 +29,17 @@ export default function ProsecutionManager({ caseId }: ProsecutionManagerProps) 
   const { data: charges = [], isLoading } = useCharges(caseId)
   const { createCharge, updateCharge, deleteCharge, loading } = useChargeMutations(caseId)
 
+  // Fetch prosecution-related lookup values
+  const {
+    [LOOKUP_CATEGORIES.PROSECUTION_SECTION]: prosecutionSectionLookup,
+    [LOOKUP_CATEGORIES.PROSECUTION_STATUS]: prosecutionStatusLookup,
+    [LOOKUP_CATEGORIES.CHARGE_STATUS]: chargeStatusLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.PROSECUTION_SECTION,
+    LOOKUP_CATEGORIES.PROSECUTION_STATUS,
+    LOOKUP_CATEGORIES.CHARGE_STATUS
+  ])
+
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<ChargeStatus | 'ALL'>('ALL')
@@ -42,13 +55,13 @@ export default function ProsecutionManager({ caseId }: ProsecutionManagerProps) 
   })
 
   // Filtered charges
-  const filteredCharges = charges.filter(charge => 
+  const filteredCharges = charges.filter(charge =>
     statusFilter === 'ALL' || charge.status === statusFilter
   )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       if (editingId) {
         await updateCharge(editingId, {
@@ -80,7 +93,7 @@ export default function ProsecutionManager({ caseId }: ProsecutionManagerProps) 
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this charge?')) return
-    
+
     try {
       await deleteCharge(id)
     } catch (error) {
@@ -199,15 +212,12 @@ export default function ProsecutionManager({ caseId }: ProsecutionManagerProps) 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Filed Date & Time *
-                </label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
+                  label="Filed Date & Time"
                   value={formData.filed_at}
-                  onChange={(e) => setFormData(prev => ({ ...prev, filed_at: e.target.value }))}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onChange={(value) => setFormData(prev => ({ ...prev, filed_at: value }))}
                   required
+                  placeholder="Select filed date and time"
                 />
               </div>
 
@@ -290,7 +300,7 @@ export default function ProsecutionManager({ caseId }: ProsecutionManagerProps) 
         <div className="space-y-3">
           {filteredCharges.map(charge => {
             const statusColor = STATUS_COLORS[charge.status]
-            
+
             return (
               <div
                 key={charge.id}

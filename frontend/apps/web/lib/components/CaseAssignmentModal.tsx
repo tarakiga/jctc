@@ -2,14 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Badge } from '@jctc/ui'
-
-interface TeamMember {
-  id: string
-  name: string
-  email: string
-  role: string
-  available: boolean
-}
+import { useUsers } from '@/lib/hooks/useUsers'
 
 interface CaseAssignmentModalProps {
   caseId: string
@@ -27,37 +20,8 @@ export function CaseAssignmentModal({
   const [selectedUser, setSelectedUser] = useState<string>('')
   const [loading, setLoading] = useState(false)
 
-  // Mock team members - in real app, fetch from API
-  const teamMembers: TeamMember[] = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john.doe@jctc.gov',
-      role: 'Investigator',
-      available: true,
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane.smith@jctc.gov',
-      role: 'Forensic Analyst',
-      available: true,
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      email: 'mike.johnson@jctc.gov',
-      role: 'Prosecutor',
-      available: false,
-    },
-    {
-      id: '4',
-      name: 'Sarah Williams',
-      email: 'sarah.williams@jctc.gov',
-      role: 'Supervisor',
-      available: true,
-    },
-  ]
+  // Fetch team members from API
+  const { users: teamMembers, loading: usersLoading, error: usersError } = useUsers({ is_active: true })
 
   const handleAssign = async () => {
     if (!selectedUser) return
@@ -100,34 +64,49 @@ export function CaseAssignmentModal({
 
             {/* Team Members List */}
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedUser === member.id
+              {usersLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900 mx-auto"></div>
+                  <p className="text-sm text-neutral-500 mt-2">Loading team members...</p>
+                </div>
+              ) : usersError ? (
+                <div className="text-center py-8 text-red-600">
+                  <p>Failed to load team members</p>
+                  <p className="text-sm">{usersError.message}</p>
+                </div>
+              ) : teamMembers.length === 0 ? (
+                <div className="text-center py-8 text-neutral-500">
+                  <p>No active team members found</p>
+                </div>
+              ) : (
+                teamMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${selectedUser === member.id
                       ? 'border-primary-500 bg-primary-50'
                       : 'border-neutral-200 hover:border-neutral-300'
-                  } ${!member.available ? 'opacity-50' : ''}`}
-                  onClick={() => member.available && setSelectedUser(member.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-neutral-200 rounded-full flex items-center justify-center">
-                      <span className="text-neutral-700 font-semibold text-sm">
-                        {member.name.split(' ').map((n) => n[0]).join('')}
-                      </span>
+                      } ${!member.is_active ? 'opacity-50' : ''}`}
+                    onClick={() => member.is_active && setSelectedUser(member.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-neutral-200 rounded-full flex items-center justify-center">
+                        <span className="text-neutral-700 font-semibold text-sm">
+                          {member.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-neutral-900">{member.full_name}</p>
+                        <p className="text-sm text-neutral-600">{member.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-neutral-900">{member.name}</p>
-                      <p className="text-sm text-neutral-600">{member.email}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="info">{member.role}</Badge>
+                      {!member.is_active && <Badge variant="warning">Unavailable</Badge>}
+                      {currentAssignee === member.id && <Badge variant="success">Current</Badge>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="info">{member.role}</Badge>
-                    {!member.available && <Badge variant="warning">Unavailable</Badge>}
-                    {currentAssignee === member.id && <Badge variant="success">Current</Badge>}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

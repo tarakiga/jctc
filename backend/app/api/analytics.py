@@ -8,8 +8,8 @@ import calendar
 from app.database import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
-from app.models.parties import Party
-from app.models.legal_instruments import LegalInstrument
+from app.models.party import Party
+from app.models.legal import LegalInstrument
 from app.models.chain_of_custody import ChainOfCustodyEntry
 from app.models.user import User
 from app.schemas.analytics import (

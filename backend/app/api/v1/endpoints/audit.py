@@ -106,6 +106,21 @@ async def search_audit_logs(
     return AuditSearchResponse(**results)
 
 
+@router.get("/logs/statistics", response_model=AuditStatistics)
+@audit_action(AuditAction.READ, AuditEntity.SYSTEM, "Get audit statistics", AuditSeverity.LOW)
+async def get_audit_statistics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive audit statistics for dashboards and monitoring."""
+    require_permissions(current_user.role, ["ADMIN", "SUPERVISOR", "FORENSIC"])
+    
+    audit_service = AuditService(db)
+    stats = audit_service.get_audit_statistics()
+    
+    return AuditStatistics(**stats)
+
+
 @router.get("/logs/{log_id}", response_model=AuditLogResponse)
 @audit_action(AuditAction.READ, AuditEntity.SYSTEM, "Get audit log details", AuditSeverity.LOW)
 async def get_audit_log(
@@ -152,19 +167,6 @@ async def verify_audit_integrity(
     }
 
 
-@router.get("/logs/statistics", response_model=AuditStatistics)
-@audit_action(AuditAction.READ, AuditEntity.SYSTEM, "Get audit statistics", AuditSeverity.LOW)
-async def get_audit_statistics(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get comprehensive audit statistics for dashboards and monitoring."""
-    require_permissions(current_user.role, ["ADMIN", "SUPERVISOR", "FORENSIC"])
-    
-    audit_service = AuditService(db)
-    stats = audit_service.get_audit_statistics()
-    
-    return AuditStatistics(**stats)
 
 
 @router.post("/logs/export", response_model=AuditExportResponse)

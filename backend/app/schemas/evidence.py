@@ -15,6 +15,7 @@ class EvidenceItemBase(BaseModel):
 class EvidenceItemCreate(EvidenceItemBase):
     case_id: UUID
     retention_policy: Optional[str] = Field("7Y_AFTER_CLOSE", max_length=100)
+    collected_at: Optional[datetime] = Field(None, description="Date and time evidence was collected")
 
 
 class EvidenceItemUpdate(BaseModel):
@@ -107,10 +108,17 @@ class EvidenceResponse(BaseModel):
     case_id: str
     case_number: Optional[str] = None
     case_title: Optional[str] = None
-    collected_date: datetime
-    collected_by: str
+    collected_at: Optional[datetime] = None
+    collected_by: Optional[str] = None
+    collected_by_name: Optional[str] = "System"
     chain_of_custody_status: str
     storage_location: Optional[str] = None
+    label: str
+    sha256_hash: Optional[str] = Field(None, alias="sha256")
+    retention_policy: Optional[str] = None
+    notes: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     

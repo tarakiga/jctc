@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { Button, Badge } from '@jctc/ui'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 
 // Evidence types
-type EvidenceCategory = 'DIGITAL' | 'PHYSICAL' | 'DOCUMENT'
-type RetentionPolicy = 'PERMANENT' | 'CASE_CLOSE_PLUS_7' | 'CASE_CLOSE_PLUS_1' | 'DESTROY_AFTER_TRIAL'
+type EvidenceCategory = string // Relaxed for dynamic lookups
+type RetentionPolicy = 'PERMANENT' | 'CASE_CLOSE_PLUS_7' | 'CASE_CLOSE_PLUS_1' | 'DESTROY_AFTER_TRIAL' | string // Relaxed for dynamic lookups
 
 interface EvidenceItem {
   id: string
@@ -38,7 +39,7 @@ interface CustodyEntry {
   to_person: string
   to_person_name: string
   location: string
-  purpose: string
+  purpose?: string
   notes?: string
   signature_verified: boolean
   performed_by?: string
@@ -55,7 +56,8 @@ interface PremiumEvidenceManagerProps {
   onGenerateQR: (id: string) => Promise<void>
   onVerifyHash: (id: string) => Promise<boolean>
   custodyEntries: CustodyEntry[]
-  onAddCustodyEntry: () => void
+  onAddCustodyEntry: (evidenceId: string) => void
+  onDeleteCustodyEntry: (evidenceId: string, entryId: string, action: string, timestamp: string) => void
 }
 
 export function PremiumEvidenceManager({
@@ -69,45 +71,61 @@ export function PremiumEvidenceManager({
   onVerifyHash,
   custodyEntries,
   onAddCustodyEntry,
+  onDeleteCustodyEntry,
 }: PremiumEvidenceManagerProps) {
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(
     evidence.length > 0 ? evidence[0].id : null
   )
-  const [filterCategory, setFilterCategory] = useState<EvidenceCategory | 'ALL'>('ALL')
+  const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [isVerifying, setIsVerifying] = useState<string | null>(null)
   const [isCustodyExpanded, setIsCustodyExpanded] = useState(true)
 
+  // Fetch Lookups
+  const {
+    [LOOKUP_CATEGORIES.EVIDENCE_CATEGORY]: categoryLookup,
+    [LOOKUP_CATEGORIES.RETENTION_POLICY]: retentionLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.EVIDENCE_CATEGORY,
+    LOOKUP_CATEGORIES.RETENTION_POLICY
+  ])
+
   const selectedEvidence = evidence.find((e) => e.id === selectedEvidenceId)
   const selectedCustodyEntries = custodyEntries.filter((c) => c.evidence_id === selectedEvidenceId)
+
+  // Helper to get retention label
+  const getRetentionLabel = (value: string) => {
+    return retentionLookup?.values.find(v => v.value === value)?.label || value
+  }
 
   // Filter evidence
   const filteredEvidence = evidence.filter((item) => {
     const matchesCategory = filterCategory === 'ALL' || item.category === filterCategory
-    const matchesSearch = 
+    const matchesSearch =
       searchQuery === '' ||
       item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.evidence_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
-
-  const getCategoryIcon = (category: EvidenceCategory) => {
-    const icons = {
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, string> = {
       DIGITAL: '💾',
       PHYSICAL: '📦',
       DOCUMENT: '📄',
+      TESTIMONIAL: '💬',
     }
-    return icons[category]
+    return icons[category] || '📁'
   }
 
-  const getCategoryColor = (category: EvidenceCategory) => {
-    const colors = {
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
       DIGITAL: 'bg-blue-100 text-blue-700 border-blue-200',
       PHYSICAL: 'bg-purple-100 text-purple-700 border-purple-200',
       DOCUMENT: 'bg-amber-100 text-amber-700 border-amber-200',
+      TESTIMONIAL: 'bg-rose-100 text-rose-700 border-rose-200',
     }
-    return colors[category]
+    return colors[category] || 'bg-slate-100 text-slate-700 border-slate-200'
   }
 
   const formatFileSize = (bytes?: number): string => {
@@ -191,9 +209,9 @@ export function PremiumEvidenceManager({
         <div className="p-6 border-b border-slate-200/60 bg-gradient-to-r from-slate-50 to-white">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-slate-900">Evidence Items</h3>
-            <Button 
+            <Button
               onClick={onAdd}
-              size="sm" 
+              size="sm"
               className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
             >
               <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -229,6 +247,7 @@ export function PremiumEvidenceManager({
             <option value="DIGITAL">💾 Digital ({evidence.filter((e) => e.category === 'DIGITAL').length})</option>
             <option value="PHYSICAL">📦 Physical ({evidence.filter((e) => e.category === 'PHYSICAL').length})</option>
             <option value="DOCUMENT">📄 Documents ({evidence.filter((e) => e.category === 'DOCUMENT').length})</option>
+            <option value="TESTIMONIAL">💬 Testimonial ({evidence.filter((e) => e.category === 'TESTIMONIAL').length})</option>
           </select>
         </div>
 
@@ -247,15 +266,11 @@ export function PremiumEvidenceManager({
             filteredEvidence.map((item) => (
               <button
                 key={item.id}
-                onClick={() => {
-                  setSelectedEvidenceId(item.id)
-                  onView(item)
-                }}
-                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                  selectedEvidenceId === item.id
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm bg-white'
-                }`}
+                onClick={() => setSelectedEvidenceId(item.id)}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${selectedEvidenceId === item.id
+                  ? 'border-blue-500 bg-blue-50 shadow-md'
+                  : 'border-slate-200 hover:border-slate-300 hover:shadow-sm bg-white'
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div className="text-2xl">{getCategoryIcon(item.category)}</div>
@@ -305,8 +320,18 @@ export function PremiumEvidenceManager({
 
               {/* Quick Actions */}
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onView(selectedEvidence)}
+                >
+                  <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 4l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                  Expand
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => onEdit(selectedEvidence)}
                 >
@@ -315,8 +340,8 @@ export function PremiumEvidenceManager({
                   </svg>
                   Edit
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => onGenerateQR(selectedEvidence.id)}
                 >
@@ -326,8 +351,8 @@ export function PremiumEvidenceManager({
                   QR Code
                 </Button>
                 {selectedEvidence.sha256_hash && (
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     onClick={() => handleVerifyHash(selectedEvidence.id)}
                     disabled={isVerifying === selectedEvidence.id}
@@ -339,8 +364,8 @@ export function PremiumEvidenceManager({
                     {isVerifying === selectedEvidence.id ? 'Verifying...' : 'Verify'}
                   </Button>
                 )}
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => onDelete(selectedEvidence.id)}
                   className="border-red-300 text-red-600 hover:bg-red-50 ml-auto"
@@ -377,6 +402,16 @@ export function PremiumEvidenceManager({
                   </div>
                 )}
 
+                <div className="bg-white rounded-xl border border-slate-200/60 p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-xs font-medium text-slate-500 uppercase">Retention</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{getRetentionLabel(selectedEvidence.retention_policy)}</p>
+                </div>
+
                 {selectedEvidence.file_size && (
                   <div className="bg-white rounded-xl border border-slate-200/60 p-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -386,6 +421,18 @@ export function PremiumEvidenceManager({
                       <span className="text-xs font-medium text-slate-500 uppercase">File Size</span>
                     </div>
                     <p className="text-sm font-semibold text-slate-900">{formatFileSize(selectedEvidence.file_size)}</p>
+                  </div>
+                )}
+
+                {selectedEvidence.file_path && (
+                  <div className="bg-white rounded-xl border border-slate-200/60 p-4 col-span-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs font-medium text-slate-500 uppercase">File Name</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 font-mono break-all">{selectedEvidence.file_path}</p>
                   </div>
                 )}
 
@@ -451,9 +498,8 @@ export function PremiumEvidenceManager({
                     </span>
                   </div>
                   <svg
-                    className={`w-5 h-5 text-slate-600 transition-transform ${
-                      isCustodyExpanded ? 'rotate-180' : ''
-                    }`}
+                    className={`w-5 h-5 text-slate-600 transition-transform ${isCustodyExpanded ? 'rotate-180' : ''
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -467,7 +513,7 @@ export function PremiumEvidenceManager({
                     <div className="p-5">
                       <Button
                         size="sm"
-                        onClick={onAddCustodyEntry}
+                        onClick={() => selectedEvidence && onAddCustodyEntry(selectedEvidence.id)}
                         className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white mb-4"
                       >
                         <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -509,6 +555,20 @@ export function PremiumEvidenceManager({
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                   )}
+                                  <button
+                                    onClick={() => onDeleteCustodyEntry(
+                                      entry.evidence_id,
+                                      entry.id,
+                                      entry.action,
+                                      new Date(entry.timestamp).toLocaleDateString()
+                                    )}
+                                    className="ml-auto p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Delete Entry"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
                                 </div>
 
                                 <p className="text-sm text-slate-600 mb-3">{entry.purpose}</p>

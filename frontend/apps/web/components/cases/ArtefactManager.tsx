@@ -5,30 +5,42 @@ import { useArtefacts, useArtefactMutations } from '@/lib/hooks/useArtefacts'
 import { useDevices } from '@/lib/hooks/useDevices'
 import { FileText, Search, Plus, X, Trash2, Link, Tag, Filter } from 'lucide-react'
 import { format } from 'date-fns'
+import type { Artefact } from '@/lib/hooks/useArtefacts'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 
 interface ArtefactManagerProps {
   caseId: string
 }
 
-type ArtefactType = 'CHAT_LOG' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'BROWSER_HISTORY' | 'OTHER'
-type SourceTool = 'XRY' | 'XAMN' | 'FTK' | 'AUTOPSY' | 'ENCASE' | 'CELLEBRITE' | 'OTHER'
+type ArtefactType = string
+type SourceTool = string
 
-const ARTEFACT_TYPE_LABELS: Record<ArtefactType, string> = {
+// Fallback labels (used if lookup not loaded yet)
+const ARTEFACT_TYPE_LABELS: Record<string, string> = {
   CHAT_LOG: 'Chat Log',
   IMAGE: 'Image',
   VIDEO: 'Video',
+  DOC: 'Document',
   DOCUMENT: 'Document',
   BROWSER_HISTORY: 'Browser History',
+  EMAIL: 'Email',
+  CALL_LOG: 'Call Log',
+  SMS: 'SMS',
   OTHER: 'Other'
 }
 
-const SOURCE_TOOL_LABELS: Record<SourceTool, string> = {
+const SOURCE_TOOL_LABELS: Record<string, string> = {
+  CELLEBRITE: 'Cellebrite',
+  FTK: 'FTK (Forensic Toolkit)',
+  ENCASE: 'EnCase',
+  AXIOM: 'Magnet AXIOM',
+  AUTOPSY: 'Autopsy',
+  XWAYS: 'X-Ways Forensics',
+  OXYGEN: 'Oxygen Forensic',
+  MANUAL: 'Manual Extraction',
   XRY: 'XRY',
   XAMN: 'XAMN',
-  FTK: 'FTK Imager',
-  AUTOPSY: 'Autopsy',
-  ENCASE: 'EnCase',
-  CELLEBRITE: 'Cellebrite',
   OTHER: 'Other'
 }
 
@@ -45,6 +57,11 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
   const { data: artefacts = [], isLoading } = useArtefacts(caseId)
   const { data: devices = [] } = useDevices(caseId)
   const { createArtefact, updateArtefact, deleteArtefact, loading } = useArtefactMutations(caseId)
+
+  // Fetch dynamic lookup values
+  const lookups = useLookups([LOOKUP_CATEGORIES.ARTEFACT_TYPE, LOOKUP_CATEGORIES.SOURCE_TOOL])
+  const artefactTypeLookup = lookups[LOOKUP_CATEGORIES.ARTEFACT_TYPE]?.values || []
+  const sourceToolLookup = lookups[LOOKUP_CATEGORIES.SOURCE_TOOL]?.values || []
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -68,11 +85,11 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
 
   // Filtered artefacts
   const filteredArtefacts = artefacts.filter(artefact => {
-    const matchesSearch = searchQuery === '' || 
+    const matchesSearch = searchQuery === '' ||
       artefact.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       artefact.file_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       artefact.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    
+
     const matchesType = typeFilter === 'ALL' || artefact.artefact_type === typeFilter
     const matchesTool = toolFilter === 'ALL' || artefact.source_tool === toolFilter
     const matchesDevice = deviceFilter === 'ALL' || artefact.device_id === deviceFilter
@@ -82,7 +99,7 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.file && !editingId) {
       alert('Please select a file')
       return
@@ -99,6 +116,7 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
         })
       } else {
         await createArtefact({
+          case_id: caseId,
           artefact_type: formData.artefact_type,
           source_tool: formData.source_tool,
           description: formData.description,
@@ -118,7 +136,7 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this artefact?')) return
-    
+
     try {
       await deleteArtefact(id)
     } catch (error) {
@@ -214,11 +232,10 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2 rounded-lg border font-medium transition-all flex items-center gap-2 shadow-sm hover:shadow ${
-              showFilters
-                ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
-                : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-300'
-            }`}
+            className={`px-4 py-2 rounded-lg border font-medium transition-all flex items-center gap-2 shadow-sm hover:shadow ${showFilters
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+              : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-300'
+              }`}
           >
             <Filter className="w-4 h-4" />
             Filters
@@ -288,9 +305,14 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 >
-                  {Object.entries(ARTEFACT_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
+                  {artefactTypeLookup.length > 0
+                    ? artefactTypeLookup.map(item => (
+                      <option key={item.value} value={item.value}>{item.label}</option>
+                    ))
+                    : Object.entries(ARTEFACT_TYPE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))
+                  }
                 </select>
               </div>
 
@@ -304,22 +326,24 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 >
-                  {Object.entries(SOURCE_TOOL_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
+                  {sourceToolLookup.length > 0
+                    ? sourceToolLookup.map(item => (
+                      <option key={item.value} value={item.value}>{item.label}</option>
+                    ))
+                    : Object.entries(SOURCE_TOOL_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))
+                  }
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Extracted Date & Time *
-                </label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
+                  label="Extracted Date & Time"
                   value={formData.extracted_at}
-                  onChange={(e) => setFormData(prev => ({ ...prev, extracted_at: e.target.value }))}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onChange={(value) => setFormData(prev => ({ ...prev, extracted_at: value }))}
                   required
+                  placeholder="Select extracted date and time"
                 />
               </div>
 

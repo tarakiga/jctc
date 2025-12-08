@@ -70,7 +70,7 @@ export function ProtectedRoute({
   if (isLoading) {
     return (
       fallback || (
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-screen items-center justify-center" suppressHydrationWarning>
           <div className="text-center">
             <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary-500 border-r-transparent"></div>
             <p className="text-neutral-600">Loading...</p>

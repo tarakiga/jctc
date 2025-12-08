@@ -7,6 +7,7 @@ import { Button, Card, CardHeader, CardTitle, CardContent } from '@jctc/ui'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 import { useCaseMutations } from '@/lib/hooks/useCases'
+import { COUNTRIES } from '@/lib/utils/countries'
 
 function NewCaseContent() {
   const { logout } = useAuth()
@@ -213,15 +214,20 @@ function NewCaseContent() {
                     >
                       Originating Country
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id="originating_country"
                       name="originating_country"
                       value={formData.originating_country}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="Country where the crime originated"
-                    />
+                    >
+                      <option value="">Select country</option>
+                      {COUNTRIES.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>

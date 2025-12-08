@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Badge } from '@jctc/ui'
+import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 
 type AssignmentRole = 'LEAD' | 'SUPPORT' | 'PROSECUTOR' | 'LIAISON'
 
@@ -45,6 +46,9 @@ export function AssignmentManager({
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
   const [deletingAssignment, setDeletingAssignment] = useState<Assignment | null>(null)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+
+  // Fetch assignment_role lookup values
+  const assignmentRoleLookup = useLookup(LOOKUP_CATEGORIES.ASSIGNMENT_ROLE)
 
   const handleOpenModal = () => {
     setSelectedUserId('')
@@ -372,22 +376,22 @@ export function AssignmentManager({
                     Change Role <span className="text-red-500">*</span>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    {(['LEAD', 'SUPPORT', 'PROSECUTOR', 'LIAISON'] as AssignmentRole[]).map(
-                      (role) => {
+                    {assignmentRoleLookup.values.map(
+                      (roleItem) => {
+                        const role = roleItem.value as AssignmentRole
                         const roleIcon = getRoleIcon(role)
                         return (
                           <button
                             key={role}
                             type="button"
                             onClick={() => setSelectedRole(role)}
-                            className={`px-4 py-3 rounded-xl border-2 font-semibold transition-all flex items-center justify-center gap-2 ${
-                              selectedRole === role
-                                ? 'border-slate-900 bg-slate-900 text-white'
-                                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
-                            }`}
+                            className={`px-4 py-3 rounded-xl border-2 font-semibold transition-all flex items-center justify-center gap-2 ${selectedRole === role
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                              }`}
                           >
                             <span>{roleIcon}</span>
-                            <span>{role}</span>
+                            <span>{roleItem.label}</span>
                           </button>
                         )
                       }
@@ -534,22 +538,24 @@ export function AssignmentManager({
                     Assignment Role <span className="text-red-500">*</span>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    {(['LEAD', 'SUPPORT', 'PROSECUTOR', 'LIAISON'] as AssignmentRole[]).map(
-                      (role) => (
-                        <button
-                          key={role}
-                          type="button"
-                          onClick={() => setSelectedRole(role)}
-                          disabled={assignedRolesForSelectedUser.includes(role)}
-                          className={`px-4 py-3 rounded-xl border-2 font-semibold transition-all ${
-                            selectedRole === role
+                    {assignmentRoleLookup.values.map(
+                      (roleItem) => {
+                        const role = roleItem.value as AssignmentRole
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => setSelectedRole(role)}
+                            disabled={assignedRolesForSelectedUser.includes(role)}
+                            className={`px-4 py-3 rounded-xl border-2 font-semibold transition-all ${selectedRole === role
                               ? 'border-slate-900 bg-slate-900 text-white'
                               : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
-                          } ${assignedRolesForSelectedUser.includes(role) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        >
-                          {role}
-                        </button>
-                      )
+                              } ${assignedRolesForSelectedUser.includes(role) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          >
+                            {roleItem.label}
+                          </button>
+                        )
+                      }
                     )}
                   </div>
                   <div className="mt-3 p-4 bg-blue-50 rounded-lg">

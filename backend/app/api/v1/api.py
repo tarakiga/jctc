@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 # Phase 1 scope only (extended to include device management for frontend flows)
-from app.api.v1.endpoints import auth, users, cases, evidence, devices, audit, prosecution
-from app.api import team_activity
+from app.api.v1.endpoints import auth, users, cases, evidence, devices, audit, prosecution, lookup_values
+from app.api import team_activity, reports, parties
 
 api_router = APIRouter()
 
@@ -15,8 +15,18 @@ api_router.include_router(devices.router, prefix="/devices", tags=["device-manag
 # Team Activity Management
 api_router.include_router(team_activity.router, prefix="/team-activities", tags=["team-activities"], include_in_schema=True)
 
+# Reports Management
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+
+# Parties Management
+api_router.include_router(parties.router, prefix="/parties", tags=["parties"])
+
+# Admin - Lookup Values Management
+api_router.include_router(lookup_values.router, prefix="/admin/lookups", tags=["admin-lookups"])
+
 # Audit and Compliance (Phase 2)
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 
 # Prosecution Workflow (Phase 2)
 api_router.include_router(prosecution.router, tags=["prosecution"])
+

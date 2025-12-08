@@ -18,7 +18,7 @@ class ApiClient {
 
   private getAuthHeaders(): HeadersInit {
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    
+
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -27,7 +27,7 @@ class ApiClient {
 
   private buildUrl(endpoint: string, params?: Record<string, any>): string {
     const url = new URL(`${this.baseUrl}${endpoint}`)
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -35,7 +35,7 @@ class ApiClient {
         }
       })
     }
-    
+
     return url.toString()
   }
 
@@ -44,24 +44,36 @@ class ApiClient {
       const error = await response.json().catch(() => ({
         message: response.statusText,
       }))
-      throw new Error(error.message || `HTTP ${response.status}`)
+      // FastAPI returns errors in 'detail' field
+      const errorMessage = error.detail || error.message || response.statusText
+      console.error('API Error:', response.status, response.statusText, error)
+      throw new Error(errorMessage || `HTTP ${response.status}`)
+    }
+
+    // Handle 204 No Content responses (e.g., from DELETE)
+    if (response.status === 204) {
+      return undefined as T
     }
 
     const contentType = response.headers.get('content-type')
     if (contentType?.includes('application/json')) {
-      return response.json()
+      const data = await response.json()
+      console.log('API Response:', data)
+      return data
     }
 
     return response.text() as any
   }
 
   async get<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const { params, ...fetchOptions } = options
+    const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
+    const headers = { ...this.getAuthHeaders(), ...(customHeaders as Record<string, string>) }
 
+    console.log('API Request:', url)
     const response = await fetch(url, {
       method: 'GET',
-      headers: this.getAuthHeaders(),
+      headers,
       ...fetchOptions,
     })
 
@@ -69,13 +81,20 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<T> {
-    const { params, ...fetchOptions } = options
+    const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
+
+    const headers: Record<string, string> = { ...this.getAuthHeaders() as Record<string, string>, ...(customHeaders as Record<string, string>) }
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+
+    if (isFormData) {
+      delete headers['Content-Type']
+    }
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: data ? JSON.stringify(data) : undefined,
+      headers,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
       ...fetchOptions,
     })
 
@@ -83,13 +102,20 @@ class ApiClient {
   }
 
   async put<T>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<T> {
-    const { params, ...fetchOptions } = options
+    const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
+
+    const headers: Record<string, string> = { ...this.getAuthHeaders() as Record<string, string>, ...(customHeaders as Record<string, string>) }
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+
+    if (isFormData) {
+      delete headers['Content-Type']
+    }
 
     const response = await fetch(url, {
       method: 'PUT',
-      headers: this.getAuthHeaders(),
-      body: data ? JSON.stringify(data) : undefined,
+      headers,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
       ...fetchOptions,
     })
 
@@ -97,13 +123,20 @@ class ApiClient {
   }
 
   async patch<T>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<T> {
-    const { params, ...fetchOptions } = options
+    const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
+
+    const headers: Record<string, string> = { ...this.getAuthHeaders() as Record<string, string>, ...(customHeaders as Record<string, string>) }
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+
+    if (isFormData) {
+      delete headers['Content-Type']
+    }
 
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: this.getAuthHeaders(),
-      body: data ? JSON.stringify(data) : undefined,
+      headers,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
       ...fetchOptions,
     })
 
@@ -111,12 +144,13 @@ class ApiClient {
   }
 
   async delete<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const { params, ...fetchOptions } = options
+    const { params, headers: customHeaders, ...fetchOptions } = options
     const url = this.buildUrl(endpoint, params)
+    const headers = { ...this.getAuthHeaders(), ...(customHeaders as Record<string, string>) }
 
     const response = await fetch(url, {
       method: 'DELETE',
-      headers: this.getAuthHeaders(),
+      headers,
       ...fetchOptions,
     })
 

@@ -3,25 +3,34 @@
 import { useState } from 'react'
 import { Button, Card, CardContent, Badge } from '@jctc/ui'
 import { useSeizures, useSeizureMutations } from '../../lib/hooks/useSeizures'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 
 interface SeizureManagerProps {
   caseId: string
-  seizures?: any[]
 }
 
-export function SeizureManager({ caseId, seizures: propSeizures }: SeizureManagerProps) {
-  const { data: fetchedSeizures = [], isLoading } = useSeizures(caseId)
+export function SeizureManager({ caseId }: SeizureManagerProps) {
+  const { data: seizures = [], isLoading } = useSeizures(caseId)
   const { createSeizure, loading: mutationLoading } = useSeizureMutations(caseId)
-  
-  // Use prop seizures if provided, otherwise use fetched data
-  const seizures = propSeizures || fetchedSeizures
+
+  // Fetch seizure-related lookup values
+  const {
+    [LOOKUP_CATEGORIES.WARRANT_TYPE]: warrantTypeLookup,
+    [LOOKUP_CATEGORIES.ISSUING_AUTHORITY]: issuingAuthorityLookup,
+    [LOOKUP_CATEGORIES.SEIZURE_STATUS]: seizureStatusLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.WARRANT_TYPE,
+    LOOKUP_CATEGORIES.ISSUING_AUTHORITY,
+    LOOKUP_CATEGORIES.SEIZURE_STATUS
+  ])
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSeizureId, setSelectedSeizureId] = useState<string | null>(null)
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [witnessInput, setWitnessInput] = useState('')
   const [witnesses, setWitnesses] = useState<string[]>([])
-  
+
   const [formData, setFormData] = useState({
     seized_at: '',
     location: '',
@@ -329,15 +338,12 @@ export function SeizureManager({ caseId, seizures: propSeizures }: SeizureManage
               <form onSubmit={handleSubmit} className="px-8 py-6 space-y-6 max-h-[60vh] overflow-y-auto">
                 {/* Date & Time */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Date & Time Seized <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    required
+                  <DateTimePicker
+                    label="Date & Time Seized"
                     value={formData.seized_at}
-                    onChange={(e) => setFormData({ ...formData, seized_at: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                    onChange={(value) => setFormData({ ...formData, seized_at: value })}
+                    required
+                    placeholder="Select seizure date and time"
                   />
                 </div>
 

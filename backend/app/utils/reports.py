@@ -16,7 +16,7 @@ import base64
 
 from app.models.case import Case
 from app.models.evidence import Evidence
-from app.models.parties import Party
+from app.models.party import Party
 from app.models.user import User
 from app.schemas.reports import (
     ReportRequest, CaseReport, EvidenceReport, ComplianceReport,

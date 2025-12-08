@@ -5,12 +5,12 @@ Create admin user and sample data for JCTC Management System
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from app.models.user import User, UserRole, LookupCaseType
+from app.models.user import User, UserRole
 from app.utils.auth import get_password_hash
 from app.config.settings import settings
 
 async def create_sample_data():
-    """Create admin user and sample case types"""
+    """Create admin user and sample users"""
     print("🔄 Creating admin user and sample data...")
     
     # Create async engine and session
@@ -71,48 +71,8 @@ async def create_sample_data():
             for user in users:
                 session.add(user)
             
-            # Create sample case types
-            print("📋 Creating case types...")
-            case_types = [
-                LookupCaseType(
-                    code="TIP_SEXTORTION",
-                    label="Online Sextortion",
-                    description="Cases involving online sextortion and blackmail"
-                ),
-                LookupCaseType(
-                    code="ONLINE_CHILD_EXPLOITATION",
-                    label="Online Child Exploitation", 
-                    description="Cases involving exploitation of minors online"
-                ),
-                LookupCaseType(
-                    code="CYBERBULLYING",
-                    label="Cyberbullying",
-                    description="Online harassment and bullying cases"
-                ),
-                LookupCaseType(
-                    code="IDENTITY_THEFT",
-                    label="Identity Theft",
-                    description="Cases involving stolen personal information"
-                ),
-                LookupCaseType(
-                    code="FINANCIAL_FRAUD",
-                    label="Financial Fraud",
-                    description="Online financial crimes and fraud"
-                ),
-                LookupCaseType(
-                    code="RANSOMWARE",
-                    label="Ransomware Attack",
-                    description="Cases involving ransomware and extortion"
-                ),
-                LookupCaseType(
-                    code="CYBERSTALKING",
-                    label="Cyberstalking",
-                    description="Online stalking and harassment cases"
-                )
-            ]
-            
-            for case_type in case_types:
-                session.add(case_type)
+            # Case types are now managed via lookup_values admin UI
+            # Run seed_lookup_values.py to populate case types
             
             # Commit all changes
             await session.commit()
@@ -120,7 +80,7 @@ async def create_sample_data():
             print("✅ Successfully created:")
             print(f"   - 1 Admin user (admin@jctc.gov.ng / admin123)")
             print(f"   - 4 Sample users with different roles")
-            print(f"   - {len(case_types)} Case types")
+            print(f"   - Case types: Use Admin UI or run seed_lookup_values.py")
             
             print("\n🔑 User Credentials:")
             print("   Admin: admin@jctc.gov.ng / admin123")

@@ -3,20 +3,19 @@
 import { useState, useEffect } from 'react'
 import { Button, Card, CardContent, Badge } from '@jctc/ui'
 import { useDevices, useDeviceMutations, DeviceType, EncryptionStatus, CustodyStatus, AnalysisStatus } from '../../lib/hooks/useDevices'
-
+import { useSeizures } from '../../lib/hooks/useSeizures'
 import { useDeviceImaging, useImagingMutations, ImagingStatus } from '../../lib/hooks/useDeviceImaging'
 import { useArtifacts, useArtifactMutations, ArtefactType } from '../../lib/hooks/useArtifacts'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 
 interface DeviceInventoryProps {
   caseId: string
-  devices?: any[]
-  seizures?: any[]
 }
 
-export function DeviceInventory({ caseId, devices: propDevices, seizures: propSeizures }: DeviceInventoryProps) {
-  const { data: fetchedDevices = [], isLoading } = useDevices(caseId)
+export function DeviceInventory({ caseId }: DeviceInventoryProps) {
+  const { data: devices = [], isLoading } = useDevices(caseId)
   const { createDevice, deleteDevice, linkDevice, loading: mutationLoading } = useDeviceMutations(caseId)
-  
+
   const { updateImaging, loading: imagingLoading } = useImagingMutations(caseId)
   const { createArtifact, loading: artifactLoading } = useArtifactMutations(caseId)
   const [isImagingModalOpen, setIsImagingModalOpen] = useState(false)
@@ -82,10 +81,9 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
       alert('Failed to add artifact')
     }
   }
-  
-  // Use prop data if provided, otherwise use fetched data
-  const devices = propDevices || fetchedDevices
-  const seizures = propSeizures || []
+
+  // Fetch seizures for device creation
+  const { data: seizures = [] } = useSeizures(caseId)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [custodyFilter, setCustodyFilter] = useState<string>('ALL')
@@ -93,7 +91,7 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false)
   const [linkTargetDeviceId, setLinkTargetDeviceId] = useState<string>('')
   const [selectedLinkSeizureId, setSelectedLinkSeizureId] = useState<string>('')
-  
+
   const [formData, setFormData] = useState<{
     label: string;
     device_type: DeviceType | '';
@@ -271,7 +269,7 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
         <div className="flex-1">
           <h3 className="text-xl font-bold text-slate-900">Device Inventory</h3>
           <p className="text-sm text-slate-600 mt-1">Seized digital devices and storage media</p>
-          
+
           {/* Filters */}
           <div className="flex gap-3 mt-4">
             <select
@@ -297,7 +295,7 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
             </select>
           </div>
         </div>
-        
+
         <button
           onClick={handleOpenModal}
           className="px-4 py-2.5 bg-black text-white rounded-lg font-medium shadow-sm hover:shadow-md hover:bg-neutral-800 transition-all active:scale-95 flex items-center gap-2"
@@ -335,8 +333,8 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredDevices.map((device) => {
-            const custodyBadge = getCustodyBadge(device.custody_status)
-            
+            const custodyBadge = getCustodyBadge(device.custody_status || 'IN_VAULT')
+
             // Get device type icon
             const getDeviceIcon = (type: string) => {
               const icons: Record<string, string> = {
@@ -353,7 +351,7 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
               <Card key={device.id} className="group relative overflow-hidden hover:shadow-xl transition-all duration-500 border-2 border-slate-200 hover:border-indigo-300">
                 {/* Gradient Accent Bar */}
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-                
+
                 <CardContent className="p-6">
                   {/* Header Section */}
                   <div className="flex items-start gap-4 mb-5">
@@ -364,13 +362,12 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
                         </svg>
                       </div>
                       {/* Status Indicator Dot */}
-                      <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-md ${
-                        device.status === 'ANALYZED' ? 'bg-green-500' :
-                        device.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                        device.status === 'BLOCKED' ? 'bg-red-500' : 'bg-amber-500'
-                      }`}></div>
+                      <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-md ${device.status === 'ANALYZED' ? 'bg-green-500' :
+                          device.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                            device.status === 'BLOCKED' ? 'bg-red-500' : 'bg-amber-500'
+                        }`}></div>
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <h4 className="text-lg font-bold text-slate-900 leading-tight truncate">{device.label}</h4>
@@ -480,20 +477,17 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
                   </div>
 
                   {/* Imaging Status - Enhanced */}
-                  <div className={`relative overflow-hidden rounded-xl border-2 mb-4 transition-all ${
-                    device.imaged 
-                      ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-emerald-300' 
+                  <div className={`relative overflow-hidden rounded-xl border-2 mb-4 transition-all ${device.imaged
+                      ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-emerald-300'
                       : 'bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 border-amber-300'
-                  }`}>
+                    }`}>
                     <div className="relative p-3.5">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2.5">
-                          <div className={`p-1.5 rounded-lg ${
-                            device.imaged ? 'bg-emerald-100' : 'bg-amber-100'
-                          }`}>
-                            <svg className={`w-4 h-4 ${
-                              device.imaged ? 'text-emerald-600' : 'text-amber-600'
-                            }`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <div className={`p-1.5 rounded-lg ${device.imaged ? 'bg-emerald-100' : 'bg-amber-100'
+                            }`}>
+                            <svg className={`w-4 h-4 ${device.imaged ? 'text-emerald-600' : 'text-amber-600'
+                              }`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                               {device.imaged ? (
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                               ) : (
@@ -502,14 +496,12 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
                             </svg>
                           </div>
                           <div>
-                            <p className={`text-xs font-bold ${
-                              device.imaged ? 'text-emerald-900' : 'text-amber-900'
-                            }`}>
+                            <p className={`text-xs font-bold ${device.imaged ? 'text-emerald-900' : 'text-amber-900'
+                              }`}>
                               {device.imaged ? 'Forensic Image Verified' : 'Awaiting Forensic Imaging'}
                             </p>
-                            <p className={`text-xs ${
-                              device.imaged ? 'text-emerald-600' : 'text-amber-600'
-                            }`}>
+                            <p className={`text-xs ${device.imaged ? 'text-emerald-600' : 'text-amber-600'
+                              }`}>
                               {device.imaged ? 'SHA-256 verified' : 'Queued for imaging'}
                             </p>
                           </div>
@@ -549,7 +541,7 @@ export function DeviceInventory({ caseId, devices: propDevices, seizures: propSe
                         <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDeleteDevice(device.id)}
                       disabled={mutationLoading}
                       className="p-2.5 bg-white hover:bg-red-50 border-2 border-slate-200 hover:border-red-300 rounded-xl transition-all active:scale-95 group/icon disabled:opacity-50"

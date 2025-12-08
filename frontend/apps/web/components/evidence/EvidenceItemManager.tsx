@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Card, CardContent, Badge } from '@jctc/ui'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 // Evidence types
 type EvidenceCategory = 'DIGITAL' | 'PHYSICAL' | 'DOCUMENT'
@@ -39,11 +40,11 @@ interface EvidenceItemManagerProps {
   onViewCustody?: (id: string) => void
 }
 
-export function EvidenceItemManager({ 
-  caseId, 
-  evidence, 
-  onAdd, 
-  onEdit, 
+export function EvidenceItemManager({
+  caseId,
+  evidence,
+  onAdd,
+  onEdit,
   onDelete,
   onGenerateQR,
   onVerifyHash,
@@ -112,14 +113,14 @@ export function EvidenceItemManager({
     if (!file) return
 
     setSelectedFile(file)
-    
+
     // Compute SHA-256 hash
     try {
       const buffer = await file.arrayBuffer()
       const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
       const hashArray = Array.from(new Uint8Array(hashBuffer))
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-      
+
       setFormData({
         ...formData,
         sha256_hash: hashHex,
@@ -270,7 +271,7 @@ export function EvidenceItemManager({
         ) : (
           filteredEvidence.map((item) => {
             const categoryInfo = getCategoryBadge(item.category)
-            
+
             return (
               <Card key={item.id} className="hover:shadow-lg transition-all duration-300 border border-neutral-200 hover:border-blue-300">
                 <CardContent className="p-6">
@@ -298,7 +299,7 @@ export function EvidenceItemManager({
                           {item.description && (
                             <p className="text-sm text-neutral-700 mb-4 leading-relaxed">{item.description}</p>
                           )}
-                          
+
                           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                             {item.storage_location && (
                               <div className="flex items-start gap-2">
@@ -560,15 +561,12 @@ export function EvidenceItemManager({
 
                 {/* Collection Date */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Collection Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
+                  <DatePicker
+                    label="Collection Date"
                     value={formData.collected_at}
-                    onChange={(e) => setFormData({ ...formData, collected_at: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                    onChange={(value) => setFormData({ ...formData, collected_at: value })}
+                    required
+                    placeholder="Select collection date"
                   />
                 </div>
 

@@ -48,7 +48,9 @@ export const teamActivityService: TeamActivityService = {
       params.append('end_date', filters.end_date)
     }
     
-    return await apiClient.get<TeamActivityWithUser[]>(`/team-activities?${params.toString()}`)
+    const response = await apiClient.get<{ items?: TeamActivityWithUser[]; total?: number }>(`/team-activities?${params.toString()}`)
+    // API returns { items, total }, transform to array
+    return response?.items || []
   },
 
   async getTeamActivity(id: string): Promise<TeamActivityWithUser> {

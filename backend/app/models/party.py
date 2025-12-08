@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Date, Text, ForeignKey, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 import enum
@@ -23,8 +23,14 @@ class Party(BaseModel):
     dob = Column(Date)
     nationality = Column(String(2))  # ISO country code
     gender = Column(String(20))
-    contact = Column(JSONB)  # Store contact info as JSON
+    contact = Column(JSONB)  # Store contact info as JSON {phone, email, address}
     notes = Column(Text)
+    
+    # Guardian contact for minors (victims under 18)
+    guardian_contact = Column(JSONB)  # {name, phone, email, relationship}
+    
+    # Safeguarding flags for victims
+    safeguarding_flags = Column(ARRAY(String))  # ['medical', 'shelter', 'counselling', 'legal-aid']
     
     # Relationships
     case = relationship("Case", back_populates="parties")

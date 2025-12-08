@@ -8,11 +8,11 @@ import json
 import io
 import base64
 
-from app.database import get_db
+from app.core.deps import get_db, get_current_user
 from app.models.case import Case
 from app.models.evidence import Evidence
-from app.models.parties import Party
-from app.models.legal_instruments import LegalInstrument
+from app.models.party import Party
+from app.models.legal import LegalInstrument
 from app.models.user import User
 from app.schemas.reports import (
     ReportRequest,
@@ -26,8 +26,8 @@ from app.schemas.reports import (
     ExecutiveSummary,
     CustomReportRequest
 )
-from app.utils.auth import get_current_user
-from app.schemas.user import User as UserSchema
+
+from app.schemas.user import UserResponse as UserSchema
 from app.utils.reports import (
     generate_pdf_report,
     generate_excel_report,
@@ -142,11 +142,11 @@ async def download_report(
 @router.post("/case-summary", response_model=ReportResponse)
 async def generate_case_summary_report(
     case_id: str,
+    background_tasks: BackgroundTasks,
     format: str = Query("pdf", description="Report format: pdf, word, excel"),
     include_evidence: bool = True,
     include_parties: bool = True,
     include_timeline: bool = True,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserSchema = Depends(get_current_user)
 ):
@@ -199,11 +199,11 @@ async def generate_case_summary_report(
 @router.post("/evidence-chain", response_model=ReportResponse)
 async def generate_evidence_chain_report(
     evidence_id: str,
+    background_tasks: BackgroundTasks,
     format: str = Query("pdf", description="Report format: pdf, word"),
     include_custody_log: bool = True,
     include_integrity_checks: bool = True,
     include_file_hashes: bool = True,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserSchema = Depends(get_current_user)
 ):
@@ -246,6 +246,7 @@ async def generate_evidence_chain_report(
 
 @router.post("/compliance", response_model=ReportResponse)
 async def generate_compliance_report(
+    background_tasks: BackgroundTasks,
     report_period: str = Query("monthly", description="Report period: weekly, monthly, quarterly, yearly"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -253,7 +254,6 @@ async def generate_compliance_report(
     include_metrics: bool = True,
     include_violations: bool = True,
     include_recommendations: bool = True,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserSchema = Depends(get_current_user)
 ):
@@ -310,6 +310,7 @@ async def generate_compliance_report(
 
 @router.post("/executive-summary", response_model=ReportResponse)
 async def generate_executive_summary(
+    background_tasks: BackgroundTasks,
     report_period: str = Query("monthly", description="Report period: weekly, monthly, quarterly, yearly"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -317,7 +318,6 @@ async def generate_executive_summary(
     include_trends: bool = True,
     include_highlights: bool = True,
     format: str = Query("pdf", description="Report format: pdf, word"),
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserSchema = Depends(get_current_user)
 ):

@@ -99,3 +99,7 @@ backend/tests/**/*.html
 
 # Root-level test docs and artifacts
 tests/
+
+# Global ignore for documentation as per user request
+*.md
+*.docx

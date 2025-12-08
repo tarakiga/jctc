@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@jctc/ui'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
-import { useEvidence } from '@/lib/hooks/useEvidence'
+import { useEvidence, useChainOfCustody } from '@/lib/hooks/useEvidence'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { EvidenceFormModal } from '@/components/evidence/EvidenceFormModal'
 
@@ -17,64 +17,8 @@ function EvidenceListContent() {
   const [showChainOfCustody, setShowChainOfCustody] = useState(false)
   const [isAddEvidenceOpen, setIsAddEvidenceOpen] = useState(false)
 
-  // Mock chain of custody data
-  const mockChainOfCustody = [
-    {
-      id: '1',
-      timestamp: '2025-01-16T09:30:00Z',
-      action: 'COLLECTED',
-      from_person: null,
-      to_person: 'Jane Smith',
-      location: 'Crime Scene - ABC Corp Office, Floor 3',
-      purpose: 'Initial evidence collection from suspect workstation',
-      notes: 'Evidence collected in sealed tamper-evident bag. Photographed in situ before collection.',
-      signature_verified: true,
-    },
-    {
-      id: '2',
-      timestamp: '2025-01-16T14:15:00Z',
-      action: 'TRANSFERRED',
-      from_person: 'Jane Smith',
-      to_person: 'Michael Chen',
-      location: 'Evidence Room A - JCTC Headquarters',
-      purpose: 'Transfer to digital forensics lab for analysis',
-      notes: 'Seal integrity verified. Evidence bag unopened. Logged into evidence management system.',
-      signature_verified: true,
-    },
-    {
-      id: '3',
-      timestamp: '2025-01-17T10:00:00Z',
-      action: 'EXAMINED',
-      from_person: 'Michael Chen',
-      to_person: 'Michael Chen',
-      location: 'Digital Forensics Lab - Room 204',
-      purpose: 'Forensic analysis and data extraction',
-      notes: 'Created forensic image using FTK Imager. Hash values: MD5 verified. Original evidence resealed.',
-      signature_verified: true,
-    },
-    {
-      id: '4',
-      timestamp: '2025-01-17T16:45:00Z',
-      action: 'TRANSFERRED',
-      from_person: 'Michael Chen',
-      to_person: 'Sarah Johnson',
-      location: 'Secure Storage Vault B',
-      purpose: 'Long-term secure storage pending trial',
-      notes: 'Analysis complete. Evidence returned to secure storage. Climate-controlled environment.',
-      signature_verified: true,
-    },
-    {
-      id: '5',
-      timestamp: '2025-01-20T11:20:00Z',
-      action: 'ACCESSED',
-      from_person: 'Sarah Johnson',
-      to_person: 'Sarah Johnson',
-      location: 'Secure Storage Vault B',
-      purpose: 'Inspection by defense counsel',
-      notes: 'Evidence presented to defense attorney. Seal inspected - intact. No tampering detected.',
-      signature_verified: true,
-    },
-  ]
+  // Fetch chain of custody for selected evidence
+  const { entries: chainOfCustodyEntries = [], loading: custodyLoading } = useChainOfCustody(selectedEvidence?.id || '')
 
   // Fetch evidence from API with filters
   const { evidence, loading, error, refetch } = useEvidence({
@@ -490,7 +434,7 @@ function EvidenceListContent() {
                       </svg>
                       Chain of Custody
                       <span className="ml-2 px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
-                        {mockChainOfCustody.length} Records
+                        {chainOfCustodyEntries.length} Records
                       </span>
                     </h3>
                     <Button 
@@ -521,13 +465,32 @@ function EvidenceListContent() {
 
                 {showChainOfCustody && (
                   <div className="p-6">
-                    {/* Timeline */}
+                    {custodyLoading ? (
+                      <div className="text-center py-8">
+                        <div className="text-neutral-500">Loading chain of custody...</div>
+                      </div>
+                    ) : chainOfCustodyEntries.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center">
+                            <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-neutral-900 font-medium">No custody records yet</p>
+                            <p className="text-sm text-neutral-500 mt-1">Chain of custody entries will appear here</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                    /* Timeline */
                     <div className="relative">
                       {/* Vertical Line */}
                       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500"></div>
                       
                       <div className="space-y-6">
-                        {mockChainOfCustody.map((record) => {
+                        {chainOfCustodyEntries.map((record) => {
                           const actionColors = {
                             COLLECTED: 'from-emerald-500 to-emerald-600',
                             TRANSFERRED: 'from-blue-500 to-blue-600',
@@ -580,7 +543,7 @@ function EvidenceListContent() {
                                     <p className="text-sm text-slate-600 mb-3">{record.purpose}</p>
                                   </div>
                                   <span className="text-xs font-medium text-slate-500">
-                                    {new Date(record.timestamp).toLocaleDateString('en-US', { 
+                                    {new Date(record.performed_at).toLocaleDateString('en-US', { 
                                       month: 'short', 
                                       day: 'numeric', 
                                       year: 'numeric',
@@ -592,26 +555,26 @@ function EvidenceListContent() {
 
                                 {/* Transfer Details */}
                                 <div className="grid grid-cols-2 gap-4 mb-3">
-                                  {record.from_person && (
+                                  {record.custodian_from && (
                                     <div>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">From</p>
                                       <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
                                         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                         </svg>
-                                        {record.from_person}
+                                        {record.custodian_from}
                                       </p>
                                     </div>
                                   )}
                                   <div>
                                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                      {record.from_person ? 'To' : 'By'}
+                                      {record.custodian_from ? 'To' : 'By'}
                                     </p>
                                     <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
                                       <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 016 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                       </svg>
-                                      {record.to_person}
+                                      {record.custodian_to || record.performed_by}
                                     </p>
                                   </div>
                                 </div>
@@ -641,6 +604,7 @@ function EvidenceListContent() {
                         })}
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
               </div>

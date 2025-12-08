@@ -5,18 +5,18 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@jctc/ui'
+import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 
 // Validation schema matching backend requirements
 const custodyFormSchema = z.object({
-  action: z.enum(['SEIZED', 'TRANSFERRED', 'ANALYZED', 'PRESENTED_COURT', 'RETURNED', 'DISPOSED']),
+  action: z.string().min(1, 'Action is required'),
   custodian_from: z.string().optional(),
   custodian_to: z.string().optional(),
   location_from: z.string().optional(),
   location_to: z.string().optional(),
-  purpose: z.string().min(1, 'Purpose is required'),
-  notes: z.string().optional(),
+
+  notes: z.string().min(1, 'Reason/Notes are required'),
   signature_verified: z.boolean(),
-  signature_file: z.instanceof(File).optional(),
   requires_approval: z.boolean()
 })
 
@@ -46,7 +46,7 @@ export function ChainOfCustodyForm({
   loading = false
 }: ChainOfCustodyFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   const {
     register,
     handleSubmit,
@@ -60,13 +60,13 @@ export function ChainOfCustodyForm({
       custodian_to: '',
       location_from: currentLocation || '',
       location_to: '',
-      purpose: '',
+
       notes: '',
       signature_verified: false,
       requires_approval: false
     }
   })
-  
+
   const action = watch('action')
 
   // User options for select dropdowns
@@ -75,15 +75,15 @@ export function ChainOfCustodyForm({
     label: `${user.name} (${user.role})`
   }))
 
-  // Action options with descriptions
-  const actionOptions = [
-    { value: 'SEIZED', label: 'Seized', description: 'Initial seizure of evidence' },
-    { value: 'TRANSFERRED', label: 'Transferred', description: 'Transfer between custodians' },
-    { value: 'ANALYZED', label: 'Analyzed', description: 'Evidence analyzed in lab' },
-    { value: 'PRESENTED_COURT', label: 'Presented in Court', description: 'Evidence presented in court proceedings' },
-    { value: 'RETURNED', label: 'Returned', description: 'Evidence returned to owner/storage' },
-    { value: 'DISPOSED', label: 'Disposed', description: 'Evidence disposed of according to policy' }
-  ]
+  // Fetch dynamic action options from lookup_values
+  const { values: actionLookups, loading: actionLoading } = useLookup(LOOKUP_CATEGORIES.CUSTODY_ACTION)
+
+  // Action options with descriptions (from lookup)
+  const actionOptions = actionLookups.map(lookup => ({
+    value: lookup.value,
+    label: lookup.label,
+    description: `Action: ${lookup.label}`
+  }))
 
   // Check if action requires approval
   const requiresApproval = (action: string) => {
@@ -283,61 +283,27 @@ export function ChainOfCustodyForm({
               </div>
             </div>
 
-            {/* Purpose */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Purpose
-                <span className="text-red-500 ml-1">*</span>
-              </label>
-              <input
-                {...register('purpose')}
-                type="text"
-                placeholder="Enter the purpose of this transfer"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-                required
-              />
-              {errors.purpose && (
-                <p className="text-red-500 text-sm mt-1">{errors.purpose.message}</p>
-              )}
-            </div>
+
 
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Notes
+                Reason / Notes
+                <span className="text-red-500 ml-1">*</span>
               </label>
               <textarea
                 {...register('notes')}
-                placeholder="Enter any additional notes..."
+                placeholder="Enter reason for custody action..."
                 rows={3}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                required
               />
               {errors.notes && (
                 <p className="text-red-500 text-sm mt-1">{errors.notes.message}</p>
               )}
             </div>
 
-            {/* Signature Upload */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Signature File (Optional)
-              </label>
-              <div className="text-xs text-slate-500 mb-1">Upload signed custody transfer document</div>
-              <div className="relative">
-                <input
-                  type="file"
-                  {...register('signature_file')}
-                  accept="image/*,.pdf,.doc,.docx"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-                />
-                <svg className="absolute right-3 top-3 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              </div>
-              {errors.signature_file && (
-                <p className="text-red-500 text-sm mt-1">{errors.signature_file.message}</p>
-              )}
-            </div>
+
 
             {/* Signature Verification */}
             <div className="flex items-center">
@@ -368,6 +334,7 @@ export function ChainOfCustodyForm({
               <Button
                 type="submit"
                 disabled={isSubmitting || loading}
+                className="bg-slate-900 text-white hover:bg-slate-800"
               >
                 {isSubmitting ? 'Submitting...' : (needsApproval ? 'Submit for Approval' : 'Add Entry')}
               </Button>

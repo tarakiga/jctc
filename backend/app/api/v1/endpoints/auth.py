@@ -52,3 +52,15 @@ async def refresh_token(current_user: User = Depends(get_current_active_user)):
     """Refresh access token."""
     access_token = create_access_token(data={"sub": current_user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+async def logout(current_user: User = Depends(get_current_active_user)):
+    """
+    Logout the current user.
+    
+    Since we're using stateless JWT tokens, the actual token invalidation
+    happens on the client side by removing the token from storage.
+    This endpoint confirms the logout action and can be extended to
+    implement token blacklisting if needed.
+    """
+    return {"message": "Successfully logged out", "user_id": str(current_user.id)}

@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react'
 import { useLegalInstruments, useLegalInstrumentMutations } from '@/lib/hooks/useLegalInstruments'
 import { Scale, Plus, X, Trash2, Edit, FileText, AlertTriangle, Clock, CheckCircle, Filter } from 'lucide-react'
 import { format, differenceInDays, isPast, isFuture, addDays } from 'date-fns'
+import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 
 interface LegalInstrumentManagerProps {
   caseId: string
@@ -46,6 +48,17 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
   const { data: instruments = [], isLoading } = useLegalInstruments(caseId)
   const { createInstrument, updateInstrument, deleteInstrument, loading } = useLegalInstrumentMutations(caseId)
 
+  // Fetch legal-related lookup values
+  const {
+    [LOOKUP_CATEGORIES.LEGAL_INSTRUMENT_TYPE]: instrumentTypeLookup,
+    [LOOKUP_CATEGORIES.LEGAL_INSTRUMENT_STATUS]: instrumentStatusLookup,
+    [LOOKUP_CATEGORIES.LEGAL_ISSUING_AUTHORITY]: legalIssuingAuthorityLookup
+  } = useLookups([
+    LOOKUP_CATEGORIES.LEGAL_INSTRUMENT_TYPE,
+    LOOKUP_CATEGORIES.LEGAL_INSTRUMENT_STATUS,
+    LOOKUP_CATEGORIES.LEGAL_ISSUING_AUTHORITY
+  ])
+
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState<InstrumentType | 'ALL'>('ALL')
@@ -85,7 +98,7 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       if (editingId) {
         await updateInstrument(editingId, {
@@ -122,7 +135,7 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this legal instrument?')) return
-    
+
     try {
       await deleteInstrument(id)
     } catch (error) {
@@ -171,9 +184,9 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
 
   const getExpiryWarning = (expiresAt?: string) => {
     if (!expiresAt) return null
-    
+
     const daysUntilExpiry = differenceInDays(new Date(expiresAt), new Date())
-    
+
     if (daysUntilExpiry < 0) {
       return { level: 'expired', message: 'EXPIRED', color: 'text-red-700 bg-red-100' }
     } else if (daysUntilExpiry === 0) {
@@ -183,7 +196,7 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
     } else if (daysUntilExpiry <= 7) {
       return { level: 'warning', message: `Expires in ${daysUntilExpiry} days`, color: 'text-yellow-700 bg-yellow-100' }
     }
-    
+
     return null
   }
 
@@ -207,11 +220,10 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
         <div className="flex gap-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2 rounded-lg border font-medium transition-all flex items-center gap-2 shadow-sm hover:shadow ${
-              showFilters
-                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-300'
-            }`}
+            className={`px-4 py-2 rounded-lg border font-medium transition-all flex items-center gap-2 shadow-sm hover:shadow ${showFilters
+              ? 'bg-amber-50 text-amber-700 border-amber-300'
+              : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-300'
+              }`}
           >
             <Filter className="w-4 h-4" />
             Filters
@@ -352,27 +364,21 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Issued Date & Time *
-                </label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
+                  label="Issued Date & Time"
                   value={formData.issued_at}
-                  onChange={(e) => setFormData(prev => ({ ...prev, issued_at: e.target.value }))}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  onChange={(value) => setFormData(prev => ({ ...prev, issued_at: value }))}
                   required
+                  placeholder="Select issued date and time"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Expires Date & Time (Optional)
-                </label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
+                  label="Expires Date & Time (Optional)"
                   value={formData.expires_at}
-                  onChange={(e) => setFormData(prev => ({ ...prev, expires_at: e.target.value }))}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  onChange={(value) => setFormData(prev => ({ ...prev, expires_at: value }))}
+                  placeholder="Select expiry date and time"
                 />
               </div>
             </div>
@@ -453,7 +459,7 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
           {filteredInstruments.map(instrument => {
             const expiryWarning = getExpiryWarning(instrument.expires_at)
             const statusColor = STATUS_COLORS[instrument.status]
-            
+
             return (
               <div
                 key={instrument.id}

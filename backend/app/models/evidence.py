@@ -191,7 +191,7 @@ class Artefact(BaseModel):
     device = relationship("Device", back_populates="artefacts")
 
 
-class EvidenceItem(BaseModel):
+class Evidence(BaseModel):
     __tablename__ = "evidence_items"
     
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
@@ -202,9 +202,20 @@ class EvidenceItem(BaseModel):
     retention_policy = Column(String(100))  # e.g., 7y after closure
     notes = Column(Text)
     
+    # New fields
+    collected_at = Column(DateTime(timezone=True))
+    collected_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    file_path = Column(String(500))
+    file_size = Column(Integer)
+
     # Relationships
     case = relationship("Case", back_populates="evidence_items")
+    collector = relationship("User", foreign_keys=[collected_by])
     chain_entries = relationship("ChainOfCustody", back_populates="evidence", cascade="all, delete-orphan")
+
+
+# Backward compatibility alias
+EvidenceItem = Evidence
 
 
 class ChainOfCustody(BaseModel):
@@ -219,6 +230,6 @@ class ChainOfCustody(BaseModel):
     details = Column(Text)
     
     # Relationships
-    evidence = relationship("EvidenceItem", back_populates="chain_entries")
+    evidence = relationship("Evidence", back_populates="chain_entries")
     from_user_obj = relationship("User", foreign_keys=[from_user])
     to_user_obj = relationship("User", foreign_keys=[to_user])

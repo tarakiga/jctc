@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiClient } from '../services/api-client'
 
 // Types
 type ChargeStatus = 'FILED' | 'WITHDRAWN' | 'AMENDED'
@@ -60,89 +61,19 @@ export const CYBERCRIMES_ACT_SECTIONS = [
 
 // API functions (to be implemented with actual API client)
 const fetchCharges = async (caseId: string): Promise<Charge[]> => {
-  // TODO: Replace with actual API call
-  // const response = await apiClient.get(`/api/cases/${caseId}/charges`)
-  // return response.data
-  
-  // Mock data for visual review
-  return [
-    {
-      id: 'charge-001',
-      case_id: caseId,
-      statute: 'Cybercrimes (Prohibition, Prevention, etc.) Act 2015',
-      statute_section: 'Section 27',
-      description: 'Conspiracy to commit fraud through email spoofing and Business Email Compromise scheme. Accused impersonated company executives to authorize fraudulent wire transfers totaling $2.5 million USD.',
-      filed_at: '2025-01-18T10:00:00Z',
-      status: 'FILED',
-      notes: 'Primary charge. Evidence includes email logs, wire transfer records, and forensic analysis of compromised email accounts.',
-      created_at: '2025-01-18T09:30:00Z',
-      updated_at: '2025-01-18T10:00:00Z',
-      created_by: 'user-003',
-      created_by_name: 'David Okonkwo'
-    },
-    {
-      id: 'charge-002',
-      case_id: caseId,
-      statute: 'Cybercrimes (Prohibition, Prevention, etc.) Act 2015',
-      statute_section: 'Section 6',
-      description: 'Unlawful access to computer system. Accused gained unauthorized access to company email servers using stolen credentials and phishing techniques.',
-      filed_at: '2025-01-18T10:00:00Z',
-      status: 'FILED',
-      notes: 'Supporting charge. Email server logs show unauthorized access from IP addresses in Lagos and Abuja.',
-      created_at: '2025-01-18T09:30:00Z',
-      updated_at: '2025-01-18T10:00:00Z',
-      created_by: 'user-003',
-      created_by_name: 'David Okonkwo'
-    },
-    {
-      id: 'charge-003',
-      case_id: caseId,
-      statute: 'Cybercrimes (Prohibition, Prevention, etc.) Act 2015',
-      statute_section: 'Section 22',
-      description: 'Identity theft. Accused fraudulently impersonated company CFO and other executives through spoofed email addresses and forged digital signatures.',
-      filed_at: '2025-01-18T10:00:00Z',
-      status: 'FILED',
-      notes: 'Supporting charge. Victims confirmed they did not authorize communications or transactions.',
-      created_at: '2025-01-18T09:30:00Z',
-      updated_at: '2025-01-18T10:00:00Z',
-      created_by: 'user-003',
-      created_by_name: 'David Okonkwo'
-    },
-    {
-      id: 'charge-004',
-      case_id: caseId,
-      statute: 'Money Laundering (Prohibition) Act 2022',
-      statute_section: 'Section 15(1)',
-      description: 'Money laundering. Accused converted and transferred proceeds of crime through multiple cryptocurrency wallets and bank accounts to conceal origin of funds.',
-      filed_at: '2025-01-18T10:00:00Z',
-      status: 'FILED',
-      notes: 'Related financial crime charge. EFCC provided blockchain analysis showing movement of funds through multiple jurisdictions.',
-      created_at: '2025-01-18T09:30:00Z',
-      updated_at: '2025-01-18T10:00:00Z',
-      created_by: 'user-003',
-      created_by_name: 'David Okonkwo'
-    }
-  ]
+  return await apiClient.get<Charge[]>(`/cases/${caseId}/charges/`)
 }
 
 const createCharge = async (input: CreateChargeInput): Promise<Charge> => {
-  // TODO: Replace with actual API call
-  // const response = await apiClient.post(`/api/cases/${input.case_id}/charges`, input)
-  // return response.data
-  throw new Error('API not implemented')
+  return await apiClient.post<Charge>('/charges/', input)
 }
 
 const updateCharge = async (chargeId: string, updates: UpdateChargeInput): Promise<Charge> => {
-  // TODO: Replace with actual API call
-  // const response = await apiClient.patch(`/api/charges/${chargeId}`, updates)
-  // return response.data
-  throw new Error('API not implemented')
+  return await apiClient.patch<Charge>(`/charges/${chargeId}/`, updates)
 }
 
 const deleteCharge = async (chargeId: string): Promise<void> => {
-  // TODO: Replace with actual API call
-  // await apiClient.delete(`/api/charges/${chargeId}`)
-  throw new Error('API not implemented')
+  await apiClient.delete(`/charges/${chargeId}/`)
 }
 
 // Hooks

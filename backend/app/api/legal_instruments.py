@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, date
 
 from app.database import get_db
-from app.models.legal_instruments import LegalInstrument
+from app.models.legal import LegalInstrument
 from app.models.case import Case
 from app.schemas.legal_instruments import (
     LegalInstrumentCreate,

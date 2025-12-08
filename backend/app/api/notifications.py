@@ -10,7 +10,7 @@ from app.models.notifications import Notification, NotificationPreference, Notif
 from app.models.user import User
 from app.models.case import Case
 from app.models.evidence import Evidence
-from app.models.legal_instruments import LegalInstrument
+from app.models.legal import LegalInstrument
 from app.schemas.notifications import (
     NotificationCreate,
     NotificationResponse,

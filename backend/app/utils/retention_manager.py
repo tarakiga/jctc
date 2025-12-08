@@ -37,7 +37,7 @@ from app.models.audit import (
 from app.models.cases import Case
 from app.models.evidence import EvidenceItem
 from app.models.party import Party
-from app.models.legal_instruments import LegalInstrument
+from app.models.legal import LegalInstrument
 from app.schemas.audit import (
     RetentionPeriod, AuditEntity, ViolationType, 
     AuditSeverity, AuditAction

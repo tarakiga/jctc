@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@jctc/ui'
 import { TeamActivityType, TeamActivity } from '@jctc/types'
 import { format } from 'date-fns'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 
 interface TeamActivityModalProps {
   isOpen: boolean
@@ -64,7 +65,7 @@ export function TeamActivityModal({ isOpen, onClose, onSubmit,
     <>
       {/* Modal Backdrop */}
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50" onClick={onClose} />
-      
+
       {/* Modal Content */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -129,31 +130,21 @@ export function TeamActivityModal({ isOpen, onClose, onSubmit,
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Time *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.start_time}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
+                <DateTimePicker
+                  label="Start Time"
+                  value={formData.start_time}
+                  onChange={(value) => setFormData({ ...formData, start_time: value })}
+                  required
+                  placeholder="Select start time"
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Time *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.end_time}
-                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
+                <DateTimePicker
+                  label="End Time"
+                  value={formData.end_time}
+                  onChange={(value) => setFormData({ ...formData, end_time: value })}
+                  required
+                  placeholder="Select end time"
+                />
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">

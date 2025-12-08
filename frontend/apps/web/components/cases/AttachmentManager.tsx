@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { 
-  Upload, 
-  File as FileIcon, 
-  FileText, 
-  Image as ImageIcon, 
-  FileVideo, 
-  FileArchive, 
-  X, 
-  Download, 
+import {
+  Upload,
+  File as FileIcon,
+  FileText,
+  Image as ImageIcon,
+  FileVideo,
+  FileArchive,
+  X,
+  Download,
   ShieldCheck,
   ShieldAlert,
   Clock,
@@ -20,27 +20,27 @@ import {
   Trash2,
   CheckCircle2
 } from 'lucide-react';
-import { 
-  useAttachments, 
-  computeSHA256Hash, 
-  formatFileSize, 
+import {
+  useAttachments,
+  computeSHA256Hash,
+  formatFileSize,
   CLASSIFICATION_OPTIONS,
   type AttachmentClassification,
   type VirusScanStatus,
-  type Attachment 
+  type Attachment
 } from '@/lib/hooks/useAttachments';
+import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup';
 
 interface AttachmentManagerProps {
   caseId: string;
-  attachments?: any[];  // Optional mock attachments
 }
 
-export default function AttachmentManager({ caseId, attachments: mockAttachments }: AttachmentManagerProps) {
-  const { attachments: apiAttachments, isLoading, createAttachment, deleteAttachment, verifyHash, isCreating, isDeleting } = useAttachments(caseId);
-  
-  // Use mock attachments if provided, otherwise use API data
-  const attachments = mockAttachments || apiAttachments;
-  
+export default function AttachmentManager({ caseId }: AttachmentManagerProps) {
+  const { attachments, isLoading, createAttachment, deleteAttachment, verifyHash, isCreating, isDeleting } = useAttachments(caseId);
+
+  // Fetch attachment_classification lookup values
+  const attachmentClassificationLookup = useLookup(LOOKUP_CATEGORIES.ATTACHMENT_CLASSIFICATION);
+
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
@@ -133,7 +133,7 @@ export default function AttachmentManager({ caseId, attachments: mockAttachments
     setIsHashing(true);
     try {
       const hash = await computeSHA256Hash(selectedFile);
-      
+
       await createAttachment({
         case_id: caseId,
         title: formData.title,
@@ -183,8 +183,8 @@ export default function AttachmentManager({ caseId, attachments: mockAttachments
   };
 
   // Filter attachments
-  const filteredAttachments = filterClassification === 'ALL' 
-    ? attachments 
+  const filteredAttachments = filterClassification === 'ALL'
+    ? attachments
     : attachments.filter(att => att.classification === filterClassification);
 
   if (isLoading) {
@@ -225,7 +225,7 @@ export default function AttachmentManager({ caseId, attachments: mockAttachments
       {showUploadForm && (
         <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 border border-neutral-200 rounded-xl p-6 shadow-sm">
           <h3 className="font-semibold text-neutral-900 mb-4">Upload New Attachment</h3>
-          
+
           <div className="space-y-4">
             {/* File Input */}
             <div>
@@ -351,11 +351,10 @@ export default function AttachmentManager({ caseId, attachments: mockAttachments
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterClassification('ALL')}
-            className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
-              filterClassification === 'ALL'
+            className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${filterClassification === 'ALL'
                 ? 'bg-black text-white shadow-sm'
                 : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-300'
-            }`}
+              }`}
           >
             All ({attachments.length})
           </button>
@@ -363,11 +362,10 @@ export default function AttachmentManager({ caseId, attachments: mockAttachments
             <button
               key={opt.value}
               onClick={() => setFilterClassification(opt.value)}
-              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
-                filterClassification === opt.value
+              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${filterClassification === opt.value
                   ? 'bg-black text-white shadow-sm'
                   : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-300'
-              }`}
+                }`}
             >
               {opt.label} ({attachments.filter(a => a.classification === opt.value).length})
             </button>
@@ -380,8 +378,8 @@ export default function AttachmentManager({ caseId, attachments: mockAttachments
         <div className="text-center py-12 bg-neutral-50 rounded-xl border border-neutral-200">
           <Upload className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
           <p className="text-neutral-600">
-            {filterClassification === 'ALL' 
-              ? 'No attachments uploaded yet' 
+            {filterClassification === 'ALL'
+              ? 'No attachments uploaded yet'
               : `No ${CLASSIFICATION_OPTIONS.find(o => o.value === filterClassification)?.label} attachments`}
           </p>
         </div>

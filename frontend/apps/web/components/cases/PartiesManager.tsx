@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { Button, Badge } from '@jctc/ui'
+import { COUNTRIES, DEFAULT_COUNTRY_CODE } from '@/lib/utils/countries'
+import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 // Party types
 type PartyType = 'SUSPECT' | 'VICTIM' | 'WITNESS' | 'COMPLAINANT'
@@ -44,6 +47,10 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
   const [editingParty, setEditingParty] = useState<Party | null>(null)
   const [filterType, setFilterType] = useState<PartyType | 'ALL'>('ALL')
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+
+  // Fetch party_type lookup values
+  const partyTypeLookup = useLookup(LOOKUP_CATEGORIES.PARTY_TYPE)
+
   const [formData, setFormData] = useState<Omit<Party, 'id'>>({
     party_type: 'SUSPECT',
     full_name: '',
@@ -236,7 +243,7 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
                 {filteredParties.map((party) => {
                   const age = party.dob ? new Date().getFullYear() - new Date(party.dob).getFullYear() : null
                   const isMinorFlag = party.dob && isMinor(party.dob)
-                  
+
                   return (
                     <tr key={party.id} className="hover:bg-slate-50 transition-colors group">
                       {/* Name Column */}
@@ -256,12 +263,11 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
 
                       {/* Type Column */}
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                          party.party_type === 'SUSPECT' ? 'bg-red-100 text-red-700' :
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${party.party_type === 'SUSPECT' ? 'bg-red-100 text-red-700' :
                           party.party_type === 'VICTIM' ? 'bg-blue-100 text-blue-700' :
-                          party.party_type === 'WITNESS' ? 'bg-slate-100 text-slate-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
+                            party.party_type === 'WITNESS' ? 'bg-slate-100 text-slate-700' :
+                              'bg-amber-100 text-amber-700'
+                          }`}>
                           {party.party_type}
                         </span>
                       </td>
@@ -347,11 +353,11 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
                         {openDropdownId === party.id && (
                           <>
                             {/* Backdrop to close dropdown */}
-                            <div 
-                              className="fixed inset-0 z-10" 
+                            <div
+                              className="fixed inset-0 z-10"
                               onClick={() => setOpenDropdownId(null)}
                             />
-                            
+
                             {/* Dropdown */}
                             <div className="absolute right-8 top-12 z-20 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1">
                               <button
@@ -425,10 +431,10 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
                     onChange={(e) => setFormData({ ...formData, party_type: e.target.value as PartyType })}
                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
                   >
-                    <option value="SUSPECT">Suspect</option>
-                    <option value="VICTIM">Victim</option>
-                    <option value="WITNESS">Witness</option>
-                    <option value="COMPLAINANT">Complainant</option>
+                    <option value="">Select Type</option>
+                    {partyTypeLookup.values.map((v) => (
+                      <option key={v.value} value={v.value}>{v.label}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -466,14 +472,12 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
                 <div className="grid grid-cols-3 gap-6">
                   {/* Date of Birth */}
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.dob}
-                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
+                    <DatePicker
+                      label="Date of Birth"
+                      value={formData.dob || ''}
+                      onChange={(value) => setFormData({ ...formData, dob: value })}
+                      placeholder="Select date of birth"
+                      maxDate={new Date()}
                     />
                     {formData.dob && isMinor(formData.dob) && (
                       <p className="text-sm text-orange-600 mt-1">⚠️ Minor detected - Guardian info required</p>
@@ -502,13 +506,18 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Nationality
                     </label>
-                    <input
-                      type="text"
-                      value={formData.nationality}
+                    <select
+                      value={formData.nationality || DEFAULT_COUNTRY_CODE}
                       onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all"
-                      placeholder="e.g., Nigeria"
-                    />
+                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all bg-white"
+                    >
+                      <option value="">Select Country</option>
+                      {COUNTRIES.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -651,11 +660,10 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
                           key={flag}
                           type="button"
                           onClick={() => toggleSafeguardingFlag(flag)}
-                          className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${
-                            formData.safeguarding_flags?.includes(flag)
-                              ? 'border-orange-600 bg-orange-600 text-white'
-                              : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
-                          }`}
+                          className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${formData.safeguarding_flags?.includes(flag)
+                            ? 'border-orange-600 bg-orange-600 text-white'
+                            : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                            }`}
                         >
                           {flag.charAt(0).toUpperCase() + flag.slice(1).replace('-', ' ')}
                         </button>

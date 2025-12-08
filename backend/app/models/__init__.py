@@ -1,5 +1,5 @@
 from app.models.base import BaseModel
-from app.models.user import User, UserRole, LookupCaseType
+from app.models.user import User, UserRole
 from app.models.case import (
     Case, CaseStatus, LocalInternational, CaseAssignment, AssignmentRole,
     IntakeChannel, ReporterType, RiskFlag
@@ -7,7 +7,7 @@ from app.models.case import (
 from app.models.party import Party, PartyType
 from app.models.legal import LegalInstrument, LegalInstrumentType, LegalInstrumentStatus
 from app.models.evidence import (
-    Seizure, Device, Artefact, EvidenceItem, ChainOfCustody,
+    Seizure, Device, Artefact, Evidence, EvidenceItem, ChainOfCustody,
     EvidenceCategory, CustodyStatus, CustodyAction, ArtefactType,
     ImagingStatus, DeviceType, WarrantType, SeizureStatus,
     DeviceCondition, EncryptionStatus, AnalysisStatus
@@ -29,15 +29,16 @@ from app.models.audit import (
     DataRetentionJob,
     AuditArchive,
 )
+from app.models.lookup_value import LookupValue, LOOKUP_CATEGORIES
 
 __all__ = [
     "BaseModel",
-    "User", "UserRole", "LookupCaseType",
+    "User", "UserRole",
     "Case", "CaseStatus", "LocalInternational", "CaseAssignment", "AssignmentRole",
     "IntakeChannel", "ReporterType", "RiskFlag",
     "Party", "PartyType",
     "LegalInstrument", "LegalInstrumentType", "LegalInstrumentStatus",
-    "Seizure", "Device", "Artefact", "EvidenceItem", "ChainOfCustody",
+    "Seizure", "Device", "Artefact", "Evidence", "EvidenceItem", "ChainOfCustody",
     "EvidenceCategory", "CustodyStatus", "CustodyAction", "ArtefactType",
     "ImagingStatus", "DeviceType", "WarrantType", "SeizureStatus",
     "DeviceCondition", "EncryptionStatus", "AnalysisStatus",
@@ -48,4 +49,5 @@ __all__ = [
     "AttachmentClassification", "VirusScanStatus", "CollaborationStatus", "PartnerType",
     "AuditLog", "ComplianceReport", "RetentionPolicy", "ComplianceViolation",
     "AuditConfiguration", "DataRetentionJob", "AuditArchive",
+    "LookupValue", "LOOKUP_CATEGORIES",
 ]
