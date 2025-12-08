@@ -2,15 +2,15 @@ FROM node:18-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Enable corepack? No, user uses npm.
-# Copy all source files
+# Enable pnpm
+RUN corepack enable
+
 COPY . .
 
-# Install dependencies (using root package-lock.json)
-RUN npm ci
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
 # Build the web app
-# We use npx to run turbo from node_modules
 RUN npx turbo run build --filter=web
 
 FROM node:18-alpine AS runner
