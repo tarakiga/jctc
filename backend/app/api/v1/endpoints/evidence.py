@@ -210,7 +210,7 @@ async def create_evidence(
     # Create evidence item
     evidence = EvidenceItem(
         case_id=case_id,
-        label=evidence_data.get('description', 'Untitled Evidence'),
+        label=(evidence_data.get('description') or 'Untitled Evidence')[:255],
         category=category,
         storage_location=evidence_data.get('location_collected') or evidence_data.get('storage_location'),
         notes=f"{evidence_data.get('description', '')}\n\n{evidence_data.get('notes', '')}".strip(),
@@ -367,7 +367,7 @@ async def create_evidence_with_files(
 
     evidence = EvidenceItem(
         case_id=case_id,
-        label=label,
+        label=label[:255],
         category=category_enum,
         storage_location=storage_location,
         retention_policy=retention_policy,
