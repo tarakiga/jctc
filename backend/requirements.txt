@@ -33,3 +33,4 @@ redis
 python-dotenv
 greenlet
 jinja2
+pandas
