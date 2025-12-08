@@ -16,9 +16,9 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Debug: Check if apps/web exists and has package.json
 RUN ls -la apps/web/package.json
 
-# Build the web app (Direct directory build)
+# Build the web app (Direct next build)
 WORKDIR /app/apps/web
-RUN pnpm run build
+RUN npx next build
 
 FROM node:18-alpine AS runner
 WORKDIR /app
