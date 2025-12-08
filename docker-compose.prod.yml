@@ -42,11 +42,11 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=https://api.jctc.ng
+        - NEXT_PUBLIC_API_URL=https://api.jctc.ng/api/v1
     container_name: jctc_web
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=https://api.jctc.ng
+      - NEXT_PUBLIC_API_URL=https://api.jctc.ng/api/v1
       - NODE_ENV=production
     networks:
       - jctc_network
