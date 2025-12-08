@@ -2,21 +2,19 @@ FROM node:18-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable
-
+# Copy all source files
 COPY . .
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Debug: List files to ensure package.json exists
+RUN ls -la
+
+# Install dependencies with npm (bypass pnpm issues)
+RUN npm install --legacy-peer-deps
 
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Debug: Check if apps/web exists and has package.json
-RUN ls -la apps/web/package.json
-
-# Build the web app (Direct next build)
+# Build (using standard next build)
 WORKDIR /app/apps/web
 RUN npx next build
 
@@ -31,8 +29,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/apps/web/public ./apps/web/public
-
-# Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
