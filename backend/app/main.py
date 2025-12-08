@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.config.settings import settings
 from app.api.v1.api import api_router
 
@@ -10,6 +11,9 @@ app = FastAPI(
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None
 )
+
+# Trust proxy headers (Traefik)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 # Set up CORS
 if settings.debug:
