@@ -5,14 +5,15 @@ WORKDIR /app
 # Enable pnpm
 RUN corepack enable
 
-# Explicitly copy configuration files first
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY apps/web/package.json ./apps/web/package.json
+# Explicitly copy configuration files from frontend directory (since context is root)
+COPY frontend/package.json frontend/pnpm-workspace.yaml frontend/pnpm-lock.yaml ./
+COPY frontend/apps/web/package.json ./apps/web/package.json
+COPY frontend/packages/ ./packages/
 
-# Copy all other source files (respecting .dockerignore)
-COPY . .
+# Copy all other source files from frontend
+COPY frontend/ ./
 
-# Install dependencies
+# Install dependencies (using pnpm now that structure is correct)
 RUN pnpm install --frozen-lockfile
 
 ARG NEXT_PUBLIC_API_URL
@@ -20,8 +21,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build the web app
 WORKDIR /app/apps/web
-# Use turbo if possible, or direct next build. 
-# pnpm run build (which calls next build) should work now if deps are installed.
+# Using npx next build to avoid filter issues
 RUN npx next build
 
 FROM node:18-alpine AS runner
