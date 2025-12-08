@@ -32,8 +32,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jctc-app.rule=Host(`api.jctc.ng`)"
+      - "traefik.http.routers.jctc-app.entrypoints=websecure"
       - "traefik.http.routers.jctc-app.tls=true"
       - "traefik.http.routers.jctc-app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jctc-app.loadbalancer.server.port=8000"
 
   web:
     build:
@@ -53,6 +55,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jctc-web.rule=Host(`jctc.ng`) || Host(`www.jctc.ng`)"
+      - "traefik.http.routers.jctc-web.entrypoints=websecure"
       - "traefik.http.routers.jctc-web.tls=true"
       - "traefik.http.routers.jctc-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.jctc-web.loadbalancer.server.port=3000"
