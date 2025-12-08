@@ -104,3 +104,4 @@ tests/
 *.md
 !README.md
 *.docx
+lightsail_key.pem
