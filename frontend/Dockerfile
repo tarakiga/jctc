@@ -2,20 +2,26 @@ FROM node:18-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy all source files
+# Enable pnpm
+RUN corepack enable
+
+# Explicitly copy configuration files first
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/package.json
+
+# Copy all other source files (respecting .dockerignore)
 COPY . .
 
-# Debug: List files to ensure package.json exists
-RUN ls -la
-
-# Install dependencies with npm (bypass pnpm issues)
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build (using standard next build)
+# Build the web app
 WORKDIR /app/apps/web
+# Use turbo if possible, or direct next build. 
+# pnpm run build (which calls next build) should work now if deps are installed.
 RUN npx next build
 
 FROM node:18-alpine AS runner
