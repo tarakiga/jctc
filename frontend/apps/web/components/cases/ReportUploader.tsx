@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useForensicReports, useForensicReportMutations } from '@/lib/hooks/useForensicReports'
-import { useDevices } from '@/lib/hooks/useDevices'
+import { useEvidence } from '@/lib/hooks/useEvidence'
 import { FileText, Upload, Plus, X, Trash2, Download, CheckCircle, XCircle, Shield } from 'lucide-react'
 import { format } from 'date-fns'
 import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
@@ -32,7 +32,7 @@ const REPORT_TYPE_COLORS: Record<ReportType, string> = {
 
 export default function ReportUploader({ caseId }: ReportUploaderProps) {
   const { data: reports = [], isLoading } = useForensicReports(caseId)
-  const { data: devices = [] } = useDevices(caseId)
+  const { data: evidence = [] } = useEvidence(caseId)
   const { uploadReport, deleteReport, validateTool, loading, validationResult } = useForensicReportMutations(caseId)
 
   // Fetch report_type lookup values
@@ -308,16 +308,16 @@ export default function ReportUploader({ caseId }: ReportUploaderProps) {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Link to Device (Optional)
+                  Link to Evidence (Optional)
                 </label>
                 <select
                   value={formData.device_id}
                   onChange={(e) => setFormData(prev => ({ ...prev, device_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">No device</option>
-                  {devices.map(device => (
-                    <option key={device.id} value={device.id}>{device.label}</option>
+                  <option value="">No evidence</option>
+                  {evidence.map(item => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
                   ))}
                 </select>
               </div>

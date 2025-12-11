@@ -8,6 +8,7 @@ type RetentionPolicy = 'PERMANENT' | 'CASE_CLOSE_PLUS_7' | 'CASE_CLOSE_PLUS_1' |
 interface EvidenceItem {
   id: string
   case_id: string
+  seizure_id?: string  // Optional - link to a specific seizure
   evidence_number: string
   label: string
   category: EvidenceCategory
@@ -64,8 +65,8 @@ interface CustodyEntry {
 
 // API functions for Evidence Items
 async function fetchEvidenceItems(caseId: string): Promise<EvidenceItem[]> {
-  const response = await apiClient.get<{ items: any[] }>(`/evidence?case_id=${caseId}`)
-  return (response.items || []).map(item => ({
+  const response = await apiClient.get<any[]>(`/evidence/${caseId}/items`)
+  return (response || []).map(item => ({
     ...item,
     category: item.type || item.category, // Map type from API to category
     sha256_hash: item.sha256 || item.sha256_hash, // Map sha256 from API to sha256_hash
@@ -77,36 +78,37 @@ async function createEvidenceItem(
   caseId: string,
   evidence: Omit<EvidenceItem, 'id' | 'evidence_number' | 'created_at' | 'updated_at' | 'case_id' | 'collected_by' | 'collected_by_name' | 'qr_code'>
 ): Promise<EvidenceItem> {
-  // Check if we have files to upload
+  // Check if we have files to upload - use multipart form
   if (evidence.files && evidence.files.length > 0) {
     const formData = new FormData()
     formData.append('case_id', caseId)
     formData.append('label', evidence.label)
     formData.append('category', evidence.category)
-    formData.append('description', evidence.description || '')
-    formData.append('notes', evidence.notes || '')
-    formData.append('storage_location', evidence.storage_location || '')
-    formData.append('retention_policy', evidence.retention_policy)
-    formData.append('collected_at', evidence.collected_at)
+    if (evidence.description) formData.append('description', evidence.description)
+    if (evidence.notes) formData.append('notes', evidence.notes)
+    if (evidence.storage_location) formData.append('storage_location', evidence.storage_location)
+    if (evidence.retention_policy) formData.append('retention_policy', evidence.retention_policy)
+    if (evidence.collected_at) formData.append('collected_at', evidence.collected_at)
+    if (evidence.seizure_id) formData.append('seizure_id', evidence.seizure_id)  // Optional seizure link
 
     // Append files
     evidence.files.forEach((file) => {
       formData.append('files', file)
     })
 
-    const response = await apiClient.post<EvidenceItem>('/evidence/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
-    return response
-  } else {
-    // Standard JSON creation
-    // Combine case_id with evidence data
-    const payload = { ...evidence, case_id: caseId }
-    const response = await apiClient.post<EvidenceItem>('/evidence', payload)
+    // Note: We don't set Content-Type header - browser will set it with boundary
+    const response = await apiClient.post<EvidenceItem>('/evidence/upload', formData)
     return response
   }
+
+  // Standard JSON creation (no files)
+  const payload = {
+    ...evidence,
+    case_id: caseId,
+    files: undefined
+  }
+  const response = await apiClient.post<EvidenceItem>('/evidence', payload)
+  return response
 }
 
 async function updateEvidenceItem(
@@ -134,8 +136,10 @@ async function verifyHash(caseId: string, evidenceId: string): Promise<boolean> 
 
 // API functions for Chain of Custody
 async function fetchCustodyEntries(evidenceId: string): Promise<CustodyEntry[]> {
-  const response = await apiClient.get<any[]>(`/evidence/${evidenceId}/custody`)
-  return response.map(item => ({
+  // The /history endpoint returns { evidence_id, evidence_label, total_entries, entries: [...] }
+  const response = await apiClient.get<{ entries: any[] }>(`/evidence/${evidenceId}/history`)
+  const entries = response.entries || []
+  return entries.map(item => ({
     id: item.id,
     evidence_id: item.evidence_id,
     action: item.action,
@@ -172,7 +176,7 @@ async function createCustodyEntry(
     notes: entry.notes
   }
 
-  const response = await apiClient.post<any>(`/evidence/${evidenceId}/custody`, payload)
+  const response = await apiClient.post<any>(`/evidence/${evidenceId}/entries`, payload)
 
   return {
     id: response.id,
@@ -195,22 +199,22 @@ async function createCustodyEntry(
 }
 
 async function approveCustodyEntry(evidenceId: string, entryId: string): Promise<CustodyEntry> {
-  const response = await apiClient.post<CustodyEntry>(`/evidence/${evidenceId}/custody/${entryId}/approve`)
+  const response = await apiClient.post<CustodyEntry>(`/evidence/${evidenceId}/entries/${entryId}/approve`)
   return response
 }
 
 async function rejectCustodyEntry(evidenceId: string, entryId: string): Promise<CustodyEntry> {
-  const response = await apiClient.post<CustodyEntry>(`/evidence/${evidenceId}/custody/${entryId}/reject`)
+  const response = await apiClient.post<CustodyEntry>(`/evidence/${evidenceId}/entries/${entryId}/reject`)
   return response
 }
 
 async function generateCustodyReceipt(evidenceId: string, entryId: string): Promise<string> {
-  const response = await apiClient.get<{ receipt_url: string }>(`/evidence/${evidenceId}/custody/${entryId}/receipt`)
+  const response = await apiClient.get<{ receipt_url: string }>(`/evidence/${evidenceId}/entries/${entryId}/receipt`)
   return response.receipt_url
 }
 
 async function deleteCustodyEntry(evidenceId: string, entryId: string): Promise<void> {
-  await apiClient.delete(`/evidence/${evidenceId}/custody/${entryId}`)
+  await apiClient.delete(`/evidence/${evidenceId}/entries/${entryId}`)
 }
 
 // Hooks for Evidence Items

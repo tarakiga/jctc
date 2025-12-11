@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useArtefacts, useArtefactMutations } from '@/lib/hooks/useArtefacts'
-import { useDevices } from '@/lib/hooks/useDevices'
+import { useEvidence } from '@/lib/hooks/useEvidence'
 import { FileText, Search, Plus, X, Trash2, Link, Tag, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Artefact } from '@/lib/hooks/useArtefacts'
@@ -55,7 +55,7 @@ const ARTEFACT_TYPE_COLORS: Record<ArtefactType, string> = {
 
 export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
   const { data: artefacts = [], isLoading } = useArtefacts(caseId)
-  const { data: devices = [] } = useDevices(caseId)
+  const { data: evidence = [] } = useEvidence(caseId)
   const { createArtefact, updateArtefact, deleteArtefact, loading } = useArtefactMutations(caseId)
 
   // Fetch dynamic lookup values
@@ -70,6 +70,7 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
   const [toolFilter, setToolFilter] = useState<SourceTool | 'ALL'>('ALL')
   const [deviceFilter, setDeviceFilter] = useState<string | 'ALL'>('ALL')
   const [showFilters, setShowFilters] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ show: boolean; artefact: any | null }>({ show: false, artefact: null })
 
   // Form state
   const [formData, setFormData] = useState({
@@ -134,11 +135,16 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this artefact?')) return
+  const handleDeleteClick = (artefact: any) => {
+    setDeleteConfirmation({ show: true, artefact })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmation.artefact) return
 
     try {
-      await deleteArtefact(id)
+      await deleteArtefact(deleteConfirmation.artefact.id)
+      setDeleteConfirmation({ show: false, artefact: null })
     } catch (error) {
       console.error('Failed to delete artefact:', error)
       alert('Failed to delete artefact')
@@ -278,8 +284,8 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
                 className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="ALL">All Devices</option>
-                {devices.map(device => (
-                  <option key={device.id} value={device.id}>{device.label}</option>
+                {evidence.map(item => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
                 ))}
               </select>
             </div>
@@ -349,16 +355,16 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Link to Device (Optional)
+                  Link to Evidence (Optional)
                 </label>
                 <select
                   value={formData.device_id}
                   onChange={(e) => setFormData(prev => ({ ...prev, device_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">No device</option>
-                  {devices.map(device => (
-                    <option key={device.id} value={device.id}>{device.label}</option>
+                  <option value="">No evidence</option>
+                  {evidence.map(item => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
                   ))}
                 </select>
               </div>
@@ -530,7 +536,7 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
                     <FileText className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(artefact.id)}
+                    onClick={() => handleDeleteClick(artefact)}
                     className="p-2 bg-white hover:bg-red-50 text-red-700 border border-red-300 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
                     title="Delete artefact"
                   >
@@ -540,6 +546,50 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation.show && deleteConfirmation.artefact && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900">Delete Artefact?</h3>
+                </div>
+              </div>
+
+              <div className="mb-6 space-y-3">
+                <p className="text-gray-700">
+                  Are you sure you want to delete the artefact <strong className="text-gray-900">"{deleteConfirmation.artefact.description}"</strong>?
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800 font-medium">
+                    ⚠️ This action is irreversible and cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirmation({ show: false, artefact: null })}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors shadow-sm hover:shadow"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

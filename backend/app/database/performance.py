@@ -20,7 +20,7 @@ import time
 from app.database.session import get_db
 from app.models import (
     Case, User, Charge, CourtSession, Outcome, 
-    Seizure, Device, Artefact, EvidenceItem,
+    Seizure, Device, Artefact, Evidence,
     ChainOfCustody, AuditLog, Party, LegalInstrument
 )
 
@@ -434,23 +434,6 @@ def get_user_cases_optimized(db: Session, user_id: int, limit: int = 50) -> List
     return db.query(Case).filter(
         Case.assigned_officer_id == user_id
     ).order_by(desc(Case.updated_at)).limit(limit).all()
-
-
-@monitor_query_execution_time
-def get_case_evidence_optimized(db: Session, case_id: int, limit: int = 100) -> List[EvidenceItem]:
-    """
-    Optimized query to get case evidence with custody info.
-    """
-    return db.query(EvidenceItem).filter(
-        EvidenceItem.case_id == case_id
-    ).order_by(desc(EvidenceItem.date_collected)).limit(limit).all()
-
-
-@monitor_query_execution_time
-def get_prosecution_dashboard_data(db: Session, prosecutor_id: int) -> Dict[str, Any]:
-    """
-    Optimized query for prosecution dashboard data.
-    """
     # Get charges statistics
     charges_stats = db.query(
         Charge.status,

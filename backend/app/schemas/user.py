@@ -52,3 +52,11 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class UserStatsResponse(BaseModel):
+    total_users: int
+    active_users: int
+    users_by_role: dict[str, int]
+    new_users_this_month: int
+    last_month_comparison: int

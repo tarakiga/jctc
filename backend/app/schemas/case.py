@@ -1,8 +1,12 @@
 from pydantic import BaseModel, Field, field_validator, EmailStr
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from uuid import UUID
 from datetime import datetime
 from app.models.case import CaseStatus, LocalInternational, AssignmentRole, IntakeChannel, ReporterType, RiskFlag
+
+# Forward reference for circular import
+if TYPE_CHECKING:
+    from app.schemas.parties import PartyCreate, PartyResponse
 
 
 class ReporterContact(BaseModel):
@@ -45,10 +49,18 @@ class CaseCreate(CaseBase):
     lga_state_location: Optional[str] = Field(None, max_length=255)
     incident_datetime: Optional[datetime] = None
     
-    # Reporter information
+    # Reporter information - DEPRECATED (use reporter party instead)
+    # These fields are kept for backward compatibility during migration
     reporter_type: Optional[ReporterType] = ReporterType.ANONYMOUS
-    reporter_name: Optional[str] = Field(None, max_length=255)
-    reporter_contact: Optional[ReporterContact] = None
+    reporter_name: Optional[str] = Field(None, max_length=255, deprecated=True)
+    reporter_contact: Optional[ReporterContact] = Field(None, deprecated=True)
+    
+    # NEW: Reporter as Party (preferred approach)
+    # When provided, creates a Party with is_reporter=True
+    reporter: Optional[Dict[str, Any]] = Field(None, description="Reporter party data: {party_type, full_name, contact}")
+
+    # NEW: Collaboration details (to be persisted to CaseCollaboration)
+    collaboration: Optional[Dict[str, Any]] = Field(None, description="Initial collaboration details: {partner_org, partner_type, scope, etc.}")
     
     @field_validator('risk_flags')
     @classmethod
@@ -121,10 +133,13 @@ class CaseResponse(CaseBase):
     lga_state_location: Optional[str] = None
     incident_datetime: Optional[datetime] = None
     
-    # Reporter information in response
+    # Reporter information in response (legacy, derived from parties)
     reporter_type: Optional[ReporterType] = None
     reporter_name: Optional[str] = None
     reporter_contact: Optional[Dict[str, Any]] = None
+    
+    # NEW: Reporter as full Party response
+    reporter: Optional[Dict[str, Any]] = Field(None, description="Reporter party details")
     
     class Config:
         from_attributes = True

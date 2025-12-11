@@ -22,7 +22,7 @@ from sqlalchemy import func, and_, or_
 import redis
 import logging
 
-from app.models import Case, EvidenceItem, Device, Charge, CourtSession
+from app.models import Case, Evidence, Charge, CourtSession
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -464,22 +464,21 @@ def get_cases_with_pagination(
 def get_evidence_with_cursor_pagination(
     db: Session,
     case_id: int = None,
-    cursor: str = None,
     limit: int = 50
 ) -> Dict[str, Any]:
     """
     Get evidence with cursor-based pagination for better performance.
     """
-    query = db.query(EvidenceItem)
+    query = db.query(Evidence)
     
     if case_id:
-        query = query.filter(EvidenceItem.case_id == case_id)
+        query = query.filter(Evidence.case_id == case_id)
     
-    query = query.order_by(EvidenceItem.created_at.desc())
+    query = query.order_by(Evidence.created_at.desc())
     
     # Apply cursor pagination
     evidence, next_cursor, prev_cursor = PaginationOptimizer.cursor_pagination(
-        query, EvidenceItem.created_at, cursor, limit
+        query, Evidence.created_at, cursor, limit
     )
     
     return {
@@ -491,38 +490,6 @@ def get_evidence_with_cursor_pagination(
             'count': len(evidence)
         }
     }
-
-
-@cache_response(expiry=300, key_prefix="dashboard_stats")
-@monitor_performance
-def get_dashboard_statistics(db: Session, user_id: int) -> Dict[str, Any]:
-    """
-    Get cached dashboard statistics for better performance.
-    """
-    # Case statistics
-    case_stats = db.query(
-        Case.status,
-        func.count(Case.id).label('count')
-    ).filter(
-        Case.assigned_officer_id == user_id
-    ).group_by(Case.status).all()
-    
-    # Evidence statistics
-    evidence_stats = db.query(
-        EvidenceItem.custody_status,
-        func.count(EvidenceItem.id).label('count')
-    ).join(Case).filter(
-        Case.assigned_officer_id == user_id
-    ).group_by(EvidenceItem.custody_status).all()
-    
-    return {
-        'case_statistics': [{'status': stat.status, 'count': stat.count} for stat in case_stats],
-        'evidence_statistics': [{'status': stat.custody_status, 'count': stat.count} for stat in evidence_stats],
-        'generated_at': datetime.utcnow()
-    }
-
-
-# Cache invalidation utilities
 
 def invalidate_cache_on_update(entity_type: str, entity_id: str = None):
     """

@@ -304,6 +304,9 @@ async def get_dropdown_values(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get active values for dropdown use (any authenticated user)."""
+    print(f"DEBUG: Requesting dropdown for category: '{category}'")
+    print(f"DEBUG: Available categories: {list(LOOKUP_CATEGORIES.keys())}")
+    
     if category not in LOOKUP_CATEGORIES:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

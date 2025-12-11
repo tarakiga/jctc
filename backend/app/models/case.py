@@ -107,6 +107,7 @@ class Case(BaseModel):
     outcomes = relationship("Outcome", back_populates="case", cascade="all, delete-orphan")
     attachments = relationship("Attachment", back_populates="case", cascade="all, delete-orphan")
     collaborations = relationship("CaseCollaboration", back_populates="case", cascade="all, delete-orphan")
+    forensic_reports = relationship("ForensicReport", back_populates="case", cascade="all, delete-orphan")
 
 
 class CaseAssignment(BaseModel):

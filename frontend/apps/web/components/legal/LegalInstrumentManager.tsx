@@ -65,6 +65,10 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
   const [statusFilter, setStatusFilter] = useState<InstrumentStatus | 'ALL'>('ALL')
   const [showFilters, setShowFilters] = useState(false)
 
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [instrumentToDelete, setInstrumentToDelete] = useState<{ id: string; description: string } | null>(null)
+
   // Form state
   const [formData, setFormData] = useState({
     instrument_type: 'WARRANT' as InstrumentType,
@@ -133,14 +137,24 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this legal instrument?')) return
+  const openDeleteModal = (instrument: { id: string; reference_no: string; instrument_type: InstrumentType }) => {
+    setInstrumentToDelete({
+      id: instrument.id,
+      description: `${INSTRUMENT_TYPE_LABELS[instrument.instrument_type]}: ${instrument.reference_no}`
+    })
+    setDeleteModalOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!instrumentToDelete) return
 
     try {
-      await deleteInstrument(id)
+      await deleteInstrument(instrumentToDelete.id)
+      setDeleteModalOpen(false)
+      setInstrumentToDelete(null)
     } catch (error) {
       console.error('Failed to delete instrument:', error)
-      alert('Failed to delete instrument. This feature will be enabled when the backend API is ready.')
+      alert('Failed to delete instrument.')
     }
   }
 
@@ -353,14 +367,19 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Issuing Authority *
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.issuing_authority}
                   onChange={(e) => setFormData(prev => ({ ...prev, issuing_authority: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  placeholder="e.g., Federal High Court, Abuja"
                   required
-                />
+                >
+                  <option value="">Select issuing authority...</option>
+                  {legalIssuingAuthorityLookup?.values.map((authority) => (
+                    <option key={authority.value} value={authority.value}>
+                      {authority.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -516,7 +535,7 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(instrument.id)}
+                      onClick={() => openDeleteModal(instrument)}
                       className="p-2 bg-white hover:bg-red-50 text-red-700 border border-red-300 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
                       title="Delete instrument"
                     >
@@ -527,6 +546,61 @@ export default function LegalInstrumentManager({ caseId }: LegalInstrumentManage
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setDeleteModalOpen(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-neutral-900">Delete Legal Instrument?</h3>
+                <p className="text-sm text-neutral-600">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+              <p className="text-sm text-neutral-700">
+                Are you sure you want to delete the legal instrument:
+              </p>
+              <p className="text-sm font-semibold text-neutral-900 mt-1">
+                "{instrumentToDelete?.description}"
+              </p>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+              <p className="text-xs text-red-700 font-medium">
+                ⚠️ This action is irreversible and cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                className="flex-1 px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg font-medium transition-all active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={loading}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50"
+              >
+                {loading ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

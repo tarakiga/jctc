@@ -1,710 +1,715 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile, Form
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, func
-from sqlalchemy.orm import selectinload
-from typing import List, Optional
-from datetime import datetime
+"""
+Evidence & Seizure Management API endpoints.
+Consolidates Device and Evidence management.
+"""
 
-from app.database.base import get_db
-from app.models.evidence import EvidenceItem, ChainOfCustody
-from app.models.case import Case
-from app.schemas.evidence import EvidenceResponse, EvidenceListResponse
-from app.schemas.chain_of_custody import ChainOfCustodyResponse, ChainOfCustodyCreate
-from app.utils.dependencies import get_current_active_user
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List, Optional
+from uuid import UUID
+from datetime import datetime, date
+import shutil
+import os
+from pathlib import Path
+import json
+import hashlib
+
+from app.core.deps import get_db, get_current_user
+from app.core.permissions import check_case_access, require_roles
+from app.models.evidence import (
+    Seizure, Evidence, Artefact, EvidenceCategory,
+    CustodyStatus, ImagingStatus, DeviceType, ArtefactType
+)
 from app.models.user import User
 
-router = APIRouter()
+from app.schemas.evidence import ( # Updated imports
+    SeizureCreate, SeizureUpdate, SeizureResponse,
+    EvidenceCreate, EvidenceUpdate, EvidenceResponse, 
+    ArtefactCreate, ArtefactUpdate, ArtefactResponse,
+    ImagingStatusUpdate, DeviceImagingResponse,
+    ForensicWorkflowResponse
+)
+from app.config.settings import settings
 
+# Upload directory
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
-@router.get("/", response_model=EvidenceListResponse)
-async def list_evidence(
-    search: Optional[str] = Query(None, description="Search by evidence number or description"),
-    type: Optional[str] = Query(None, description="Filter by evidence type"),
-    chain_of_custody_status: Optional[str] = Query(None, description="Filter by chain of custody status"),
-    case_id: Optional[str] = Query(None, description="Filter by case ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+# Audit integration (commented out or updated if entity names changed)
+# from app.utils.audit_integration import AuditableEndpoint
+
+router = APIRouter(tags=["evidence"])
+
+# ==================== GLOBAL EVIDENCE LISTING ====================
+
+@router.get("", response_model=List[EvidenceResponse])
+async def list_all_evidence(
+    category: Optional[str] = Query(None, description="Filter by category (DIGITAL, PHYSICAL, DOCUMENT)"),
+    search: Optional[str] = Query(None, description="Search in label, description, or evidence_number"),
+    limit: int = Query(100, le=500, description="Maximum items to return"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """List all evidence items with optional filters"""
+    """List all evidence across all cases with optional filtering."""
+    from sqlalchemy.orm import selectinload
+    from app.models.case import Case
     
-    # Build query with eager loading of relationships
-    query = select(EvidenceItem).options(
-        selectinload(EvidenceItem.case),
-        selectinload(EvidenceItem.chain_entries)
-    )
+    # Build base query
+    query = select(Evidence).options(
+        selectinload(Evidence.collector)  # Load collector user info
+    ).order_by(Evidence.created_at.desc())
     
-    # Apply filters
-    filters = []
+    # Apply category filter
+    if category:
+        query = query.where(Evidence.category == category)
+    
+    # Apply search filter
     if search:
-        filters.append(
-            or_(
-                EvidenceItem.label.ilike(f"%{search}%"),
-                EvidenceItem.notes.ilike(f"%{search}%")
-            )
+        search_term = f"%{search}%"
+        query = query.where(
+            (Evidence.label.ilike(search_term)) |
+            (Evidence.description.ilike(search_term)) |
+            (Evidence.evidence_number.ilike(search_term))
         )
     
-    if type:
-        filters.append(EvidenceItem.category == type)
+    # Apply pagination
+    query = query.offset(offset).limit(limit)
     
-    if case_id:
-        filters.append(EvidenceItem.case_id == case_id)
-    
-    if filters:
-        query = query.where(*filters)
-    
-    # Get total count
-    count_query = select(func.count(EvidenceItem.id))
-    if filters:
-        count_query = count_query.where(*filters)
-    count_result = await db.execute(count_query)
-    total = count_result.scalar()
-    
-    # Apply pagination and eager load collector
-    query = query.offset(skip).limit(limit).options(selectinload(EvidenceItem.collector), selectinload(EvidenceItem.case))
     result = await db.execute(query)
     evidence_items = result.scalars().all()
     
-    # Enrich with case information
+    # Enrich with case data
     enriched_items = []
     for item in evidence_items:
-        # Get chain of custody status from latest entry
-        chain_status = "SECURE"  # default
-        if item.chain_entries:
-            latest_entry = max(item.chain_entries, key=lambda x: x.timestamp)
-            chain_status = latest_entry.action
-            
-        collected_by_name = "System"
-        if item.collector:
-            collected_by_name = item.collector.full_name
+        # Fetch case number for display
+        case_result = await db.execute(select(Case).where(Case.id == item.case_id))
+        case = case_result.scalar_one_or_none()
         
+        # Build enriched response
         item_dict = {
-            "id": str(item.id),
-            "evidence_number": f"EVD-{str(item.id)[:8].upper()}",  # Generate evidence number from ID
-            "type": str(item.category.value) if item.category else "PHYSICAL",
-            "description": item.notes or item.label,
+            "id": item.id,
+            "case_id": item.case_id,
+            "case_number": case.case_number if case else None,  # Add case_number for display
+            "seizure_id": item.seizure_id,
             "label": item.label,
-            "case_id": str(item.case_id),
-            "collected_at": item.collected_at, # Return correct field
-            "collected_by": str(item.collected_by) if item.collected_by else None,
-            "collected_by_name": collected_by_name, 
-            "chain_of_custody_status": chain_status,
+            "evidence_number": item.label,  # Evidence uses label as identifier
+            "category": item.category,
+            "evidence_type": item.evidence_type,
+            "make": item.make,
+            "model": item.model,
+            "serial_no": item.serial_no,
+            "description": item.description,
             "storage_location": item.storage_location,
-            "sha256": item.sha256,
             "retention_policy": item.retention_policy,
             "notes": item.notes,
+            "collected_at": item.collected_at,
+            "collected_by": item.collected_by,
+            "collected_by_name": item.collector.full_name if item.collector else None,
+            "sha256_hash": item.sha256,  # Model uses sha256
             "file_path": item.file_path,
             "file_size": item.file_size,
+            "is_active": True,  # Default to True since model doesn't have this
             "created_at": item.created_at,
-            "updated_at": item.updated_at
+            "updated_at": item.updated_at,
         }
-        
-        # Add case information if available
-        if item.case:
-            item_dict["case_number"] = item.case.case_number
-            item_dict["case_title"] = item.case.title
-        
         enriched_items.append(item_dict)
     
+    return enriched_items
+
+
+# ==================== SEIZURE MANAGEMENT APIs ====================
+
+@router.post("/{case_id}/seizures", response_model=SeizureResponse)
+async def record_seizure(
+    case_id: UUID,
+    seizure_data: SeizureCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Record a new seizure for a case."""
+    from app.models.party import Party, PartyType
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Verify case access
+    # check_case_access implementation might need verification 
+    # assuming simple check for now or using the imported func
+    
+    # Create seizure record
+    seizure = Seizure(
+        case_id=case_id,
+        seized_at=seizure_data.seized_at or datetime.utcnow(),
+        location=seizure_data.location,
+        officer_id=seizure_data.officer_id or current_user.id,
+        notes=seizure_data.notes,
+        # NEW: Link to authorizing legal instrument
+        legal_instrument_id=seizure_data.legal_instrument_id,
+        # Legacy warrant fields (deprecated but still accepted)
+        warrant_number=seizure_data.warrant_number,
+        warrant_type=seizure_data.warrant_type,
+        issuing_authority=seizure_data.issuing_authority,
+        description=seizure_data.description,
+        items_count=seizure_data.items_count,  # Deprecated
+        status=seizure_data.status,
+        witnesses=seizure_data.witnesses  # Store in JSONB for reference
+    )
+    
+    db.add(seizure)
+    await db.commit()
+    await db.refresh(seizure)
+    
+    # NEW: Create Party records for each witness
+    if seizure_data.witnesses:
+        for witness_data in seizure_data.witnesses:
+            # witness_data can be a dict with 'name' key or just a name string
+            if isinstance(witness_data, dict):
+                witness_name = witness_data.get('name', '')
+            else:
+                witness_name = str(witness_data)
+            
+            if witness_name:
+                witness_party = Party(
+                    case_id=case_id,
+                    party_type=PartyType.WITNESS,
+                    full_name=witness_name,
+                    seizure_id=seizure.id,  # Link to this seizure
+                    notes=f"Witness to seizure at {seizure_data.location}"
+                )
+                db.add(witness_party)
+        
+        await db.commit()
+        logger.info(f"Created {len(seizure_data.witnesses)} witness parties for seizure {seizure.id}")
+    
+    # Return with evidence_count = 0 (new seizure has no evidence yet)
+    return seizure
+
+@router.get("/{case_id}/seizures", response_model=List[SeizureResponse])
+async def list_case_seizures(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all seizures for a case with computed evidence count."""
+    import logging
+    from sqlalchemy import func
+    from sqlalchemy.orm import selectinload
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Query seizures with optional legal_instrument relationship
+        query = select(Seizure).options(
+            selectinload(Seizure.legal_instrument)
+        ).where(Seizure.case_id == case_id).order_by(Seizure.seized_at.desc().nullslast())
+        result = await db.execute(query)
+        seizures = result.scalars().all()
+        
+        logger.info(f"Found {len(seizures)} seizures for case {case_id}")
+        
+        # Build response list with computed evidence_count
+        response_list = []
+        for seizure in seizures:
+            try:
+                # Count evidence items linked to this seizure
+                count_query = select(func.count(Evidence.id)).where(Evidence.seizure_id == seizure.id)
+                count_result = await db.execute(count_query)
+                evidence_count = count_result.scalar() or 0
+                
+                # Build legal_instrument summary if exists
+                li_summary = None
+                if seizure.legal_instrument:
+                    li = seizure.legal_instrument
+                    li_summary = {
+                        "id": li.id,
+                        "type": li.type.value if li.type else None,
+                        "reference_no": li.reference_no,
+                        "issuing_authority": li.issuing_authority,
+                        "status": li.status.value if li.status else None,
+                    }
+                
+                # Create response dict matching SeizureResponse schema
+                response_list.append({
+                    "id": seizure.id,
+                    "case_id": seizure.case_id,
+                    "seized_at": seizure.seized_at,
+                    "location": seizure.location,
+                    "officer_id": seizure.officer_id,
+                    "notes": seizure.notes,
+                    "legal_instrument_id": seizure.legal_instrument_id,
+                    "warrant_number": seizure.warrant_number,
+                    "warrant_type": seizure.warrant_type,
+                    "issuing_authority": seizure.issuing_authority,
+                    "description": seizure.description,
+                    "items_count": seizure.items_count,
+                    "status": seizure.status,
+                    "witnesses": seizure.witnesses,
+                    "photos": seizure.photos,
+                    "created_at": seizure.created_at,
+                    "updated_at": seizure.updated_at,
+                    "evidence_count": evidence_count,
+                    "legal_instrument": li_summary,
+                })
+            except Exception as inner_e:
+                logger.error(f"Error processing seizure {seizure.id}: {inner_e}", exc_info=True)
+                raise
+        
+        return response_list
+        
+    except Exception as e:
+        logger.error(f"Error listing seizures for case {case_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error listing seizures: {str(e)}")
+
+@router.get("/{case_id}/items", response_model=List[EvidenceResponse])
+async def list_case_evidence(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all evidence items for a case."""
+    query = select(Evidence).where(Evidence.case_id == case_id).order_by(Evidence.collected_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+@router.get("/seizures/{seizure_id}", response_model=SeizureResponse)
+async def get_seizure(
+    seizure_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get a single seizure with computed evidence count."""
+    from sqlalchemy import func
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(Seizure).options(
+            selectinload(Seizure.legal_instrument)
+        ).where(Seizure.id == seizure_id)
+    )
+    seizure = result.scalar_one_or_none()
+    if not seizure:
+        raise HTTPException(status_code=404, detail="Seizure not found")
+    
+    # Compute evidence count
+    count_query = select(func.count(Evidence.id)).where(Evidence.seizure_id == seizure.id)
+    count_result = await db.execute(count_query)
+    evidence_count = count_result.scalar() or 0
+    
+    # Build legal_instrument dict only if it exists
+    legal_instrument_dict = None
+    if seizure.legal_instrument:
+        legal_instrument_dict = {
+            "id": seizure.legal_instrument.id,
+            "type": seizure.legal_instrument.type.value if seizure.legal_instrument.type else None,
+            "reference_no": seizure.legal_instrument.reference_no,
+            "issuing_authority": seizure.legal_instrument.issuing_authority,
+            "status": seizure.legal_instrument.status.value if seizure.legal_instrument.status else None,
+        }
+    
+    # Build response with computed field
     return {
-        "items": enriched_items,
-        "total": total,
-        "skip": skip,
-        "limit": limit
+        "id": seizure.id,
+        "case_id": seizure.case_id,
+        "seized_at": seizure.seized_at,
+        "location": seizure.location,
+        "officer_id": seizure.officer_id,
+        "notes": seizure.notes,
+        "legal_instrument_id": seizure.legal_instrument_id,
+        "warrant_number": seizure.warrant_number,
+        "warrant_type": seizure.warrant_type,  # Keep enum, Pydantic serializes it
+        "issuing_authority": seizure.issuing_authority,
+        "description": seizure.description,
+        "items_count": seizure.items_count,
+        "status": seizure.status,  # Keep enum, Pydantic serializes it
+        "witnesses": seizure.witnesses,
+        "photos": seizure.photos,
+        "created_at": seizure.created_at,
+        "updated_at": seizure.updated_at,
+        "evidence_count": evidence_count,
+        "legal_instrument": legal_instrument_dict,
     }
 
-
-@router.get("/{evidence_id}", response_model=EvidenceResponse)
-async def get_evidence(
-    evidence_id: str,
+@router.put("/seizures/{seizure_id}", response_model=SeizureResponse)
+async def update_seizure(
+    seizure_id: UUID,
+    seizure_update: SeizureUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Get a specific evidence item by ID"""
+    """Update seizure details."""
+    result = await db.execute(select(Seizure).where(Seizure.id == seizure_id))
+    seizure = result.scalar_one_or_none()
+    if not seizure:
+        raise HTTPException(status_code=404, detail="Seizure not found")
     
-    # Eager load collector and case to avoid lazy load errors
-    result = await db.execute(
-        select(EvidenceItem)
-        .options(selectinload(EvidenceItem.collector), selectinload(EvidenceItem.case))
-        .where(EvidenceItem.id == evidence_id)
-    )
-    evidence = result.scalar_one_or_none()
+    update_data = seizure_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(seizure, field, value)
     
-    if not evidence:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Evidence not found"
+    seizure.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(seizure)
+    return seizure
+
+@router.delete("/seizures/{seizure_id}", status_code=204)
+async def delete_seizure(
+    seizure_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a seizure record."""
+    result = await db.execute(select(Seizure).where(Seizure.id == seizure_id))
+    seizure = result.scalar_one_or_none()
+    if not seizure:
+        raise HTTPException(status_code=404, detail="Seizure not found")
+        
+    await db.delete(seizure)
+    await db.commit()
+    return None
+
+# ==================== EVIDENCE MANAGEMENT APIs ====================
+
+class EvidenceCreateRequest(EvidenceCreate):
+    case_id: UUID
+
+@router.post("", response_model=EvidenceResponse) # /evidence
+async def create_evidence(
+    evidence_data: EvidenceCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create new evidence item directly (without explicit seizure, or linked later)."""
+    try:
+        evidence = Evidence(
+            case_id=evidence_data.case_id,
+            label=evidence_data.label,
+            category=str(evidence_data.category) if evidence_data.category else 'PHYSICAL',
+            evidence_type=str(evidence_data.evidence_type) if evidence_data.evidence_type else None,
+            make=evidence_data.make,
+            model=evidence_data.model,
+            serial_no=evidence_data.serial_no,
+            imei=evidence_data.imei,
+            storage_capacity=evidence_data.storage_capacity,
+            operating_system=evidence_data.operating_system,
+            condition=str(evidence_data.condition) if evidence_data.condition else None,
+            description=evidence_data.description,
+            powered_on=evidence_data.powered_on,
+            password_protected=evidence_data.password_protected,
+            encryption_status=str(evidence_data.encryption_status) if evidence_data.encryption_status else 'UNKNOWN',
+            storage_location=evidence_data.storage_location,
+            retention_policy=evidence_data.retention_policy,
+            notes=evidence_data.notes,
+            collected_at=evidence_data.collected_at or datetime.utcnow(),
+            collected_by=current_user.id
         )
         
-    collected_by_name = "System"
-    if evidence.collector:
-        collected_by_name = evidence.collector.full_name
+        db.add(evidence)
+        await db.commit()
+        await db.refresh(evidence)
+        return evidence
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        print(f"Error creating evidence: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=f"Error creating evidence: {str(e)}")
 
-    # Construct response dictionary manually to include computed fields
-    return {
-        "id": str(evidence.id),
-        "evidence_number": f"EVD-{str(evidence.id)[:8].upper()}",
-        "type": str(evidence.category.value) if evidence.category else "PHYSICAL",
-        "description": evidence.notes or evidence.label, # Map notes to description
-        "label": evidence.label, # Ensure label is passed
-        "case_id": str(evidence.case_id),
-        "case_number": evidence.case.case_number if evidence.case else None,
-        "case_title": evidence.case.title if evidence.case else None,
-        "collected_at": evidence.collected_at,
-        "collected_by": str(evidence.collected_by) if evidence.collected_by else None,
-        "collected_by_name": collected_by_name,
-        "chain_of_custody_status": "SECURE", # TODO: Compute real status from chain
-        "storage_location": evidence.storage_location,
-        "sha256": evidence.sha256,
-        "retention_policy": evidence.retention_policy,
-        "notes": evidence.notes,
-        "file_path": evidence.file_path,
-        "file_size": evidence.file_size,
-        "created_at": evidence.created_at,
-        "updated_at": evidence.updated_at
-    }
-
-
-@router.post("/", response_model=EvidenceResponse)
-async def create_evidence(
-    evidence_data: dict,
+@router.post("/upload", response_model=EvidenceResponse)
+async def upload_evidence(
+    case_id: UUID = Form(...),
+    label: str = Form(...),
+    category: str = Form(...),  # Accept string, will convert to enum
+    description: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    storage_location: Optional[str] = Form(None),
+    retention_policy: Optional[str] = Form(None),
+    collected_at: Optional[str] = Form(None),  # Accept as string, parse manually
+    seizure_id: Optional[str] = Form(None),  # Optional - link to a specific seizure
+    files: List[UploadFile] = File(default=[]),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Create a new evidence item"""
-    from uuid import UUID as PyUUID
-    from app.models.evidence import EvidenceCategory
-    
-    # Validate case exists
-    case_id = evidence_data.get('case_id')
-    if not case_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="case_id is required"
+    """Create evidence with file uploads."""
+    try:
+        # Parse collected_at from ISO string
+        parsed_collected_at = datetime.utcnow()
+        if collected_at:
+            try:
+                parsed_collected_at = datetime.fromisoformat(collected_at.replace('Z', '+00:00'))
+            except (ValueError, TypeError):
+                parsed_collected_at = datetime.utcnow()
+        
+        # Parse seizure_id if provided
+        parsed_seizure_id = None
+        if seizure_id and seizure_id.strip():
+            try:
+                parsed_seizure_id = UUID(seizure_id)
+            except (ValueError, TypeError):
+                pass  # Invalid UUID, leave as None
+        
+        evidence = Evidence(
+            case_id=case_id,
+            seizure_id=parsed_seizure_id,  # Optional link to seizure
+            label=label,
+            category=str(category) if category else 'PHYSICAL',  # Ensure string
+            description=description,
+            notes=notes,
+            storage_location=storage_location,
+            retention_policy=retention_policy,
+            collected_at=parsed_collected_at,
+            collected_by=current_user.id
         )
-    
-    case_result = await db.execute(select(Case).where(Case.id == case_id))
-    case = case_result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Case not found"
-        )
-    
-    # Map frontend fields to backend model
-    category = evidence_data.get('type', 'PHYSICAL')
-    if category == 'DIGITAL':
-        category = EvidenceCategory.DIGITAL
-    else:
-        category = EvidenceCategory.PHYSICAL
-    
-    collected_at_str = evidence_data.get('collected_at')
-    collected_at = None
-    if collected_at_str:
-        try:
-            collected_at = datetime.fromisoformat(collected_at_str.replace('Z', '+00:00'))
-        except ValueError:
-            pass
+        
+        db.add(evidence)
+        await db.commit()
+        await db.refresh(evidence)
+        
+        # Handle files
+        combined_sha256 = None  # Will store hash of all files combined
+        total_file_size = 0
+        first_file_path = None
+        
+        if files:
+            evidence_dir = UPLOAD_DIR / str(case_id) / str(evidence.id)
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Use a combined hash for all files if multiple
+            combined_hasher = hashlib.sha256()
+            
+            for file in files:
+                file_path = evidence_dir / file.filename
+                
+                # Read file content for hashing
+                file_content = await file.read()
+                total_file_size += len(file_content)
+                
+                # Compute individual file hash
+                file_hash = hashlib.sha256(file_content).hexdigest()
+                combined_hasher.update(file_content)
+                
+                # Write to disk
+                with file_path.open("wb") as buffer:
+                    buffer.write(file_content)
+                
+                if first_file_path is None:
+                    first_file_path = str(file_path)
+                
+                # Create artefact with its hash
+                artefact = Artefact(
+                    evidence_id=evidence.id,
+                    artefact_type=ArtefactType.DOC,  # Defaulting to DOC or OTHER
+                    source_tool="Manual Upload",
+                    description=f"Uploaded file: {file.filename}",
+                    file_path=str(file_path),
+                    sha256=file_hash,  # Store individual file hash
+                )
+                db.add(artefact)
+            
+            # Store combined hash on evidence
+            combined_sha256 = combined_hasher.hexdigest()
+            evidence.sha256 = combined_sha256
+            evidence.file_size = total_file_size
+            evidence.file_path = first_file_path  # Store first file path as reference
+            
+            await db.commit()
+            await db.refresh(evidence)
+            
+        return evidence
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        print(f"Error uploading evidence: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=f"Error uploading evidence: {str(e)}")
 
-    # Create evidence item
-    evidence = EvidenceItem(
-        case_id=case_id,
-        label=(evidence_data.get('description') or 'Untitled Evidence')[:255],
-        category=category,
-        storage_location=evidence_data.get('location_collected') or evidence_data.get('storage_location'),
-        notes=f"{evidence_data.get('description', '')}\n\n{evidence_data.get('notes', '')}".strip(),
-        retention_policy=evidence_data.get('retention_policy', '7Y_AFTER_CLOSE'),
-        collected_at=collected_at,
+@router.post("/seizures/{seizure_id}/items", response_model=EvidenceResponse) # Changed from /devices
+async def add_evidence_to_seizure(
+    seizure_id: UUID,
+    evidence_data: EvidenceCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Add evidence item to a seizure."""
+    result = await db.execute(select(Seizure).where(Seizure.id == seizure_id))
+    seizure = result.scalar_one_or_none()
+    if not seizure:
+        raise HTTPException(status_code=404, detail="Seizure not found")
+    
+    # Create Evidence (formerly Device)
+    evidence = Evidence(
+        seizure_id=seizure_id,
+        case_id=seizure.case_id, # Inherit case_id from seizure
+        label=evidence_data.label,
+        category=evidence_data.category,
+        evidence_type=evidence_data.evidence_type,
+        make=evidence_data.make,
+        model=evidence_data.model,
+        serial_no=evidence_data.serial_no,
+        imei=evidence_data.imei,
+        storage_capacity=evidence_data.storage_capacity,
+        operating_system=evidence_data.operating_system,
+        condition=evidence_data.condition,
+        description=evidence_data.description,
+        powered_on=evidence_data.powered_on,
+        password_protected=evidence_data.password_protected,
+        encryption_status=evidence_data.encryption_status,
+        storage_location=evidence_data.storage_location,
+        retention_policy=evidence_data.retention_policy,
+        notes=evidence_data.notes,
+        collected_at=evidence_data.collected_at or datetime.utcnow(),
         collected_by=current_user.id
     )
     
     db.add(evidence)
     await db.commit()
     await db.refresh(evidence)
-    
-    # Return in the expected format
-    return {
-        "id": str(evidence.id),
-        "evidence_number": f"EVD-{str(evidence.id)[:8].upper()}",
-        "type": str(evidence.category.value) if evidence.category else "PHYSICAL",
-        "description": evidence.notes or evidence.label,
-        "case_id": str(evidence.case_id),
-        "collected_at": evidence.collected_at,
-        "collected_by": str(evidence.collected_by) if evidence.collected_by else None,
-        "collected_by_name": current_user.full_name,
-        "chain_of_custody_status": "SECURE",
-        "storage_location": evidence.storage_location,
-        "sha256": evidence.sha256,
-        "retention_policy": evidence.retention_policy,
-        "notes": evidence.notes,
-        "file_path": evidence.file_path,
-        "file_size": evidence.file_size,
-        "created_at": evidence.created_at,
-        "updated_at": evidence.updated_at
-    }
+    return evidence
 
+@router.get("/seizures/{seizure_id}/items", response_model=List[EvidenceResponse])
+async def list_seized_evidence(
+    seizure_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List evidence items in a seizure."""
+    query = select(Evidence).where(Evidence.seizure_id == seizure_id).order_by(Evidence.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+@router.get("/{evidence_id}", response_model=EvidenceResponse)
+async def get_evidence_details(
+    evidence_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get details of specific evidence."""
+    result = await db.execute(select(Evidence).where(Evidence.id == evidence_id))
+    evidence = result.scalar_one_or_none()
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    return evidence
 
 @router.put("/{evidence_id}", response_model=EvidenceResponse)
 async def update_evidence(
-    evidence_id: str,
-    evidence_data: dict,
+    evidence_id: UUID,
+    evidence_update: EvidenceUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Update an evidence item"""
-    result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
+    """Update evidence details."""
+    result = await db.execute(select(Evidence).where(Evidence.id == evidence_id))
     evidence = result.scalar_one_or_none()
-    
     if not evidence:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Evidence not found"
-        )
+        raise HTTPException(status_code=404, detail="Evidence not found")
     
-    # Update fields
-    if 'description' in evidence_data or 'notes' in evidence_data:
-        new_notes = f"{evidence_data.get('description', '')}\n\n{evidence_data.get('notes', '')}".strip()
-        if new_notes:
-            evidence.notes = new_notes
-        if evidence_data.get('description'): # Only update label if description provided? Or keep label separate?
-            # Model uses label as title usually.
-             pass 
-    if 'label' in evidence_data:
-        evidence.label = evidence_data['label']
-    if 'storage_location' in evidence_data:
-        evidence.storage_location = evidence_data['storage_location']
-    if 'location_collected' in evidence_data:
-        evidence.storage_location = evidence_data['location_collected']
-    if 'retention_policy' in evidence_data:
-        evidence.retention_policy = evidence_data['retention_policy']
+    update_data = evidence_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(evidence, field, value)
     
+    evidence.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(evidence)
-    
-    return {
-        "id": str(evidence.id),
-        "evidence_number": f"EVD-{str(evidence.id)[:8].upper()}",
-        "type": str(evidence.category.value) if evidence.category else "PHYSICAL",
-        "description": evidence.notes or evidence.label,
-        "case_id": str(evidence.case_id),
-        "collected_at": evidence.collected_at,
-        "collected_by": str(evidence.collected_by) if evidence.collected_by else None,
-        "collected_by_name": "System",
-        "chain_of_custody_status": "SECURE",
-        "storage_location": evidence.storage_location,
-        "sha256": evidence.sha256,
-        "retention_policy": evidence.retention_policy,
-        "notes": evidence.notes,
-        "file_path": evidence.file_path,
-        "file_size": evidence.file_size,
-        "created_at": evidence.created_at,
-        "updated_at": evidence.updated_at
-    }
+    return evidence
 
-
-@router.delete("/{evidence_id}")
+@router.delete("/{evidence_id}", status_code=204)
 async def delete_evidence(
-    evidence_id: str,
+    evidence_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Delete an evidence item"""
-    result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
+    """Delete evidence item."""
+    result = await db.execute(select(Evidence).where(Evidence.id == evidence_id))
     evidence = result.scalar_one_or_none()
-    
     if not evidence:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Evidence not found"
-        )
+        raise HTTPException(status_code=404, detail="Evidence not found")
     
     await db.delete(evidence)
     await db.commit()
-    
-    return {"detail": "Evidence deleted successfully"}
+    return None
 
+# ==================== ARTEFACT APIs ====================
 
-@router.post("/upload", response_model=EvidenceResponse)
-async def create_evidence_with_files(
-    case_id: str = Form(...),
-    label: str = Form(...),
-    category: str = Form(...),
-    description: str = Form(None),
-    notes: str = Form(None),
-    storage_location: str = Form(None),
-    retention_policy: str = Form("CASE_CLOSE_PLUS_7"),
-    collected_at: str = Form(None),
-    files: List[UploadFile] = File(...),
+@router.post("/{evidence_id}/artefacts", response_model=ArtefactResponse)
+async def create_artefact(
+    evidence_id: UUID,
+    artefact_data: ArtefactCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Create a new evidence item with attached files"""
-    from app.models.evidence import EvidenceCategory
-    import shutil
-    import os
-    import hashlib
-    
-    # Validate case
-    case_result = await db.execute(select(Case).where(Case.id == case_id))
-    case = case_result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-        
-    # Create evidence item
-    # Map category string to Enum
-    try:
-        category_enum = EvidenceCategory(category)
-    except ValueError:
-        category_enum = EvidenceCategory.PHYSICAL # Default fallback
-    
-    collected_at_dt = None
-    if collected_at:
-        try:
-            collected_at_dt = datetime.fromisoformat(collected_at.replace('Z', '+00:00'))
-        except ValueError:
-            pass
-
-    evidence = EvidenceItem(
-        case_id=case_id,
-        label=label[:255],
-        category=category_enum,
-        storage_location=storage_location,
-        retention_policy=retention_policy,
-        notes=f"{description or ''}\n\n{notes or ''}".strip(),
-        collected_at=collected_at_dt, # Store the actual collected date
-        collected_by=current_user.id # Store the current user as collector
-    )
-    
-    if collected_at:
-        # If explicitly provided, use it. Otherwise it's None.
-        pass
-        
-    db.add(evidence)
-    await db.commit()
-    await db.refresh(evidence)
-    
-    # Process files
-    # Create uploads directory if not exists
-    upload_dir = os.path.join("uploads", str(evidence.id))
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    first_file_hash = None
-    
-    for i, file in enumerate(files):
-        file_path = os.path.join(upload_dir, file.filename)
-        sha256_hash = hashlib.sha256()
-        
-        # Read and write in chunks to calculate hash
-        with open(file_path, "wb") as buffer:
-            while True:
-                chunk = await file.read(8192)
-                if not chunk:
-                    break
-                sha256_hash.update(chunk)
-                buffer.write(chunk)
-                
-        # Capture hash of the first file for the evidence record
-        if i == 0:
-            first_file_hash = sha256_hash.hexdigest()
-            
-    # Update evidence with file info
-    if first_file_hash:
-        evidence.sha256 = first_file_hash
-        # Update file info from first file
-        evidence.file_path = files[0].filename
-        # Calculate size of first file
-        file_path = os.path.join(upload_dir, files[0].filename)
-        evidence.file_size = os.path.getsize(file_path)
-        
-        await db.commit()
-        await db.refresh(evidence)
-    
-    return {
-        "id": str(evidence.id),
-        "evidence_number": f"EVD-{str(evidence.id)[:8].upper()}",
-        "type": str(evidence.category.value),
-        "description": evidence.notes, # Mapping notes back to description
-        "label": evidence.label,
-        "case_id": str(evidence.case_id),
-        "collected_at": evidence.collected_at, # Return correct field name
-        "collected_by": str(evidence.collected_by), # Return ID
-        "collected_by_name": current_user.full_name, # Return resolved name
-        "chain_of_custody_status": "SECURE",
-        "storage_location": evidence.storage_location,
-        "sha256": evidence.sha256,
-        "retention_policy": evidence.retention_policy,
-        "notes": evidence.notes,
-        "file_path": evidence.file_path,
-        "file_size": evidence.file_size,
-        "created_at": evidence.created_at,
-        "updated_at": evidence.updated_at
-    }
-
-
-@router.post("/{evidence_id}/upload", response_model=EvidenceResponse)
-async def upload_evidence_file(
-    evidence_id: str,
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Upload a file to an existing evidence item"""
-    import shutil
-    import os
-    import hashlib
-    
-    result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
-    evidence = result.scalar_one_or_none()
-    
-    if not evidence:
-        raise HTTPException(status_code=404, detail="Evidence not found")
-        
-    # Save file
-    upload_dir = os.path.join("uploads", str(evidence.id))
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    file_path = os.path.join(upload_dir, file.filename)
-    sha256_hash = hashlib.sha256()
-    
-    with open(file_path, "wb") as buffer:
-        while True:
-            chunk = await file.read(8192)
-            if not chunk:
-                break
-            sha256_hash.update(chunk)
-            buffer.write(chunk)
-            
-        
-    # Update evidence with hash and file info
-    evidence.sha256 = sha256_hash.hexdigest()
-    evidence.file_path = file.filename
-    evidence.file_size = os.path.getsize(file_path)
-    
-    await db.commit()
-    await db.refresh(evidence)
-        
-    return {
-        "id": str(evidence.id),
-        "evidence_number": f"EVD-{str(evidence.id)[:8].upper()}",
-        "type": str(evidence.category.value),
-        "description": evidence.notes or evidence.label,
-        "case_id": str(evidence.case_id),
-        "collected_at": evidence.collected_at,
-        "collected_by": str(evidence.collected_by) if evidence.collected_by else None,
-        "collected_by_name": "System",
-        "chain_of_custody_status": "SECURE",
-        "storage_location": evidence.storage_location,
-        "sha256": evidence.sha256,
-        "retention_policy": evidence.retention_policy,
-        "notes": evidence.notes,
-        "file_path": evidence.file_path,
-        "file_size": evidence.file_size,
-        "created_at": evidence.created_at,
-        "updated_at": evidence.updated_at
-    }
-
-
-@router.post("/{evidence_id}/upload-multiple", response_model=EvidenceResponse)
-async def upload_multiple_files(
-    evidence_id: str,
-    files: List[UploadFile] = File(...),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Upload multiple files to an existing evidence item"""
-    import shutil
-    import os
-    import hashlib
-    
-    result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
-    evidence = result.scalar_one_or_none()
-    
-    if not evidence:
-        raise HTTPException(status_code=404, detail="Evidence not found")
-        
-    # Save files
-    upload_dir = os.path.join("uploads", str(evidence.id))
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    first_file_hash = None
-    
-    for i, file in enumerate(files):
-        file_path = os.path.join(upload_dir, file.filename)
-        sha256_hash = hashlib.sha256()
-        
-        with open(file_path, "wb") as buffer:
-            while True:
-                chunk = await file.read(8192)
-                if not chunk:
-                    break
-                sha256_hash.update(chunk)
-                buffer.write(chunk)
-        
-        if i == 0:
-            first_file_hash = sha256_hash.hexdigest()
-            
-    # Update evidence hash if it doesn't exist
-    if not evidence.sha256 and first_file_hash:
-        evidence.sha256 = first_file_hash
-        evidence.file_path = files[0].filename
-        file_path = os.path.join(upload_dir, files[0].filename)
-        evidence.file_size = os.path.getsize(file_path)
-        
-        await db.commit()
-        await db.refresh(evidence)
-            
-    return {
-        "id": str(evidence.id),
-        "evidence_number": f"EVD-{str(evidence.id)[:8].upper()}",
-        "type": str(evidence.category.value),
-        "description": evidence.notes or evidence.label,
-        "case_id": str(evidence.case_id),
-        "collected_at": evidence.collected_at,
-        "collected_by": str(evidence.collected_by) if evidence.collected_by else None,
-        "collected_by_name": "System",
-        "chain_of_custody_status": "SECURE",
-        "storage_location": evidence.storage_location,
-        "sha256": evidence.sha256,
-        "retention_policy": evidence.retention_policy,
-        "notes": evidence.notes,
-        "file_path": evidence.file_path,
-        "file_size": evidence.file_size,
-        "created_at": evidence.created_at,
-        "updated_at": evidence.updated_at
-    }
-
-
-@router.get("/{evidence_id}/custody", response_model=List[ChainOfCustodyResponse])
-async def get_evidence_custody(
-    evidence_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get chain of custody history for an evidence item"""
-    # Verify evidence exists
-    result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Evidence not found")
-
-    result = await db.execute(
-        select(ChainOfCustody)
-        .where(ChainOfCustody.evidence_id == evidence_id)
-        .order_by(ChainOfCustody.timestamp.desc())
-        .options(
-            selectinload(ChainOfCustody.from_user_obj),
-            selectinload(ChainOfCustody.to_user_obj)
-        )
-    )
-    entries = result.scalars().all()
-    
-    response = []
-    for entry in entries:
-        response.append({
-            "id": entry.id,
-            "evidence_id": entry.evidence_id,
-            "action": entry.action,
-            "custodian_from": entry.from_user,
-            "custodian_to": entry.to_user,
-            "custodian_from_name": entry.from_user_obj.full_name if entry.from_user_obj else None,
-            "custodian_to_name": entry.to_user_obj.full_name if entry.to_user_obj else "Unknown",
-            "location_to": entry.location,
-            "purpose": entry.details,
-            "notes": entry.details,
-            "timestamp": entry.timestamp,
-            "created_by": entry.from_user or current_user.id,
-            "created_by_name": entry.from_user_obj.full_name if entry.from_user_obj else "System",
-            "signature_verified": False,
-            "requires_approval": False
-        })
-    return response
-
-
-@router.post("/{evidence_id}/custody", response_model=ChainOfCustodyResponse)
-async def create_custody_entry(
-    evidence_id: str,
-    entry_in: ChainOfCustodyCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Add a new chain of custody entry"""
-    # Verify evidence
-    result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
+    """Add an artefact (e.g. photo, extraction) to evidence."""
+    result = await db.execute(select(Evidence).where(Evidence.id == evidence_id))
     evidence = result.scalar_one_or_none()
     if not evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
 
-    # Create entry
-    entry = ChainOfCustody(
+    artefact = Artefact(
         evidence_id=evidence_id,
-        action=entry_in.action,
-        from_user=entry_in.custodian_from or current_user.id,
-        to_user=entry_in.custodian_to,
-        location=entry_in.location_to,
-        details=entry_in.notes or entry_in.purpose,
-        timestamp=datetime.utcnow()
+        artefact_type=artefact_data.artefact_type,
+        source_tool=artefact_data.source_tool,
+        description=artefact_data.description,
+        file_path=artefact_data.file_path,
+        sha256=artefact_data.sha256
     )
     
-    db.add(entry)
+    db.add(artefact)
     await db.commit()
-    await db.refresh(entry)
-    
-    # Reload relationships for response
-    result = await db.execute(
-        select(ChainOfCustody)
-        .where(ChainOfCustody.id == entry.id)
-        .options(
-            selectinload(ChainOfCustody.from_user_obj),
-            selectinload(ChainOfCustody.to_user_obj)
-        )
-    )
-    entry = result.scalar_one()
-    
-    return {
-        "id": entry.id,
-        "evidence_id": entry.evidence_id,
-        "action": entry.action,
-        "custodian_from": entry.from_user,
-        "custodian_to": entry.to_user,
-        "custodian_from_name": entry.from_user_obj.full_name if entry.from_user_obj else None,
-        "custodian_to_name": entry.to_user_obj.full_name if entry.to_user_obj else "Unknown",
-        "location_to": entry.location,
-        "purpose": entry.details,
-        "notes": entry.details,
-        "timestamp": entry.timestamp,
-        "created_by": current_user.id,
-        "created_by_name": current_user.full_name,
-        "signature_verified": False,
-        "requires_approval": False
-    }
+    await db.refresh(artefact)
+    return artefact
 
-@router.delete("/{evidence_id}/custody/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_custody_entry(
-    evidence_id: str,
-    entry_id: str,
+@router.get("/{evidence_id}/artefacts", response_model=List[ArtefactResponse])
+async def list_evidence_artefacts(
+    evidence_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Delete a chain of custody entry"""
-    # Verify evidence exists (optional but good practice)
-    evidence_result = await db.execute(select(EvidenceItem).where(EvidenceItem.id == evidence_id))
-    if not evidence_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Evidence not found")
+    """List artefacts for an evidence item."""
+    query = select(Artefact).where(Artefact.evidence_id == evidence_id).order_by(Artefact.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
 
-    # Verify entry exists and belongs to evidence
-    result = await db.execute(
-        select(ChainOfCustody)
-        .where(
-            ChainOfCustody.id == entry_id,
-            ChainOfCustody.evidence_id == evidence_id
-        )
-    )
-    entry = result.scalar_one_or_none()
-    
-    if not entry:
-        raise HTTPException(status_code=404, detail="Custody entry not found")
+# ==================== FORENSIC / IMAGING APIs ====================
+# Keeping these as they add value for Digital Evidence
+
+@router.put("/{evidence_id}/imaging", response_model=DeviceImagingResponse)
+async def update_evidence_imaging(
+    evidence_id: UUID,
+    imaging_update: ImagingStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    require_roles(current_user, ["FORENSIC", "ADMIN"])
+    result = await db.execute(select(Evidence).where(Evidence.id == evidence_id))
+    evidence = result.scalar_one_or_none()
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Evidence not found")
         
-    # TODO: Add specific permission checks here if needed (e.g. only creator/admin)
-    
-    await db.delete(entry)
+    if imaging_update.imaging_status:
+        evidence.imaging_status = imaging_update.imaging_status
+        if imaging_update.imaging_status == ImagingStatus.IN_PROGRESS and not evidence.imaging_started_at:
+            evidence.imaging_started_at = datetime.utcnow()
+        elif imaging_update.imaging_status == ImagingStatus.COMPLETED and not evidence.imaging_completed_at:
+            evidence.imaging_completed_at = datetime.utcnow()
+            evidence.imaged = True
+
+    update_data = imaging_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        if field != 'imaging_status':
+            setattr(evidence, field, value)
+
+    evidence.imaging_technician_id = current_user.id
+    evidence.updated_at = datetime.utcnow()
     await db.commit()
+    await db.refresh(evidence)
+    
+    return DeviceImagingResponse(
+        device_id=evidence.id,
+        imaging_status=evidence.imaging_status,
+        imaging_started_at=evidence.imaging_started_at,
+        imaging_completed_at=evidence.imaging_completed_at,
+        imaging_tool=evidence.imaging_tool,
+        image_hash=evidence.image_hash,
+        image_size_bytes=evidence.image_size_bytes,
+        technician_id=evidence.imaging_technician_id,
+        updated_at=evidence.updated_at
+    )

@@ -211,5 +211,9 @@ LOOKUP_CATEGORIES = {
     "partner_organization": {
         "name": "Partner Organization",
         "description": "Organizations for inter-agency collaboration"
+    },
+    "report_type": {
+        "name": "Report Type",
+        "description": "Types of forensic reports (extraction, analysis, validation, summary)"
     }
 }

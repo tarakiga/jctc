@@ -47,7 +47,7 @@ from app.models.audit import (
     RetentionPolicy, AuditArchive
 )
 from app.models.case import Case
-from app.models.evidence import EvidenceItem, ChainOfCustody
+from app.models.evidence import Evidence, ChainOfCustody
 from app.models.chain_of_custody import ChainOfCustodyEntry
 from app.models.party import Party
 from app.models.legal import LegalInstrument
@@ -465,15 +465,15 @@ class ComplianceReportGenerator:
         """Generate forensic chain of custody report."""
         try:
             # Get evidence items and their chain of custody
-            evidence_query = self.db.query(EvidenceItem).filter(
+            evidence_query = self.db.query(Evidence).filter(
                 and_(
-                    EvidenceItem.created_at >= start_date,
-                    EvidenceItem.created_at <= end_date
+                    Evidence.created_at >= start_date,
+                    Evidence.created_at <= end_date
                 )
             )
             
             if parameters.get('case_id'):
-                evidence_query = evidence_query.filter(EvidenceItem.case_id == parameters['case_id'])
+                evidence_query = evidence_query.filter(Evidence.case_id == parameters['case_id'])
             
             evidence_items = evidence_query.all()
             

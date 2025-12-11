@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@jctc/ui'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
-import { useEvidence, useChainOfCustody } from '@/lib/hooks/useEvidence'
+import { useAllEvidence } from '@/lib/hooks/useEvidence'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { EvidenceFormModal } from '@/components/evidence/EvidenceFormModal'
+import { EvidenceDetailDrawer } from '@/components/evidence/EvidenceDetailDrawer'
 
 function EvidenceListContent() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -14,18 +14,19 @@ function EvidenceListContent() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedEvidence, setSelectedEvidence] = useState<any>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [showChainOfCustody, setShowChainOfCustody] = useState(false)
-  const [isAddEvidenceOpen, setIsAddEvidenceOpen] = useState(false)
 
-  // Fetch chain of custody for selected evidence
-  const { entries: chainOfCustodyEntries = [], loading: custodyLoading } = useChainOfCustody(selectedEvidence?.id || '')
-
-  // Fetch evidence from API with filters
-  const { evidence, loading, error, refetch } = useEvidence({
-    search: searchTerm || undefined,
-    type: typeFilter !== 'ALL' ? typeFilter : undefined,
-    chain_of_custody_status: statusFilter !== 'ALL' ? statusFilter : undefined,
+  // Fetch all evidence globally with filters
+  const categoryFilter = typeFilter !== 'ALL' ? typeFilter as 'DIGITAL' | 'PHYSICAL' | 'DOCUMENT' : undefined
+  const { data: allEvidence = [], isLoading: loading, error, refetch } = useAllEvidence({
+    category: categoryFilter,
+    search: searchTerm || undefined
   })
+
+  // Apply local status filter (not available on backend yet)
+  const evidence = useMemo(() => {
+    if (statusFilter === 'ALL') return allEvidence
+    return allEvidence.filter((e: any) => e.custody_status === statusFilter)
+  }, [allEvidence, statusFilter])
 
   // Loading state
   if (loading) {
@@ -55,8 +56,8 @@ function EvidenceListContent() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-red-900 mb-1">Error Loading Evidence</h3>
-              <p className="text-red-700 mb-4">{error.message}</p>
-              <Button onClick={refetch} variant="outline">Retry</Button>
+              <p className="text-red-700 mb-4">{(error as Error).message}</p>
+              <Button onClick={() => refetch()} variant="outline">Retry</Button>
             </div>
           </div>
         </div>
@@ -66,14 +67,16 @@ function EvidenceListContent() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'SECURE':
-        return { variant: 'success' as const, label: 'Secure' }
-      case 'IN_TRANSIT':
-        return { variant: 'warning' as const, label: 'In Transit' }
-      case 'COMPROMISED':
-        return { variant: 'critical' as const, label: 'Compromised' }
+      case 'IN_VAULT':
+        return { variant: 'success' as const, label: 'In Vault' }
+      case 'RELEASED':
+        return { variant: 'warning' as const, label: 'Released' }
+      case 'RETURNED':
+        return { variant: 'info' as const, label: 'Returned' }
+      case 'DISPOSED':
+        return { variant: 'critical' as const, label: 'Disposed' }
       default:
-        return { variant: 'default' as const, label: status }
+        return { variant: 'default' as const, label: status || 'Unknown' }
     }
   }
 
@@ -86,32 +89,34 @@ function EvidenceListContent() {
       case 'DOCUMENT':
         return { variant: 'default' as const, label: 'Document' }
       default:
-        return { variant: 'default' as const, label: type }
+        return { variant: 'default' as const, label: type || 'Unknown' }
     }
+  }
+
+  const typeColors: Record<string, string> = {
+    DIGITAL: 'bg-blue-100 text-blue-700 border-blue-200',
+    PHYSICAL: 'bg-purple-100 text-purple-700 border-purple-200',
+    DOCUMENT: 'bg-amber-100 text-amber-700 border-amber-200',
+  }
+
+  const statusColors: Record<string, string> = {
+    IN_VAULT: 'bg-green-100 text-green-700 border-green-200',
+    RELEASED: 'bg-amber-100 text-amber-700 border-amber-200',
+    RETURNED: 'bg-blue-100 text-blue-700 border-blue-200',
+    DISPOSED: 'bg-red-100 text-red-700 border-red-200',
   }
 
   return (
     <DashboardLayout>
       {/* Page Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">
-              Evidence Management
-            </h1>
-            <p className="text-lg text-slate-600">
-              Track and manage digital and physical evidence across all investigations
-            </p>
-          </div>
-          <Button 
-            onClick={() => setIsAddEvidenceOpen(true)}
-            className="bg-black text-white hover:bg-neutral-800 shadow-lg hover:shadow-xl transition-all"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Add Evidence
-          </Button>
+        <div>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">
+            Evidence Management
+          </h1>
+          <p className="text-lg text-slate-600">
+            Track and manage digital and physical evidence across all investigations
+          </p>
         </div>
       </div>
 
@@ -150,9 +155,10 @@ function EvidenceListContent() {
             className="px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-white"
           >
             <option value="ALL">All Status</option>
-            <option value="SECURE">Secure</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="COMPROMISED">Compromised</option>
+            <option value="IN_VAULT">In Vault</option>
+            <option value="RELEASED">Released</option>
+            <option value="RETURNED">Returned</option>
+            <option value="DISPOSED">Disposed</option>
           </select>
         </div>
       </div>
@@ -175,471 +181,107 @@ function EvidenceListContent() {
                 </svg>
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-2">No evidence found</h3>
-              <p className="text-slate-600 mb-6">
+              <p className="text-slate-600 mb-2">
                 {searchTerm || typeFilter !== 'ALL' || statusFilter !== 'ALL'
                   ? 'Try adjusting your filters to find what you\'re looking for.'
-                  : 'Upload your first evidence item to get started.'}
+                  : 'Evidence items will appear here once added to cases.'}
               </p>
-              <Button 
-                onClick={() => setIsAddEvidenceOpen(true)}
-                className="bg-black text-white hover:bg-neutral-800 shadow-lg"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Add Evidence
-              </Button>
+              <p className="text-sm text-slate-500">
+                To add evidence, navigate to a case and use the Assets section.
+              </p>
             </div>
           </div>
         ) : (
-          evidence.map((evidenceItem) => {
-            const typeColors = {
-              DIGITAL: 'bg-blue-100 text-blue-700 border-blue-200',
-              PHYSICAL: 'bg-purple-100 text-purple-700 border-purple-200',
-              DOCUMENT: 'bg-amber-100 text-amber-700 border-amber-200',
-            }
-            const statusColors = {
-              SECURE: 'bg-green-100 text-green-700 border-green-200',
-              IN_TRANSIT: 'bg-amber-100 text-amber-700 border-amber-200',
-              COMPROMISED: 'bg-red-100 text-red-700 border-red-200',
-            }
-            
-            return (
-              <div key={evidenceItem.id} className="group bg-white rounded-2xl border border-slate-200/60 hover:border-blue-300 hover:shadow-xl transition-all duration-300">
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-6">
-                    {/* Icon */}
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
+          evidence.map((evidenceItem: any) => (
+            <div key={evidenceItem.id} className="group bg-white rounded-xl border border-slate-200/60 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+              <div className="p-4">
+                <div className="flex gap-4">
+                  {/* Icon */}
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm mt-1">
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
                     </div>
+                  </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                              {evidenceItem.evidence_number}
-                            </h3>
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${typeColors[evidenceItem.type as keyof typeof typeColors] || typeColors.DIGITAL}`}>
-                              {getTypeBadge(evidenceItem.type).label}
-                            </span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[evidenceItem.chain_of_custody_status as keyof typeof statusColors] || statusColors.SECURE}`}>
-                              {getStatusBadge(evidenceItem.chain_of_custody_status).label}
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center flex-wrap gap-2 mb-1">
+                          <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                            {evidenceItem.label || evidenceItem.evidence_number}
+                          </h3>
+                          <div className="flex items-center gap-2">
+                            {evidenceItem.category && (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${typeColors[evidenceItem.category] || typeColors.DIGITAL}`}>
+                                {getTypeBadge(evidenceItem.category).label}
+                              </span>
+                            )}
+                            {evidenceItem.custody_status && (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${statusColors[evidenceItem.custody_status] || statusColors.IN_VAULT}`}>
+                                {getStatusBadge(evidenceItem.custody_status).label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-600 line-clamp-1 mb-3">{evidenceItem.description || 'No description provided'}</p>
+
+                        {/* Meta Information - Compact Row */}
+                        <div className="flex items-center gap-6 text-xs text-slate-500">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold uppercase tracking-wide text-[10px] text-slate-400">Case:</span>
+                            <Link
+                              href={`/cases/${evidenceItem.case_id}`}
+                              className="text-blue-600 hover:text-blue-700 font-medium truncate hover:underline"
+                            >
+                              {evidenceItem.case_number || 'Unknown Case'}
+                            </Link>
+                          </div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold uppercase tracking-wide text-[10px] text-slate-400">Date:</span>
+                            <span className="font-medium text-slate-700 truncate">
+                              {evidenceItem.collected_at ? new Date(evidenceItem.collected_at).toLocaleDateString() : 'N/A'}
                             </span>
                           </div>
-                          <p className="text-slate-700 mb-4 line-clamp-2">{evidenceItem.description}</p>
+                          <div className="flex items-center gap-1.5 min-w-0 hidden sm:flex">
+                            <span className="font-semibold uppercase tracking-wide text-[10px] text-slate-400">By:</span>
+                            <span className="font-medium text-slate-700 truncate">{evidenceItem.collected_by_name || 'System'}</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Meta Information */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-slate-500 text-xs font-medium uppercase tracking-wide">Related Case</span>
-                          <Link
-                            href={`/cases/${evidenceItem.case_id}`}
-                            className="block text-blue-600 hover:text-blue-700 font-semibold mt-1"
-                          >
-                            {evidenceItem.case_number || evidenceItem.case_id}
-                          </Link>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 text-xs font-medium uppercase tracking-wide">Collected</span>
-                          <p className="text-slate-900 font-medium mt-1">
-                            {new Date(evidenceItem.collected_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 text-xs font-medium uppercase tracking-wide">Collected By</span>
-                          <p className="text-slate-900 font-medium mt-1">{evidenceItem.collected_by}</p>
-                        </div>
+                      {/* Actions */}
+                      <div className="flex-shrink-0 self-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 text-slate-400 hover:text-blue-600"
+                          onClick={() => {
+                            setSelectedEvidence(evidenceItem)
+                            setIsDrawerOpen(true)
+                          }}
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Button>
                       </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="whitespace-nowrap"
-                        onClick={() => {
-                          setSelectedEvidence(evidenceItem)
-                          setIsDrawerOpen(true)
-                        }}
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        View Details
-                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
-            )
-          })
+            </div>
+          ))
         )}
       </div>
 
-      {/* Premium Evidence Details Drawer */}
-      {isDrawerOpen && selectedEvidence && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 transition-opacity duration-300"
-            onClick={() => setIsDrawerOpen(false)}
-          />
-          
-          {/* Drawer */}
-          <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 shadow-2xl z-50 overflow-y-auto">
-            {/* Drawer Header */}
-            <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200/60 px-8 py-6 z-10">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900">{selectedEvidence.evidence_number}</h2>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          selectedEvidence.type === 'DIGITAL' ? 'bg-blue-100 text-blue-700' :
-                          selectedEvidence.type === 'PHYSICAL' ? 'bg-purple-100 text-purple-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
-                          {getTypeBadge(selectedEvidence.type).label}
-                        </span>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          selectedEvidence.chain_of_custody_status === 'SECURE' ? 'bg-green-100 text-green-700' :
-                          selectedEvidence.chain_of_custody_status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {getStatusBadge(selectedEvidence.chain_of_custody_status).label}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Drawer Content */}
-            <div className="px-8 py-6 space-y-6">
-              {/* Description */}
-              <div className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Description</h3>
-                <p className="text-slate-900 leading-relaxed">{selectedEvidence.description}</p>
-              </div>
-
-              {/* Evidence Details Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Type</p>
-                      <p className="text-base font-bold text-slate-900">{getTypeBadge(selectedEvidence.type).label}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-emerald-100 rounded-lg">
-                      <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Status</p>
-                      <p className="text-base font-bold text-slate-900">{getStatusBadge(selectedEvidence.chain_of_custody_status).label}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected</p>
-                      <p className="text-base font-bold text-slate-900">
-                        {new Date(selectedEvidence.collected_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-amber-100 rounded-lg">
-                      <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected By</p>
-                      <p className="text-base font-bold text-slate-900">{selectedEvidence.collected_by}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Related Case */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/60 p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Related Case
-                </h3>
-                <Link
-                  href={`/cases/${selectedEvidence.case_id}`}
-                  className="block text-lg font-bold text-blue-700 hover:text-blue-800 transition-colors"
-                >
-                  {selectedEvidence.case_number || selectedEvidence.case_id}
-                </Link>
-              </div>
-
-              {/* Chain of Custody Section */}
-              <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-200/60">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-                      <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      Chain of Custody
-                      <span className="ml-2 px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
-                        {chainOfCustodyEntries.length} Records
-                      </span>
-                    </h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setShowChainOfCustody(!showChainOfCustody)}
-                    >
-                      {showChainOfCustody ? 'Hide' : 'View Full Chain'}
-                      <svg 
-                        className={`w-4 h-4 ml-1.5 transition-transform ${
-                          showChainOfCustody ? 'rotate-90' : ''
-                        }`} 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Button>
-                  </div>
-                </div>
-
-                {!showChainOfCustody && (
-                  <div className="p-6">
-                    <p className="text-slate-600">View complete chain of custody records and transfer history.</p>
-                  </div>
-                )}
-
-                {showChainOfCustody && (
-                  <div className="p-6">
-                    {custodyLoading ? (
-                      <div className="text-center py-8">
-                        <div className="text-neutral-500">Loading chain of custody...</div>
-                      </div>
-                    ) : chainOfCustodyEntries.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center">
-                            <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-neutral-900 font-medium">No custody records yet</p>
-                            <p className="text-sm text-neutral-500 mt-1">Chain of custody entries will appear here</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                    /* Timeline */
-                    <div className="relative">
-                      {/* Vertical Line */}
-                      <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500"></div>
-                      
-                      <div className="space-y-6">
-                        {chainOfCustodyEntries.map((record) => {
-                          const actionColors = {
-                            COLLECTED: 'from-emerald-500 to-emerald-600',
-                            TRANSFERRED: 'from-blue-500 to-blue-600',
-                            EXAMINED: 'from-purple-500 to-purple-600',
-                            ACCESSED: 'from-amber-500 to-amber-600',
-                          }
-                          const actionIcons = {
-                            COLLECTED: (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            ),
-                            TRANSFERRED: (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            ),
-                            EXAMINED: (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            ),
-                            ACCESSED: (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                            ),
-                          }
-                          
-                          return (
-                            <div key={record.id} className="relative pl-16">
-                              {/* Timeline Node */}
-                              <div className="absolute left-0 flex items-center justify-center">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-br ${
-                                  actionColors[record.action as keyof typeof actionColors] || actionColors.TRANSFERRED
-                                }`}>
-                                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    {actionIcons[record.action as keyof typeof actionIcons] || actionIcons.TRANSFERRED}
-                                  </svg>
-                                </div>
-                              </div>
-
-                              {/* Record Card */}
-                              <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 hover:border-blue-300 transition-colors">
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h4 className="text-base font-bold text-slate-900">{record.action}</h4>
-                                      {record.signature_verified && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                          </svg>
-                                          Verified
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-sm text-slate-600 mb-3">{record.purpose}</p>
-                                  </div>
-                                  <span className="text-xs font-medium text-slate-500">
-                                    {new Date(record.performed_at).toLocaleDateString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric', 
-                                      year: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </span>
-                                </div>
-
-                                {/* Transfer Details */}
-                                <div className="grid grid-cols-2 gap-4 mb-3">
-                                  {record.custodian_from && (
-                                    <div>
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">From</p>
-                                      <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                        {record.custodian_from}
-                                      </p>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                      {record.custodian_from ? 'To' : 'By'}
-                                    </p>
-                                    <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
-                                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 016 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                      </svg>
-                                      {record.custodian_to || record.performed_by}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Location */}
-                                <div className="mb-3">
-                                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Location</p>
-                                  <p className="text-sm text-slate-900 flex items-start gap-1.5">
-                                    <svg className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    {record.location}
-                                  </p>
-                                </div>
-
-                                {/* Notes */}
-                                {record.notes && (
-                                  <div className="pt-3 border-t border-slate-200">
-                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Notes</p>
-                                    <p className="text-sm text-slate-700 leading-relaxed">{record.notes}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button variant="primary" className="flex-1 shadow-lg shadow-blue-500/20">
-                  <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Evidence
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download Files
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Add Evidence Modal */}
-      <EvidenceFormModal 
-        isOpen={isAddEvidenceOpen} 
-        onClose={() => setIsAddEvidenceOpen(false)}
-        onSubmit={async (evidence) => {
-          // TODO: Add API call to create evidence
-          console.log('Creating evidence:', evidence)
-          setIsAddEvidenceOpen(false)
-          // Refetch evidence list after adding
-          refetch()
-        }}
+      {/* Evidence Details Drawer - Uses reusable component */}
+      <EvidenceDetailDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        evidence={selectedEvidence}
       />
     </DashboardLayout>
   )

@@ -20,19 +20,24 @@ export interface ArtifactInput {
   sha256?: string
 }
 
-export interface Artifact extends ArtifactInput {
+export interface Artifact {
   id: string
-  device_id: string
+  evidence_id: string
+  artefact_type: ArtefactType
+  source_tool: string
+  description: string
+  file_path?: string
+  sha256?: string
   created_at: string
   updated_at: string
 }
 
 // API
-export const listArtifacts = async (deviceId: string): Promise<Artifact[]> => {
-  const list = await apiClient.get<any[]>(`/devices/devices/${deviceId}/artifacts`)
+export const listArtifacts = async (evidenceId: string): Promise<Artifact[]> => {
+  const list = await apiClient.get<any[]>(`/evidence/${evidenceId}/artefacts`)
   return (list || []).map((a) => ({
     id: String(a.id),
-    device_id: String(a.device_id),
+    evidence_id: String(a.evidence_id),
     artefact_type: a.artefact_type,
     source_tool: a.source_tool,
     description: a.description,
@@ -43,7 +48,7 @@ export const listArtifacts = async (deviceId: string): Promise<Artifact[]> => {
   }))
 }
 
-export const createArtifact = async (deviceId: string, input: ArtifactInput): Promise<Artifact> => {
+export const createArtifact = async (evidenceId: string, input: ArtifactInput): Promise<Artifact> => {
   const payload: any = {
     artefact_type: input.artefact_type,
     source_tool: input.source_tool,
@@ -51,10 +56,10 @@ export const createArtifact = async (deviceId: string, input: ArtifactInput): Pr
     file_path: input.file_path,
     sha256: input.sha256,
   }
-  const a = await apiClient.post<any>(`/devices/devices/${deviceId}/artifacts`, payload)
+  const a = await apiClient.post<any>(`/evidence/${evidenceId}/artefacts`, payload)
   return {
     id: String(a.id),
-    device_id: String(a.device_id),
+    evidence_id: String(a.evidence_id),
     artefact_type: a.artefact_type,
     source_tool: a.source_tool,
     description: a.description,
@@ -66,11 +71,11 @@ export const createArtifact = async (deviceId: string, input: ArtifactInput): Pr
 }
 
 // Hooks
-export function useArtifacts(deviceId: string) {
+export function useArtifacts(evidenceId: string) {
   return useQuery({
-    queryKey: ["artifacts", deviceId],
-    queryFn: () => listArtifacts(deviceId),
-    enabled: !!deviceId,
+    queryKey: ["artifacts", evidenceId],
+    queryFn: () => listArtifacts(evidenceId),
+    enabled: !!evidenceId,
   })
 }
 
@@ -78,16 +83,16 @@ export function useArtifactMutations(caseId?: string) {
   const queryClient = useQueryClient()
 
   const createM = useMutation({
-    mutationFn: ({ deviceId, input }: { deviceId: string; input: ArtifactInput }) =>
-      createArtifact(deviceId, input),
+    mutationFn: ({ evidenceId, input }: { evidenceId: string; input: ArtifactInput }) =>
+      createArtifact(evidenceId, input),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["artifacts", variables.deviceId] })
+      queryClient.invalidateQueries({ queryKey: ["artifacts", variables.evidenceId] })
       if (caseId) queryClient.invalidateQueries({ queryKey: ["cases", caseId] })
     },
   })
 
   return {
-    createArtifact: async (deviceId: string, input: ArtifactInput) => createM.mutateAsync({ deviceId, input }),
+    createArtifact: async (evidenceId: string, input: ArtifactInput) => createM.mutateAsync({ evidenceId, input }),
     loading: createM.isPending,
     error: createM.error,
   }

@@ -32,10 +32,10 @@ class ChainOfCustodyResponse(ChainOfCustodyBase):
     custodian_from: Optional[UUID]
     custodian_to: UUID
     custodian_from_name: Optional[str] = None
-    custodian_to_name: str
+    custodian_to_name: Optional[str] = None
     timestamp: datetime
     created_by: UUID
-    created_by_name: str
+    created_by_name: Optional[str] = None
     approved_by: Optional[UUID] = None
     approved_by_name: Optional[str] = None
     

@@ -1,18 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  FileText, 
-  ListChecks, 
-  Activity, 
-  Package, 
-  Scale, 
-  Globe, 
+import {
+  FileText,
+  ListChecks,
+  Activity,
+  Package,
+  Scale,
+  Globe,
   ChevronDown,
   ChevronRight
 } from 'lucide-react'
 
-type Section = 
+type Section =
   | 'overview'
   | 'evidence'
   | 'parties'
@@ -62,9 +62,18 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Investigation',
     icon: Activity,
     sections: [
-      { id: 'evidence', label: 'Evidence' },
       { id: 'parties', label: 'Parties' },
       { id: 'timeline', label: 'Timeline' }
+    ]
+  },
+  {
+    id: 'assets',
+    label: 'Assets',
+    icon: Package,
+    sections: [
+      { id: 'seizures', label: 'Seizures' },
+      { id: 'evidence', label: 'Evidence Inventory' },
+      { id: 'forensics', label: 'Forensics' }
     ]
   },
   {
@@ -75,16 +84,6 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'tasks', label: 'Tasks' },
       { id: 'actions', label: 'Actions' },
       { id: 'assignments', label: 'Assignments' }
-    ]
-  },
-  {
-    id: 'assets',
-    label: 'Assets',
-    icon: Package,
-    sections: [
-      { id: 'seizures', label: 'Seizures' },
-      { id: 'devices', label: 'Devices' },
-      { id: 'forensics', label: 'Forensics' }
     ]
   },
   {
@@ -143,10 +142,9 @@ export function CaseDetailSidebar({ activeSection, onSectionChange, stats, class
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl
                     text-sm font-medium transition-all duration-200
-                    ${
-                      activeSection === group.sections[0].id
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                    ${activeSection === group.sections[0].id
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }
                   `}
                 >
@@ -161,10 +159,9 @@ export function CaseDetailSidebar({ activeSection, onSectionChange, stats, class
                     className={`
                       w-full flex items-center gap-3 px-4 py-3 rounded-xl
                       text-sm font-semibold transition-all duration-200
-                      ${
-                        hasActiveSection
-                          ? 'text-blue-700 bg-blue-50'
-                          : 'text-slate-700 hover:bg-slate-50'
+                      ${hasActiveSection
+                        ? 'text-blue-700 bg-blue-50'
+                        : 'text-slate-700 hover:bg-slate-50'
                       }
                     `}
                   >
@@ -187,10 +184,9 @@ export function CaseDetailSidebar({ activeSection, onSectionChange, stats, class
                           className={`
                             w-full flex items-center gap-2 px-3 py-2.5 rounded-lg
                             text-sm font-medium transition-all duration-200
-                            ${
-                              activeSection === section.id
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            ${activeSection === section.id
+                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                             }
                           `}
                         >

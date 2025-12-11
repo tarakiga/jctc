@@ -1,11 +1,12 @@
 from typing import List
 from uuid import UUID
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database.base import get_db
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserUpdate, UserResponse
+from app.schemas.user import UserCreate, UserUpdate, UserResponse, UserStatsResponse
 from app.utils.auth import get_password_hash
 from app.utils.dependencies import get_current_active_user, require_admin, require_supervisor_or_admin
 
@@ -44,6 +45,43 @@ async def create_user(
     await db.refresh(db_user)
     
     return db_user
+
+@router.get("/stats", response_model=UserStatsResponse)
+async def get_user_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_supervisor_or_admin)
+):
+    """Get user statistics."""
+    # Total users
+    total = await db.execute(select(func.count(User.id)))
+    total_users = total.scalar() or 0
+    
+    # Active users
+    active = await db.execute(select(func.count(User.id)).where(User.is_active == True))
+    active_users = active.scalar() or 0
+    
+    # By Role
+    # Validating if we can group by enum
+    roles_result = await db.execute(select(User.role, func.count(User.id)).group_by(User.role))
+    users_by_role = {str(role): count for role, count in roles_result.all()}
+    
+    # New users this month
+    now = datetime.utcnow()
+    start_of_month = datetime(now.year, now.month, 1)
+    new_users = await db.execute(select(func.count(User.id)).where(User.created_at >= start_of_month))
+    new_users_this_month = new_users.scalar() or 0
+    
+    # Last month comparison (simple logic: just count prev month)
+    # Simplified for now: just return 0 or mock
+    last_month_comparison = 0 
+    
+    return UserStatsResponse(
+        total_users=total_users,
+        active_users=active_users,
+        users_by_role=users_by_role,
+        new_users_this_month=new_users_this_month,
+        last_month_comparison=last_month_comparison
+    )
 
 @router.get("/", response_model=List[UserResponse])
 async def list_users(

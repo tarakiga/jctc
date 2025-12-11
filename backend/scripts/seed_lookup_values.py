@@ -327,6 +327,16 @@ DEFAULT_LOOKUP_VALUES = {
         {"value": "COURT_EXHIBITS", "label": "Court Exhibits Room", "is_system": True, "sort_order": 9},
         {"value": "OTHER", "label": "Other Location", "is_system": True, "sort_order": 99},
     ],
+    "session_type": [
+        {"value": "ARRAIGNMENT", "label": "Arraignment", "is_system": True, "sort_order": 1},
+        {"value": "PRELIMINARY_HEARING", "label": "Preliminary Hearing", "is_system": True, "sort_order": 2},
+        {"value": "PRE_TRIAL_CONFERENCE", "label": "Pre-Trial Conference", "is_system": True, "sort_order": 3},
+        {"value": "MOTION_HEARING", "label": "Motion Hearing", "is_system": True, "sort_order": 4},
+        {"value": "TRIAL", "label": "Trial", "is_system": True, "sort_order": 5},
+        {"value": "SENTENCING", "label": "Sentencing", "is_system": True, "sort_order": 6},
+        {"value": "APPEAL_HEARING", "label": "Appeal Hearing", "is_system": True, "sort_order": 7},
+        {"value": "OTHER", "label": "Other", "is_system": True, "sort_order": 99},
+    ],
 }
 
 

@@ -68,7 +68,20 @@ export function PartiesManager({ caseId, parties, onAdd, onEdit, onDelete }: Par
   const handleOpenModal = (party?: Party) => {
     if (party) {
       setEditingParty(party)
-      setFormData(party)
+      // Normalize null values to empty strings to prevent React warnings
+      setFormData({
+        party_type: party.party_type || 'SUSPECT',
+        full_name: party.full_name || '',
+        alias: party.alias || '',
+        dob: party.dob || '',
+        nationality: party.nationality || '',
+        gender: party.gender || 'Unspecified',
+        national_id: party.national_id || '',
+        contact: party.contact || {},
+        guardian_contact: party.guardian_contact || {},
+        safeguarding_flags: party.safeguarding_flags || [],
+        notes: party.notes || '',
+      })
     } else {
       setEditingParty(null)
       setFormData({

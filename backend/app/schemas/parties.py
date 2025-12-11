@@ -26,6 +26,9 @@ class PartyBase(BaseModel):
     contact: Optional[Dict[str, Any]] = Field(None, description="Contact info: {phone, email, address}")
     notes: Optional[str] = None
     
+    # Reporter flag - indicates this party is the case reporter
+    is_reporter: bool = Field(False, description="Whether this party is the case reporter")
+    
     # Guardian contact for minors (victims under 18)
     guardian_contact: Optional[Dict[str, Any]] = Field(None, description="Guardian contact info: {name, phone, email, relationship}")
     
@@ -52,6 +55,7 @@ class PartyUpdate(BaseModel):
     gender: Optional[str] = None
     contact: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
+    is_reporter: Optional[bool] = None
     guardian_contact: Optional[Dict[str, Any]] = None
     safeguarding_flags: Optional[List[str]] = None
     
@@ -63,6 +67,7 @@ class PartyResponse(PartyBase):
     """Schema for party response."""
     id: UUID
     case_id: Optional[UUID] = None
+    is_reporter: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
     created_by: Optional[UUID] = None

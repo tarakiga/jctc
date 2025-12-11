@@ -63,8 +63,8 @@ const fetchInstruments = async (caseId: string): Promise<LegalInstrument[]> => {
     const response = await apiClient.get<LegalInstrument[]>(`/cases/${caseId}/legal-instruments/`)
     return response
   } catch (error) {
-    // Return empty array if API endpoint doesn't exist yet
-    console.warn('Legal instruments API not available:', error)
+    // Silently return empty array if API endpoint doesn't exist yet
+    // This is expected during development when endpoint may not be implemented
     return []
   }
 }
@@ -82,7 +82,7 @@ const createInstrument = async (input: CreateInstrumentInput): Promise<LegalInst
   }
 
   const { document, ...restInput } = input
-  
+
   return await apiClient.post<LegalInstrument>(`/cases/${input.case_id}/legal-instruments/`, {
     ...restInput,
     document_hash,

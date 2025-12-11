@@ -19,6 +19,9 @@ services:
       - 'ADMIN_EMAIL=admin@jctc.ng'
       - 'ADMIN_PASSWORD=AdminPass2025!'
       - 'ADMIN_NAME=System Administrator'
+    command: >
+      sh -c "bash scripts/init_prod.sh && 
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"
     depends_on:
       db:
         condition: service_healthy

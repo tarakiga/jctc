@@ -7,7 +7,7 @@ from app.models.case import (
 from app.models.party import Party, PartyType
 from app.models.legal import LegalInstrument, LegalInstrumentType, LegalInstrumentStatus
 from app.models.evidence import (
-    Seizure, Device, Artefact, Evidence, EvidenceItem, ChainOfCustody,
+    Seizure, Artefact, Evidence, ChainOfCustody,
     EvidenceCategory, CustodyStatus, CustodyAction, ArtefactType,
     ImagingStatus, DeviceType, WarrantType, SeizureStatus,
     DeviceCondition, EncryptionStatus, AnalysisStatus
@@ -30,6 +30,7 @@ from app.models.audit import (
     AuditArchive,
 )
 from app.models.lookup_value import LookupValue, LOOKUP_CATEGORIES
+from app.models.forensic import ForensicReport
 
 __all__ = [
     "BaseModel",
@@ -38,7 +39,7 @@ __all__ = [
     "IntakeChannel", "ReporterType", "RiskFlag",
     "Party", "PartyType",
     "LegalInstrument", "LegalInstrumentType", "LegalInstrumentStatus",
-    "Seizure", "Device", "Artefact", "Evidence", "EvidenceItem", "ChainOfCustody",
+    "Seizure", "Artefact", "Evidence", "ChainOfCustody",
     "EvidenceCategory", "CustodyStatus", "CustodyAction", "ArtefactType",
     "ImagingStatus", "DeviceType", "WarrantType", "SeizureStatus",
     "DeviceCondition", "EncryptionStatus", "AnalysisStatus",
@@ -50,4 +51,5 @@ __all__ = [
     "AuditLog", "ComplianceReport", "RetentionPolicy", "ComplianceViolation",
     "AuditConfiguration", "DataRetentionJob", "AuditArchive",
     "LookupValue", "LOOKUP_CATEGORIES",
+    "ForensicReport",
 ]

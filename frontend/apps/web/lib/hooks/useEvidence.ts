@@ -1,343 +1,228 @@
-import { useState, useEffect } from 'react'
-import {
-  evidenceService,
-  Evidence,
-  EvidenceFilters,
-  CreateEvidenceData,
-  UpdateEvidenceData,
-  ChainOfCustodyEntry,
-} from '../services/evidence'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiClient } from "../services/api-client"
 
-export function useEvidence(filters?: EvidenceFilters) {
-  const [evidence, setEvidence] = useState<Evidence[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+// Backend-aligned types
+export type CustodyStatus = "IN_VAULT" | "RELEASED" | "RETURNED" | "DISPOSED"
+export type EvidenceCategory = "PHYSICAL" | "DIGITAL"
+export type DeviceType =
+  | "LAPTOP" | "DESKTOP" | "MOBILE_PHONE" | "TABLET"
+  | "EXTERNAL_STORAGE" | "USB_DRIVE" | "MEMORY_CARD"
+  | "SERVER" | "NETWORK_DEVICE" | "OTHER"
+export type ImagingStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "VERIFIED"
+export type DeviceCondition = "EXCELLENT" | "GOOD" | "FAIR" | "POOR" | "DAMAGED"
+export type EncryptionStatus = "NONE" | "ENCRYPTED" | "BITLOCKER" | "FILEVAULT" | "PARTIAL" | "UNKNOWN"
+export type AnalysisStatus = "PENDING" | "IN_PROGRESS" | "ANALYZED" | "BLOCKED"
 
-  const fetchEvidence = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.getEvidence(filters)
-      setEvidence(result.evidence)
-      setTotal(result.total)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch evidence'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchEvidence()
-  }, [JSON.stringify(filters)])
-
-  return {
-    evidence,
-    total,
-    loading,
-    error,
-    refetch: fetchEvidence,
-
-    /**
-     * Approve chain of custody entry (four-eyes approval)
-     */
-    approveChainOfCustodyEntry: async (evidenceId: string, entryId: string) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const result = await evidenceService.approveChainOfCustodyEntry(evidenceId, entryId)
-        console.log('Chain of custody entry approved successfully')
-        return result
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to approve chain of custody entry'
-        setError(new Error(errorMessage))
-        console.error('Error approving chain of custody entry:', errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
-      }
-    },
-
-    /**
-     * Reject chain of custody entry
-     */
-    rejectChainOfCustodyEntry: async (evidenceId: string, entryId: string, reason?: string) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const result = await evidenceService.rejectChainOfCustodyEntry(evidenceId, entryId, reason)
-        console.log('Chain of custody entry rejected successfully')
-        return result
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to reject chain of custody entry'
-        setError(new Error(errorMessage))
-        console.error('Error rejecting chain of custody entry:', errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
-      }
-    },
-
-    /**
-     * Generate custody transfer receipt
-     */
-    generateCustodyReceipt: async (evidenceId: string, entryId: string) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const receiptUrl = await evidenceService.generateCustodyReceipt(evidenceId, entryId)
-        console.log('Custody receipt generated successfully')
-        return receiptUrl
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to generate custody receipt'
-        setError(new Error(errorMessage))
-        console.error('Error generating custody receipt:', errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
+export interface ChainOfCustodyEntry {
+  id: string
+  action: string
+  to_user: string
+  timestamp: string
+  location?: string
+  details?: string
 }
 
-export function useEvidenceItem(id: string) {
-  const [evidence, setEvidence] = useState<Evidence | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+export interface Evidence {
+  id: string
+  case_id?: string
+  seizure_id?: string
 
-  const fetchEvidence = async () => {
-    if (!id) return
+  label: string
+  category: EvidenceCategory
+  evidence_type?: DeviceType
 
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.getEvidenceById(id)
-      setEvidence(result)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch evidence'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Identification
+  make?: string
+  model?: string
+  serial_no?: string
+  imei?: string
 
-  useEffect(() => {
-    fetchEvidence()
-  }, [id])
+  // Specs
+  storage_capacity?: string
+  operating_system?: string
+  condition?: DeviceCondition
+  description?: string
 
-  return {
-    evidence,
-    loading,
-    error,
-    refetch: fetchEvidence,
-  }
+  // Security
+  powered_on?: boolean
+  password_protected?: boolean
+  encryption_status?: EncryptionStatus
+
+  // Storage
+  storage_location?: string
+  retention_policy?: string
+  custody_status: CustodyStatus
+
+  // Imaging / Digital Specific
+  imaged: boolean
+  imaging_status: ImagingStatus
+  imaging_started_at?: string
+  imaging_completed_at?: string
+  imaging_tool?: string
+  image_hash?: string
+  image_size_bytes?: string
+  imaging_technician_id?: string
+
+  // Metadata
+  notes?: string
+  forensic_notes?: string
+  collected_at?: string
+  collected_by?: string
+  created_at: string
+  updated_at?: string
+
+  chain_entries?: ChainOfCustodyEntry[]
 }
 
-export function useEvidenceByCase(caseId: string) {
-  const [evidence, setEvidence] = useState<Evidence[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  const fetchEvidence = async () => {
-    if (!caseId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.getEvidenceByCase(caseId)
-      setEvidence(result)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch evidence for case'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchEvidence()
-  }, [caseId])
-
-  return {
-    evidence,
-    loading,
-    error,
-    refetch: fetchEvidence,
-  }
+export interface CreateEvidenceInput {
+  seizure_id: string
+  label: string
+  category: EvidenceCategory
+  evidence_type?: DeviceType
+  make?: string
+  model?: string
+  serial_no?: string
+  imei?: string
+  storage_capacity?: string
+  operating_system?: string
+  condition?: DeviceCondition
+  description?: string
+  powered_on?: boolean
+  password_protected?: boolean
+  encryption_status?: EncryptionStatus
+  storage_location?: string
+  retention_policy?: string
+  notes?: string
+  forensic_notes?: string
+  collected_at?: string
+  collected_by?: string
 }
 
-export function useChainOfCustody(evidenceId: string) {
-  const [entries, setEntries] = useState<ChainOfCustodyEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  const fetchChainOfCustody = async () => {
-    if (!evidenceId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.getChainOfCustody(evidenceId)
-      setEntries(result)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch chain of custody'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchChainOfCustody()
-  }, [evidenceId])
-
-  return {
-    entries,
-    loading,
-    error,
-    refetch: fetchChainOfCustody,
-  }
+export interface UpdateEvidenceInput {
+  label?: string
+  category?: EvidenceCategory
+  evidence_type?: DeviceType
+  make?: string
+  model?: string
+  serial_no?: string
+  imei?: string
+  storage_capacity?: string
+  operating_system?: string
+  condition?: DeviceCondition
+  description?: string
+  powered_on?: boolean
+  password_protected?: boolean
+  encryption_status?: EncryptionStatus
+  storage_location?: string
+  retention_policy?: string
+  notes?: string
+  forensic_notes?: string
+  collected_at?: string
 }
 
-export function useEvidenceMutations() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+// ==================== API FUNCTIONS ====================
 
-  const createEvidence = async (data: CreateEvidenceData): Promise<Evidence | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.createEvidence(data)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to create evidence'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createEvidenceWithFiles = async (
-    data: CreateEvidenceData,
-    files: File[]
-  ): Promise<Evidence | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.createEvidenceWithFiles(data, files)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to create evidence with files'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const uploadFile = async (evidenceId: string, file: File): Promise<Evidence | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.uploadEvidenceFile(evidenceId, file)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to upload file'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const uploadMultipleFiles = async (
-    evidenceId: string,
-    files: File[]
-  ): Promise<Evidence | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.uploadMultipleFiles(evidenceId, files)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to upload files'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const updateEvidence = async (
-    id: string,
-    data: UpdateEvidenceData
-  ): Promise<Evidence | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.updateEvidence(id, data)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to update evidence'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const deleteEvidence = async (id: string): Promise<boolean> => {
-    try {
-      setLoading(true)
-      setError(null)
-      await evidenceService.deleteEvidence(id)
-      return true
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to delete evidence'))
-      return false
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const addChainOfCustodyEntry = async (
-    evidenceId: string,
-    data: { action: string; location?: string; notes?: string }
-  ): Promise<ChainOfCustodyEntry | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.addChainOfCustodyEntry(evidenceId, data)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to add chain of custody entry'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const downloadEvidence = async (evidenceId: string): Promise<Blob | null> => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await evidenceService.downloadEvidence(evidenceId)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to download evidence'))
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return {
-    createEvidence,
-    createEvidenceWithFiles,
-    uploadFile,
-    uploadMultipleFiles,
-    updateEvidence,
-    deleteEvidence,
-    addChainOfCustodyEntry,
-    downloadEvidence,
-    loading,
-    error,
-  }
+const fetchEvidenceByCase = async (caseId: string): Promise<Evidence[]> => {
+  // Use the new optimized endpoint
+  const response = await apiClient.get<Evidence[]>(`/evidence/${caseId}/items`)
+  return response || []
 }
 
+const fetchEvidenceBySeizure = async (seizureId: string): Promise<Evidence[]> => {
+  const response = await apiClient.get<Evidence[]>(`/evidence/seizures/${seizureId}/items`)
+  return response || []
+}
 
+// Fetch all evidence globally (across all cases)
+export interface GlobalEvidenceFilters {
+  category?: 'DIGITAL' | 'PHYSICAL' | 'DOCUMENT'
+  search?: string
+  limit?: number
+  offset?: number
+}
 
+const fetchAllEvidence = async (filters?: GlobalEvidenceFilters): Promise<Evidence[]> => {
+  const params = new URLSearchParams()
+  if (filters?.category) params.append('category', filters.category)
+  if (filters?.search) params.append('search', filters.search)
+  if (filters?.limit) params.append('limit', String(filters.limit))
+  if (filters?.offset) params.append('offset', String(filters.offset))
+
+  const queryString = params.toString()
+  const url = queryString ? `/evidence?${queryString}` : '/evidence'
+
+  const response = await apiClient.get<Evidence[]>(url)
+  return response || []
+}
+
+const createEvidence = async (input: CreateEvidenceInput): Promise<Evidence> => {
+  return apiClient.post<Evidence>(`/evidence/seizures/${input.seizure_id}/items`, input)
+}
+
+const updateEvidence = async (evidenceId: string, input: UpdateEvidenceInput): Promise<Evidence> => {
+  return apiClient.put<Evidence>(`/evidence/${evidenceId}`, input)
+}
+
+const deleteEvidence = async (evidenceId: string): Promise<void> => {
+  await apiClient.delete(`/evidence/${evidenceId}`)
+}
+
+// ==================== HOOKS ====================
+
+export function useEvidence(caseId: string) {
+  return useQuery({
+    queryKey: ["evidence", "case", caseId],
+    queryFn: () => fetchEvidenceByCase(caseId),
+    enabled: !!caseId,
+  })
+}
+
+export function useSeizureEvidence(seizureId: string) {
+  return useQuery({
+    queryKey: ["evidence", "seizure", seizureId],
+    queryFn: () => fetchEvidenceBySeizure(seizureId),
+    enabled: !!seizureId,
+  })
+}
+
+// Global evidence listing hook
+export function useAllEvidence(filters?: GlobalEvidenceFilters) {
+  return useQuery({
+    queryKey: ["evidence", "all", filters],
+    queryFn: () => fetchAllEvidence(filters),
+    staleTime: 30000, // 30 seconds
+  })
+}
+
+export function useEvidenceMutations(caseId: string) {
+  const queryClient = useQueryClient()
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["evidence", "case", caseId] })
+    queryClient.invalidateQueries({ queryKey: ["seizures", caseId] }) // Seizures might show counts
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createEvidence,
+    onSuccess: invalidate,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateEvidenceInput }) =>
+      updateEvidence(id, data),
+    onSuccess: invalidate,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteEvidence,
+    onSuccess: invalidate,
+  })
+
+  return {
+    createEvidence: createMutation.mutateAsync,
+    updateEvidence: updateMutation.mutateAsync,
+    deleteEvidence: deleteMutation.mutateAsync,
+    loading: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
+    error: createMutation.error || updateMutation.error || deleteMutation.error
+  }
+}

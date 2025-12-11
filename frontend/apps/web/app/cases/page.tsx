@@ -174,6 +174,22 @@ function CasesContent() {
 
     try {
       // Transform form data to API format
+      // Build reporter contact if provided
+      const reporterContact = (formData.reporter_contact.phone || formData.reporter_contact.email)
+        ? formData.reporter_contact
+        : undefined
+
+      // Map reporter_type to party_type
+      const partyTypeMapping: Record<string, string> = {
+        'ANONYMOUS': 'COMPLAINANT',
+        'VICTIM': 'VICTIM',
+        'PARENT': 'COMPLAINANT',
+        'LEA': 'WITNESS',
+        'NGO': 'WITNESS',
+        'CORPORATE': 'COMPLAINANT',
+        'WHISTLEBLOWER': 'WITNESS',
+      }
+
       const apiData: CreateCaseData = {
         title: formData.title,
         description: formData.description,
@@ -190,12 +206,17 @@ function CasesContent() {
         platforms_implicated: formData.platforms_implicated,
         lga_state_location: formData.lga_state_location || undefined,
         incident_datetime: formData.incident_datetime || undefined,
-        // Reporter fields
+        // Legacy reporter fields (for backward compatibility)
         reporter_type: formData.reporter_type as any,
         reporter_name: formData.reporter_name || undefined,
-        reporter_contact: (formData.reporter_contact.phone || formData.reporter_contact.email)
-          ? formData.reporter_contact
-          : undefined,
+        reporter_contact: reporterContact,
+        // NEW: Reporter as Party (consolidated approach)
+        reporter: (formData.reporter_name || reporterContact) ? {
+          party_type: partyTypeMapping[formData.reporter_type] || 'COMPLAINANT',
+          full_name: formData.reporter_name || undefined,
+          contact: reporterContact,
+          notes: `Reporter type: ${formData.reporter_type}`
+        } : undefined,
       }
 
       console.log('Submitting case to API:', apiData)

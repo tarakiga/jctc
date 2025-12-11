@@ -106,14 +106,17 @@ class Seizure(BaseModel):
     officer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     notes = Column(Text)
     
-    # Warrant and legal information
-    warrant_number = Column(String(100))
-    warrant_type = Column(SQLEnum(WarrantType))
-    issuing_authority = Column(String(255))
+    # NEW: Link to authorizing legal instrument (e.g., warrant)
+    legal_instrument_id = Column(UUID(as_uuid=True), ForeignKey("legal_instruments.id"), nullable=True)
+    
+    # DEPRECATED: Warrant fields (kept for backward compatibility, use legal_instrument_id instead)
+    warrant_number = Column(String(100))  # Deprecated: Use legal_instrument.reference_no
+    warrant_type = Column(SQLEnum(WarrantType))  # Deprecated: Use legal_instrument.type
+    issuing_authority = Column(String(255))  # Deprecated: Use legal_instrument.issuing_authority
     
     # Seizure details
     description = Column(Text)
-    items_count = Column(Integer)
+    items_count = Column(Integer)  # Note: This should be computed from Evidence count
     status = Column(SQLEnum(SeizureStatus), default=SeizureStatus.COMPLETED)
     
     # Documentation
@@ -123,105 +126,102 @@ class Seizure(BaseModel):
     # Relationships
     case = relationship("Case", back_populates="seizures")
     officer = relationship("User")
-    devices = relationship("Device", back_populates="seizure", cascade="all, delete-orphan")
+    devices = relationship("Evidence", back_populates="seizure", cascade="all, delete-orphan")
+    legal_instrument = relationship("LegalInstrument", backref="seizures")
 
 
-class Device(BaseModel):
-    __tablename__ = "devices"
+
+# Consolidated Evidence Model (Replacing Device and EvidenceItem)
+class Evidence(BaseModel):
+    __tablename__ = "devices"  # Keep original table name - migration would be needed to rename
     
-    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"))  # Direct case reference
-    seizure_id = Column(UUID(as_uuid=True), ForeignKey("seizures.id", ondelete="CASCADE"), nullable=False)
+    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"))
+    seizure_id = Column(UUID(as_uuid=True), ForeignKey("seizures.id", ondelete="CASCADE"), nullable=True) # Made nullable as not all evidence comes from seizure immediately
+    
+    # Core Fields
     label = Column(String(255))
-    device_type = Column(SQLEnum(DeviceType), default=DeviceType.OTHER)
+    category = Column(String(50), default='PHYSICAL') # Changed from SQLEnum to String for compatibility
+    evidence_type = Column(String(50)) # Changed from SQLEnum to String for compatibility - maps to Lookup
+    # Note: For now keeping DB Enum, frontend will use Lookup to populate.
+    
+    # Identifiers
     make = Column(String(100))
     model = Column(String(100))
     serial_no = Column(String(100))
     imei = Column(String(20))
     
-    # Physical device characteristics
-    storage_capacity = Column(String(100))  # e.g., "512GB SSD", "256GB"
-    operating_system = Column(String(100))  # e.g., "Windows 11 Pro", "iOS 17.2"
-    condition = Column(SQLEnum(DeviceCondition))
-    description = Column(Text)  # General description of device and seizure context
+    # Physical characteristics
+    storage_capacity = Column(String(100))
+    operating_system = Column(String(100))
+    condition = Column(String(50))  # Changed from SQLEnum for frontend compatibility
+    description = Column(Text)
     
-    # Security and state at seizure
+    # State
     powered_on = Column(Boolean, default=False)
     password_protected = Column(Boolean, default=False)
-    encryption_status = Column(SQLEnum(EncryptionStatus), default=EncryptionStatus.UNKNOWN)
+    encryption_status = Column(String(50), default='UNKNOWN')  # Changed from SQLEnum for frontend compatibility
     
-    # Imaging and forensic fields
+    # Imaging/Forensics
     imaged = Column(Boolean, default=False)
-    imaging_status = Column(SQLEnum(ImagingStatus), default=ImagingStatus.NOT_STARTED)
+    imaging_status = Column(String(50), default='NOT_STARTED')  # Changed from SQLEnum for frontend compatibility
     imaging_started_at = Column(DateTime(timezone=True))
     imaging_completed_at = Column(DateTime(timezone=True))
-    imaging_tool = Column(String(100))  # XRY, Cellebrite, FTK, etc.
+    imaging_tool = Column(String(100))
     image_file_path = Column(String(500))
-    image_hash = Column(String(64))  # SHA-256 hash of the image
+    image_hash = Column(String(64))
     image_size_bytes = Column(String(50))
     imaging_technician_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     
-    # Analysis
-    status = Column(SQLEnum(AnalysisStatus), default=AnalysisStatus.PENDING)
-    forensic_notes = Column(Text)  # Detailed forensic analysis notes
+    # Storage & Chain of Custody
+    custody_status = Column(String(50), default='IN_VAULT')  # Changed from SQLEnum for frontend compatibility
+    storage_location = Column(String(500)) # Merged from EvidenceItem (was current_location in Device)
+    retention_policy = Column(String(100)) # From EvidenceItem
     
-    # Device status and custody
-    custody_status = Column(SQLEnum(CustodyStatus), default=CustodyStatus.IN_VAULT)
-    current_location = Column(String(255))
-    analysis_notes = Column(Text)  # Deprecated - use forensic_notes
-    notes = Column(Text)  # General notes
+    notes = Column(Text)
+    forensic_notes = Column(Text)
+    
+    # File Collection (From EvidenceItem)
+    collected_at = Column(DateTime(timezone=True))
+    collected_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    # file_path is replaced by Artefacts or we keep it for simple uploads?
+    # User said "maintain all fields". EvidenceItem had file_path.
+    file_path = Column(String(500)) 
+    file_size = Column(Integer)
+    sha256 = Column(String(64)) # From EvidenceItem
     
     # Relationships
     case = relationship("Case", foreign_keys=[case_id])
-    seizure = relationship("Seizure", back_populates="devices")
+    seizure = relationship("Seizure", back_populates="devices") # Keeping relationship name for compatibility or rename? Seizure.devices points here.
     imaging_technician = relationship("User", foreign_keys=[imaging_technician_id])
-    artefacts = relationship("Artefact", back_populates="device", cascade="all, delete-orphan")
+    collector = relationship("User", foreign_keys=[collected_by])
+    artefacts = relationship("Artefact", back_populates="evidence", cascade="all, delete-orphan")
+    chain_entries = relationship("ChainOfCustody", back_populates="evidence", cascade="all, delete-orphan")
 
 
+# Alias for backward compatibility if needed, but we are deleting the old EvidenceItem
+# Device class is now Evidence
+Device = Evidence
+
+# Update related models to point to 'evidence'
 class Artefact(BaseModel):
     __tablename__ = "artefacts"
     
-    device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    evidence_id = Column(UUID(as_uuid=True), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False) # FK points to 'devices' table
     artefact_type = Column(SQLEnum(ArtefactType))
-    source_tool = Column(String(100))  # XRY, XAMN, FTK, AUTOPSY, etc.
+    source_tool = Column(String(100))
     description = Column(Text)
     file_path = Column(String(500))
     sha256 = Column(String(64))
     
     # Relationships
-    device = relationship("Device", back_populates="artefacts")
-
-
-class Evidence(BaseModel):
-    __tablename__ = "evidence_items"
-    
-    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
-    label = Column(String(255))
-    category = Column(SQLEnum(EvidenceCategory))
-    storage_location = Column(String(500))  # Vault shelf, digital vault path
-    sha256 = Column(String(64))
-    retention_policy = Column(String(100))  # e.g., 7y after closure
-    notes = Column(Text)
-    
-    # New fields
-    collected_at = Column(DateTime(timezone=True))
-    collected_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    file_path = Column(String(500))
-    file_size = Column(Integer)
-
-    # Relationships
-    case = relationship("Case", back_populates="evidence_items")
-    collector = relationship("User", foreign_keys=[collected_by])
-    chain_entries = relationship("ChainOfCustody", back_populates="evidence", cascade="all, delete-orphan")
-
-
-# Backward compatibility alias
-EvidenceItem = Evidence
+    evidence = relationship("Evidence", back_populates="artefacts")
+    # Removed duplicate relationship - 'evidence' already provides access
 
 
 class ChainOfCustody(BaseModel):
     __tablename__ = "chain_of_custody"
     
-    evidence_id = Column(UUID(as_uuid=True), ForeignKey("evidence_items.id", ondelete="CASCADE"), nullable=False)
+    evidence_id = Column(UUID(as_uuid=True), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
     action = Column(SQLEnum(CustodyAction), nullable=False)
     from_user = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     to_user = Column(UUID(as_uuid=True), ForeignKey("users.id"))

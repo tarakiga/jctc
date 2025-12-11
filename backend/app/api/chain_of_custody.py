@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 import uuid
 from datetime import datetime
 
-from app.database import get_db
+from app.core.deps import get_db, get_current_user
 from app.models.evidence import Evidence
 from app.models.chain_of_custody import ChainOfCustodyEntry
 from app.schemas.chain_of_custody import (
@@ -13,8 +15,7 @@ from app.schemas.chain_of_custody import (
     ChainOfCustodyHistoryResponse,
     CustodyTransferCreate
 )
-from app.utils.auth import get_current_user
-from app.schemas.user import User
+from app.models.user import User
 
 router = APIRouter()
 
@@ -22,13 +23,14 @@ router = APIRouter()
 async def create_custody_entry(
     evidence_id: str,
     custody_entry: ChainOfCustodyCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new chain of custody entry"""
     
     # Check if evidence exists
-    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    result = await db.execute(select(Evidence).filter(Evidence.id == evidence_id))
+    evidence = result.scalar_one_or_none()
     if not evidence:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -60,12 +62,24 @@ async def create_custody_entry(
     
     try:
         db.add(db_entry)
-        db.commit()
-        db.refresh(db_entry)
+        await db.commit()
         
-        return ChainOfCustodyResponse.from_orm(db_entry)
+        # Re-fetch with relationships to ensure names are available
+        result = await db.execute(
+            select(ChainOfCustodyEntry)
+            .options(
+                selectinload(ChainOfCustodyEntry.from_custodian),
+                selectinload(ChainOfCustodyEntry.to_custodian),
+                selectinload(ChainOfCustodyEntry.creator),
+                selectinload(ChainOfCustodyEntry.approver)
+            )
+            .filter(ChainOfCustodyEntry.id == entry_id)
+        )
+        full_entry = result.scalar_one()
+        
+        return ChainOfCustodyResponse.model_validate(full_entry)
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create custody entry: {str(e)}"
@@ -74,13 +88,14 @@ async def create_custody_entry(
 @router.get("/{evidence_id}/history", response_model=ChainOfCustodyHistoryResponse)
 async def get_custody_history(
     evidence_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get complete chain of custody history for evidence"""
     
     # Check if evidence exists
-    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    result = await db.execute(select(Evidence).filter(Evidence.id == evidence_id))
+    evidence = result.scalar_one_or_none()
     if not evidence:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -88,9 +103,18 @@ async def get_custody_history(
         )
     
     # Get all custody entries ordered by timestamp
-    custody_entries = db.query(ChainOfCustodyEntry).filter(
-        ChainOfCustodyEntry.evidence_id == evidence_id
-    ).order_by(ChainOfCustodyEntry.timestamp.asc()).all()
+    entries_result = await db.execute(
+        select(ChainOfCustodyEntry)
+        .options(
+            selectinload(ChainOfCustodyEntry.from_custodian),
+            selectinload(ChainOfCustodyEntry.to_custodian),
+            selectinload(ChainOfCustodyEntry.creator),
+            selectinload(ChainOfCustodyEntry.approver)
+        )
+        .filter(ChainOfCustodyEntry.evidence_id == evidence_id)
+        .order_by(ChainOfCustodyEntry.timestamp.asc())
+    )
+    custody_entries = entries_result.scalars().all()
     
     return ChainOfCustodyHistoryResponse(
         evidence_id=evidence_id,
@@ -102,7 +126,7 @@ async def get_custody_history(
 @router.get("/{evidence_id}/current-custodian")
 async def get_current_custodian(
     evidence_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get current custodian of evidence"""
@@ -133,7 +157,7 @@ async def get_current_custodian(
 async def approve_custody_entry(
     evidence_id: str,
     entry_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Approve a custody entry that requires four-eyes approval"""
@@ -193,7 +217,7 @@ async def reject_custody_entry(
     evidence_id: str,
     entry_id: str,
     reason: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Reject a custody entry that requires four-eyes approval"""
@@ -254,7 +278,7 @@ async def reject_custody_entry(
 async def generate_custody_receipt(
     evidence_id: str,
     entry_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Generate a custody transfer receipt"""
@@ -296,7 +320,7 @@ async def generate_custody_receipt(
 async def transfer_custody(
     evidence_id: str,
     transfer: CustodyTransferCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Transfer custody of evidence to another person/location"""
@@ -356,7 +380,7 @@ async def checkout_evidence(
     location_to: str,
     purpose: str,
     notes: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Check out evidence for analysis or examination"""
@@ -413,7 +437,7 @@ async def checkin_evidence(
     evidence_id: str,
     location_to: Optional[str] = "EVIDENCE_ROOM",
     notes: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Check in evidence back to storage"""
@@ -471,7 +495,7 @@ async def checkin_evidence(
 @router.get("/{evidence_id}/gaps")
 async def check_custody_gaps(
     evidence_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Check for gaps in chain of custody"""
@@ -548,7 +572,7 @@ async def list_custody_entries(
     action: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """List chain of custody entries with filters"""
@@ -575,7 +599,7 @@ async def list_custody_entries(
 async def delete_custody_entry(
     evidence_id: str,
     entry_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Delete chain of custody entry (admin only - breaks chain)"""

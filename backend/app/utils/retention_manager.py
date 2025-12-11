@@ -35,7 +35,7 @@ from app.models.audit import (
     AuditArchive, ComplianceViolation
 )
 from app.models.cases import Case
-from app.models.evidence import EvidenceItem
+from app.models.evidence import Evidence
 from app.models.party import Party
 from app.models.legal import LegalInstrument
 from app.schemas.audit import (
@@ -91,7 +91,7 @@ class RetentionManager:
                 'processor': self._process_case_retention
             },
             AuditEntity.EVIDENCE: {
-                'model': EvidenceItem,
+                'model': Evidence,
                 'date_field': 'created_at',
                 'processor': self._process_evidence_retention
             },
@@ -643,7 +643,7 @@ class RetentionManager:
         # Implement case-specific retention rules
         pass
     
-    def _process_evidence_retention(self, item: EvidenceItem, policy: RetentionPolicy):
+    def _process_evidence_retention(self, item: Evidence, policy: RetentionPolicy):
         """Process evidence-specific retention logic."""
         # Implement evidence-specific retention rules
         # Consider chain of custody requirements

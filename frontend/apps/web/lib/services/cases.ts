@@ -10,6 +10,14 @@ export interface ReporterContact {
   email?: string
 }
 
+// NEW: Reporter as Party (consolidated approach)
+export interface ReporterParty {
+  party_type: string  // VICTIM, COMPLAINANT, etc.
+  full_name?: string
+  contact?: ReporterContact
+  notes?: string
+}
+
 export interface Case {
   id: string
   case_number: string
@@ -31,10 +39,12 @@ export interface Case {
   platforms_implicated?: string[]
   lga_state_location?: string
   incident_datetime?: string
-  // Reporter fields
+  // Reporter fields (legacy)
   reporter_type?: ReporterType
   reporter_name?: string
   reporter_contact?: ReporterContact
+  // NEW: Reporter as Party
+  reporter?: ReporterParty
 }
 
 export interface CreateCaseData {
@@ -53,10 +63,12 @@ export interface CreateCaseData {
   platforms_implicated?: string[]
   lga_state_location?: string
   incident_datetime?: string
-  // Reporter fields
+  // Reporter fields (legacy - still accepted)
   reporter_type?: ReporterType
   reporter_name?: string
   reporter_contact?: ReporterContact
+  // NEW: Reporter as Party (preferred)
+  reporter?: ReporterParty
 }
 
 export interface UpdateCaseData extends Partial<CreateCaseData> {

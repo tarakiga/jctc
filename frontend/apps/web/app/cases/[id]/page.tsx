@@ -7,7 +7,7 @@ import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@jctc/u
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useCase } from '@/lib/hooks/useCases'
-import { useEvidenceByCase } from '@/lib/hooks/useEvidence'
+
 import { PartiesManager } from '@/components/cases/PartiesManager'
 import { AssignmentManager } from '@/components/cases/AssignmentManager'
 import { TaskManager } from '@/components/tasks/TaskManager'
@@ -25,9 +25,9 @@ import { useTasks, useTaskMutations } from '@/lib/hooks/useTasks'
 import { useActionLog, useActionMutations } from '@/lib/hooks/useActionLog'
 import { useEvidenceItems, useEvidenceItemMutations, useChainOfCustody, useCustodyMutations } from '@/lib/hooks/useEvidenceManagement'
 import { SeizureManager } from '@/components/seizures/SeizureManager'
-import { DeviceInventory } from '@/components/seizures/DeviceInventory'
+
 import { useSeizures } from '@/lib/hooks/useSeizures'
-import { useDevices } from '@/lib/hooks/useDevices'
+
 import ArtefactManager from '@/components/cases/ArtefactManager'
 import ReportUploader from '@/components/cases/ReportUploader'
 import LegalInstrumentManager from '@/components/legal/LegalInstrumentManager'
@@ -37,11 +37,12 @@ import AttachmentManager from '@/components/cases/AttachmentManager'
 import CollaborationManager from '@/components/collaboration/CollaborationManager'
 import { CaseDetailSidebar } from '@/components/cases/CaseDetailSidebar'
 import { useLookup } from '@/lib/hooks/useLookup'
+import { useAuth } from '@/lib/contexts/AuthContext'
 
 function CaseDetailContent() {
   const params = useParams()
   const caseId = params?.id as string
-  const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'parties' | 'assignments' | 'tasks' | 'actions' | 'timeline' | 'seizures' | 'devices' | 'forensics' | 'legal' | 'prosecution' | 'international' | 'attachments' | 'collaboration'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'parties' | 'assignments' | 'tasks' | 'actions' | 'timeline' | 'seizures' | 'forensics' | 'legal' | 'prosecution' | 'international' | 'attachments' | 'collaboration'>('overview')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showChainOfCustody, setShowChainOfCustody] = useState(false)
   const [showChainOfCustodyForm, setShowChainOfCustodyForm] = useState(false)
@@ -56,11 +57,13 @@ function CaseDetailContent() {
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false)
   const [qrCodeEvidence, setQRCodeEvidence] = useState<{ id: string; number: string; label: string } | null>(null)
 
+  const { user } = useAuth()
+
   // Fetch case details
   const { caseData, loading: caseLoading, error: caseError } = useCase(caseId)
 
   // Fetch related evidence
-  const { evidence } = useEvidenceByCase(caseId)
+
 
   // Fetch parties
   const { data: parties = [] } = useParties(caseId)
@@ -108,7 +111,7 @@ function CaseDetailContent() {
   // Fetch seizures and devices
   useSeizures(caseId)
   // const { createSeizure, updateSeizure, deleteSeizure } = useSeizureMutations(caseId)
-  useDevices(caseId)
+  // useDevices(caseId)
   // const { createDevice, updateDevice, deleteDevice, linkDevice } = useDeviceMutations(caseId)
 
 
@@ -269,7 +272,7 @@ function CaseDetailContent() {
               {activeTab === 'tasks' && <><svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>Tasks</>}
               {activeTab === 'actions' && <><svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>Action Log</>}
               {activeTab === 'seizures' && <><svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>Seizures</>}
-              {activeTab === 'devices' && <><svg className="w-6 h-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>Devices</>}
+
               {activeTab === 'forensics' && <><svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>Forensic Analysis</>}
               {activeTab === 'legal' && <><svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>Legal Instruments</>}
               {activeTab === 'prosecution' && <><svg className="w-6 h-6 text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>Prosecution</>}
@@ -423,7 +426,7 @@ function CaseDetailContent() {
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-neutral-600">Evidence Items</span>
                           <span className="text-lg font-semibold text-neutral-900">
-                            {evidence.length}
+                            {evidenceItems.length}
                           </span>
                         </div>
                       </div>
@@ -529,6 +532,7 @@ function CaseDetailContent() {
               <PremiumEvidenceManager
                 caseId={caseId}
                 evidence={evidenceItems}
+                userRole={user?.role}
                 onAdd={() => setIsAddEvidenceModalOpen(true)}
                 onEdit={(item) => {
                   setEditingEvidence(item)
@@ -707,11 +711,7 @@ function CaseDetailContent() {
             </div>
           )}
 
-          {activeTab === 'devices' && (
-            <div>
-              <DeviceInventory caseId={caseId} />
-            </div>
-          )}
+
 
           {activeTab === 'forensics' && (
             <div className="space-y-8">
@@ -1029,88 +1029,66 @@ function CaseDetailContent() {
                             }
 
                             return (
-                              <div key={record.id} className="relative pl-16">
+                              <div key={record.id} className="relative pl-12">
                                 {/* Timeline Node */}
                                 <div className="absolute left-0 flex items-center justify-center">
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-br ${actionColors[record.action as keyof typeof actionColors] || actionColors.TRANSFERRED
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md bg-gradient-to-br ${actionColors[record.action as keyof typeof actionColors] || actionColors.TRANSFERRED
                                     }`}>
-                                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       {actionIcons[record.action as keyof typeof actionIcons] || actionIcons.TRANSFERRED}
                                     </svg>
                                   </div>
                                 </div>
 
-                                {/* Record Card */}
-                                <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 hover:border-blue-300 transition-colors">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <h4 className="text-base font-bold text-slate-900">{record.action}</h4>
-                                        {record.signature_verified && (
-                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            Verified
-                                          </span>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-slate-600 mb-3">{record.purpose}</p>
+                                {/* Entry card */}
+                                <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wide bg-slate-100 px-2 py-0.5 rounded">{record.action}</span>
+                                      <span className="text-xs text-slate-500">
+                                        {new Date(record.timestamp).toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                      </span>
                                     </div>
-                                    <span className="text-xs font-medium text-slate-500">
-                                      {new Date(record.timestamp).toLocaleDateString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      })}
-                                    </span>
+
+                                    <div className="flex items-center gap-2">
+                                      {record.signature_verified && (
+                                        <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Signature Verified">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      )}
+                                    </div>
                                   </div>
 
-                                  {/* Transfer Details */}
-                                  <div className="grid grid-cols-2 gap-4 mb-3">
-                                    {record.from_person && (
-                                      <div>
-                                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">From</p>
-                                        <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
-                                          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                          </svg>
-                                          {record.from_person}
-                                        </p>
+                                  {/* Compact Grid for Details */}
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs mb-2">
+                                    {record.from_person_name && (
+                                      <div className="flex items-center gap-1.5 text-slate-600 truncate">
+                                        <span className="font-semibold text-slate-400 w-8">From:</span>
+                                        <span className="truncate" title={record.from_person_name}>{record.from_person_name}</span>
                                       </div>
                                     )}
-                                    <div>
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                        {record.from_person ? 'To' : 'By'}
-                                      </p>
-                                      <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                        {record.to_person}
-                                      </p>
+                                    <div className="flex items-center gap-1.5 text-slate-600 truncate">
+                                      <span className="font-semibold text-slate-400 w-8">To:</span>
+                                      <span className="truncate" title={record.to_person_name}>{record.to_person_name}</span>
+                                    </div>
+                                    <div className="col-span-2 flex items-center gap-1.5 text-slate-600 truncate">
+                                      <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                      </svg>
+                                      <span className="truncate" title={record.location}>{record.location}</span>
                                     </div>
                                   </div>
 
-                                  {/* Location */}
-                                  <div className="mb-3">
-                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Location</p>
-                                    <p className="text-sm text-slate-900 flex items-start gap-1.5">
-                                      <svg className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      </svg>
-                                      {record.location}
-                                    </p>
-                                  </div>
-
-                                  {/* Notes */}
                                   {record.notes && (
-                                    <div className="pt-3 border-t border-slate-200">
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Notes</p>
-                                      <p className="text-sm text-slate-700 leading-relaxed">{record.notes}</p>
+                                    <div className="pt-2 border-t border-slate-100">
+                                      <p className="text-[11px] font-bold text-slate-400 uppercase mb-0.5">Notes</p>
+                                      <p className="text-xs text-slate-700 leading-relaxed">{record.notes}</p>
                                     </div>
                                   )}
                                 </div>
@@ -1124,21 +1102,7 @@ function CaseDetailContent() {
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button variant="primary" className="flex-1 shadow-lg shadow-blue-500/20">
-                  <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Evidence
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download Files
-                </Button>
-              </div>
+              {/* Action Buttons Removed */}
             </div>
           </div>
         </>
@@ -1312,6 +1276,7 @@ function CaseDetailContent() {
           setEditingEvidence(null)
         }}
         editingEvidence={editingEvidence}
+        caseId={caseId}
       />
 
       {/* QR Code Modal */}
@@ -1334,8 +1299,12 @@ function CaseDetailContent() {
           isOpen={!!deletingCustodyEntry}
           onClose={() => setDeletingCustodyEntry(null)}
           onConfirm={async () => {
-            if (deletingCustodyEntry) {
+            if (deletingCustodyEntry && user?.role === 'admin') {
               await deleteCustodyEntry(deletingCustodyEntry.id)
+              setDeletingCustodyEntry(null)
+            } else {
+              // Optional: Show error toast or alert if needed, but UI button should already be hidden
+              console.error("Unauthorized: Only admins can delete custody entries")
               setDeletingCustodyEntry(null)
             }
           }}

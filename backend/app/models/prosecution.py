@@ -23,12 +23,16 @@ class Charge(BaseModel):
     
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
     statute = Column(String(255))  # e.g., Cybercrimes Act s.38, TIPPEA sections
+    statute_section = Column(String(100))  # Specific section number
     description = Column(Text)
     filed_at = Column(DateTime(timezone=True))
     status = Column(SQLEnum(ChargeStatus))  # FILED, WITHDRAWN, AMENDED
+    notes = Column(Text)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     
     # Relationships
     case = relationship("Case", back_populates="charges")
+    creator = relationship("User", foreign_keys=[created_by])
 
 
 class CourtSession(BaseModel):
