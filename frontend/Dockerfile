@@ -21,8 +21,8 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build the web app
 WORKDIR /app/apps/web
-# Using npx next build to avoid filter issues
-RUN npx next build
+# Using npx next build with webpack flag (Turbopack has issues in production)
+RUN npx next build --webpack
 
 FROM node:20-alpine AS runner
 WORKDIR /app
