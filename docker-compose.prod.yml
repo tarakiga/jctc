@@ -20,8 +20,7 @@ services:
       - 'ADMIN_PASSWORD=AdminPass2025!'
       - 'ADMIN_NAME=System Administrator'
     command: >
-      sh -c "alembic upgrade head &&
-             python -m scripts.seed_lookup_values && 
+      sh -c "python -m scripts.seed_lookup_values && 
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"
     depends_on:
       db:
