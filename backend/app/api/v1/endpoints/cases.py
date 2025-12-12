@@ -2964,3 +2964,110 @@ async def create_attachment(
         'download_url': new_attachment.download_url,
         'notes': new_attachment.notes
     }
+
+@router.get('/{case_id}/legal-instruments/')
+async def get_case_legal_instruments(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    from app.models.legal import LegalInstrument
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail='Case not found')
+        
+    result = await db.execute(select(LegalInstrument).where(LegalInstrument.case_id == case_id))
+    instruments = result.scalars().all()
+    
+    return [{
+        "id": str(inst.id),
+        "case_id": str(inst.case_id),
+        "instrument_type": inst.type.value if inst.type else None,
+        "reference_no": inst.reference_no,
+        "issuing_authority": inst.issuing_authority,
+        "issued_at": inst.issued_at.isoformat() if inst.issued_at else None,
+        "expires_at": inst.expires_at.isoformat() if inst.expires_at else None,
+        "status": inst.status.value if inst.status else None,
+        "document_hash": inst.document_hash,
+        "document_file_name": inst.document_file_name,
+        "document_file_size": inst.document_file_size,
+        "notes": inst.notes,
+        "created_at": inst.created_at.isoformat() if inst.created_at else None,
+        "updated_at": inst.updated_at.isoformat() if inst.updated_at else None,
+        "created_by": str(inst.created_by)
+    } for inst in instruments]
+
+
+@router.post('/{case_id}/legal-instruments/')
+async def create_legal_instrument(
+    case_id: UUID,
+    inst_data: Dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    from app.models.legal import LegalInstrument, LegalInstrumentType, LegalInstrumentStatus
+    from datetime import datetime
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail='Case not found')
+        
+    # Handle date parsing
+    issued_at = None
+    if inst_data.get('issued_at'):
+        try:
+            issued_at = datetime.fromisoformat(inst_data['issued_at'].replace('Z', '+00:00'))
+        except ValueError:
+            pass
+            
+    expires_at = None
+    if inst_data.get('expires_at'):
+        try:
+            expires_at = datetime.fromisoformat(inst_data['expires_at'].replace('Z', '+00:00'))
+        except ValueError:
+            pass
+            
+    new_instrument = LegalInstrument(
+        case_id=case_id,
+        type=LegalInstrumentType(inst_data.get('instrument_type', 'WARRANT')),
+        reference_no=inst_data.get('reference_no'),
+        issuing_authority=inst_data.get('issuing_authority'),
+        issued_at=issued_at,
+        expires_at=expires_at,
+        status=LegalInstrumentStatus(inst_data.get('status', 'REQUESTED')),
+        scope_description=inst_data.get('scope_description'),
+        document_hash=inst_data.get('document_hash'),
+        document_file_name=inst_data.get('document_file_name'),
+        document_file_size=inst_data.get('document_file_size'),
+        notes=inst_data.get('notes'),
+        created_by=current_user.id
+    )
+    
+    db.add(new_instrument)
+    await db.commit()
+    await db.refresh(new_instrument)
+    
+    return {
+        "id": str(new_instrument.id),
+        "case_id": str(new_instrument.case_id),
+        "instrument_type": new_instrument.type.value,
+        "reference_no": new_instrument.reference_no,
+        "issuing_authority": new_instrument.issuing_authority,
+        "issued_at": new_instrument.issued_at.isoformat() if new_instrument.issued_at else None,
+        "expires_at": new_instrument.expires_at.isoformat() if new_instrument.expires_at else None,
+        "status": new_instrument.status.value,
+        "scope_description": new_instrument.scope_description,
+        "document_hash": new_instrument.document_hash,
+        "document_file_name": new_instrument.document_file_name,
+        "document_file_size": new_instrument.document_file_size,
+        "notes": new_instrument.notes,
+        "created_at": new_instrument.created_at.isoformat(),
+        "created_by": str(new_instrument.created_by)
+    }
