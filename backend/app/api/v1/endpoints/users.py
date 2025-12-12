@@ -176,12 +176,12 @@ async def update_user(
     return user
 
 @router.delete("/{user_id}")
-async def deactivate_user(
+async def delete_user(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Deactivate user (Admin only)."""
+    """Delete user permanently (Admin only)."""
     result = await db.execute(select(User).filter(User.id == user_id))
     user = result.scalar_one_or_none()
     
@@ -191,14 +191,15 @@ async def deactivate_user(
             detail="User not found"
         )
     
-    # Cannot deactivate yourself
+    # Cannot delete yourself
     if user_id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot deactivate your own account"
+            detail="Cannot delete your own account"
         )
     
-    user.is_active = False
+    # Hard delete the user
+    await db.delete(user)
     await db.commit()
     
-    return {"message": "User deactivated successfully"}
+    return {"message": "User deleted successfully"}
