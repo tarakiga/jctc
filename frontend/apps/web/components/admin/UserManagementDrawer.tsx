@@ -30,6 +30,12 @@ const EditIcon = () => (
     </svg>
 )
 
+const TrashIcon = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+)
+
 const SearchIcon = () => (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -41,14 +47,15 @@ interface UserManagementDrawerProps {
     onClose: () => void
 }
 
-const ROLES = ['ADMIN', 'SUPERVISOR', 'INVESTIGATOR', 'ANALYST', 'INTAKE', 'VIEWER']
+const ROLES = ['ADMIN', 'SUPERVISOR', 'PROSECUTOR', 'LIAISON', 'FORENSIC', 'INVESTIGATOR', 'INTAKE']
 const ROLE_COLORS: Record<string, string> = {
     ADMIN: 'bg-red-100 text-red-700 border-red-200',
     SUPERVISOR: 'bg-purple-100 text-purple-700 border-purple-200',
+    PROSECUTOR: 'bg-orange-100 text-orange-700 border-orange-200',
+    LIAISON: 'bg-teal-100 text-teal-700 border-teal-200',
+    FORENSIC: 'bg-cyan-100 text-cyan-700 border-cyan-200',
     INVESTIGATOR: 'bg-blue-100 text-blue-700 border-blue-200',
-    ANALYST: 'bg-cyan-100 text-cyan-700 border-cyan-200',
     INTAKE: 'bg-amber-100 text-amber-700 border-amber-200',
-    VIEWER: 'bg-slate-100 text-slate-700 border-slate-200',
 }
 
 export function UserManagementDrawer({ isOpen, onClose }: UserManagementDrawerProps) {
@@ -62,13 +69,15 @@ export function UserManagementDrawer({ isOpen, onClose }: UserManagementDrawerPr
     // Modal states
     const [showAddModal, setShowAddModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [deletingUser, setDeletingUser] = useState<User | null>(null)
     const [editingUser, setEditingUser] = useState<User | null>(null)
 
     // Form state
     const [formData, setFormData] = useState({
         email: '',
         full_name: '',
-        role: 'VIEWER',
+        role: 'INTAKE',
         password: '',
         is_active: true,
         department: '',
@@ -156,6 +165,28 @@ export function UserManagementDrawer({ isOpen, onClose }: UserManagementDrawerPr
         })
         setFormError('')
         setShowEditModal(true)
+    }
+
+    const openDeleteModal = (user: User) => {
+        setDeletingUser(user)
+        setShowDeleteModal(true)
+    }
+
+    const handleDeleteUser = async () => {
+        if (!deletingUser) return
+
+        try {
+            setSubmitting(true)
+            setFormError('')
+            await usersService.deleteUser(deletingUser.id)
+            setShowDeleteModal(false)
+            setDeletingUser(null)
+            loadData()
+        } catch (error: any) {
+            setFormError(error.message || 'Failed to delete user')
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     const filteredUsers = users.filter(user => {
@@ -318,6 +349,13 @@ export function UserManagementDrawer({ isOpen, onClose }: UserManagementDrawerPr
                                             title="Edit"
                                         >
                                             <EditIcon />
+                                        </button>
+                                        <button
+                                            onClick={() => openDeleteModal(user)}
+                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete User"
+                                        >
+                                            <TrashIcon />
                                         </button>
                                     </div>
                                 </div>
@@ -536,6 +574,62 @@ export function UserManagementDrawer({ isOpen, onClose }: UserManagementDrawerPr
                                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
                             >
                                 {submitting ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete User Confirmation Modal */}
+            {showDeleteModal && deletingUser && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center animate-in fade-in duration-200">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-red-600 to-rose-600">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                Delete User?
+                            </h2>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {formError && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                                    {formError}
+                                </div>
+                            )}
+
+                            <p className="text-slate-700">
+                                Are you sure you want to delete the user <span className="font-bold text-slate-900">{deletingUser.full_name}</span> ({deletingUser.email})?
+                            </p>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <p className="text-sm text-amber-800 font-medium flex items-start gap-2">
+                                    <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    This action is irreversible and cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false)
+                                    setDeletingUser(null)
+                                    setFormError('')
+                                }}
+                                disabled={submitting}
+                                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteUser}
+                                disabled={submitting}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            >
+                                {submitting ? 'Deleting...' : 'Delete'}
                             </button>
                         </div>
                     </div>
