@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { Button } from '@jctc/ui'
 import { ChainOfCustodyEntry } from '@/lib/services/evidence'
-import { 
-  Calendar, 
-  MoreVertical, 
-  FileText, 
-  Check, 
-  X, 
-  User, 
+import {
+  Calendar,
+  MoreVertical,
+  FileText,
+  Check,
+  X,
+  User,
   MapPin,
   Clock
 } from 'lucide-react'
@@ -75,11 +75,11 @@ function ApprovalModal({ opened, onClose, entryId, onApprove, onReject, loading 
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
           </div>
         )}
-        
+
         <div className="p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-2">Approve/Reject Custody Entry</h3>
           <p className="text-sm text-slate-600 mb-4">This custody entry requires your approval. Please review the details carefully.</p>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Rejection Reason (Required for rejection)
@@ -97,16 +97,16 @@ function ApprovalModal({ opened, onClose, entryId, onApprove, onReject, loading 
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button 
-              className="bg-red-600 hover:bg-red-700 text-white" 
-              onClick={handleReject} 
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleReject}
               disabled={submitting}
             >
               Reject
             </Button>
-            <Button 
-              className="bg-green-600 hover:bg-green-700 text-white" 
-              onClick={handleApprove} 
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleApprove}
               disabled={submitting}
             >
               Approve
@@ -118,13 +118,13 @@ function ApprovalModal({ opened, onClose, entryId, onApprove, onReject, loading 
   )
 }
 
-function CustodyEntryCard({ 
-  entry, 
-  currentUserId, 
-  onApprove, 
-  onReject, 
+function CustodyEntryCard({
+  entry,
+  currentUserId,
+  onApprove,
+  onReject,
   onGenerateReceipt,
-  loading 
+  loading
 }: {
   entry: ChainOfCustodyEntry
   currentUserId: string
@@ -168,19 +168,19 @@ function CustodyEntryCard({
     }
   }
 
-  const canApprove = entry.requires_approval && 
-                    entry.approval_status === 'PENDING' && 
-                    entry.created_by !== currentUserId
+  const canApprove = entry.requires_approval &&
+    entry.approval_status === 'PENDING' &&
+    entry.created_by !== currentUserId
 
   return (
     <>
       <div className="bg-white border border-slate-200 rounded-lg p-4 relative shadow-sm">
         {loading && (
-           <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10 rounded-lg">
-             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900"></div>
-           </div>
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10 rounded-lg">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900"></div>
+          </div>
         )}
-        
+
         <div className="flex justify-between items-start mb-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ function CustodyEntryCard({
                 </span>
               )}
             </div>
-            
+
             <div className="flex items-center text-xs text-slate-500">
               <Calendar className="w-3 h-3 mr-1" />
               {new Date(entry.performed_at).toLocaleString()}
@@ -201,18 +201,18 @@ function CustodyEntryCard({
           </div>
 
           <div className="relative">
-            <button 
+            <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="p-1 hover:bg-slate-100 rounded-full transition-colors"
             >
               <MoreVertical className="w-4 h-4 text-slate-500" />
             </button>
-            
+
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-slate-200 z-20 py-1">
-                  <button 
+                  <button
                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center"
                     onClick={() => {
                       handleGenerateReceipt();
@@ -222,11 +222,11 @@ function CustodyEntryCard({
                     <FileText className="w-4 h-4 mr-2" />
                     Generate Receipt
                   </button>
-                  
+
                   {canApprove && (
                     <>
                       <div className="border-t border-slate-100 my-1" />
-                      <button 
+                      <button
                         className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center"
                         onClick={() => {
                           setApprovalModalOpened(true);
@@ -236,7 +236,7 @@ function CustodyEntryCard({
                         <Check className="w-4 h-4 mr-2" />
                         Approve Entry
                       </button>
-                      <button 
+                      <button
                         className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center"
                         onClick={() => {
                           setApprovalModalOpened(true);
@@ -260,7 +260,7 @@ function CustodyEntryCard({
             <span className="text-slate-600 mr-1">From:</span>
             <span className="font-medium text-slate-900">{entry.custodian_from || entry.performed_by || 'Unknown'}</span>
           </div>
-          
+
           {entry.custodian_to && (
             <div className="flex items-center text-sm">
               <User className="w-4 h-4 text-slate-400 mr-2" />
@@ -286,14 +286,14 @@ function CustodyEntryCard({
           {entry.purpose && (
             <div className="text-sm mt-2 pt-2 border-t border-slate-100">
               <span className="font-medium text-slate-700">Purpose:</span>
-              <span className="text-slate-600 ml-1">{entry.purpose}</span>
+              <span className="text-slate-600 ml-1 break-words whitespace-pre-wrap">{entry.purpose}</span>
             </div>
           )}
 
           {entry.notes && (
             <div className="text-sm">
               <span className="font-medium text-slate-700">Notes:</span>
-              <span className="text-slate-600 ml-1">{entry.notes}</span>
+              <span className="text-slate-600 ml-1 break-words whitespace-pre-wrap">{entry.notes}</span>
             </div>
           )}
 
@@ -347,7 +347,7 @@ export function ChainOfCustodyTimeline({
   }
 
   // Sort entries by timestamp (newest first)
-  const sortedEntries = [...entries].sort((a, b) => 
+  const sortedEntries = [...entries].sort((a, b) =>
     new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime()
   )
 
@@ -371,7 +371,7 @@ export function ChainOfCustodyTimeline({
               {new Date(date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </h3>
           </div>
-          
+
           <div className="space-y-6 pl-4 border-l-2 border-slate-100 ml-2">
             {dateEntries.map((entry) => (
               <div key={entry.id} className="relative">

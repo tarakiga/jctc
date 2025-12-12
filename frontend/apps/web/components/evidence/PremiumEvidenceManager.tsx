@@ -448,7 +448,7 @@ export function PremiumEvidenceManager({
                 {selectedEvidence.description && (
                   <div className="col-span-2">
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Description</h4>
-                    <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-800 border border-slate-100">
+                    <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-800 border border-slate-100 break-words whitespace-pre-wrap">
                       {selectedEvidence.description}
                     </div>
                   </div>
@@ -534,7 +534,7 @@ export function PremiumEvidenceManager({
               {selectedEvidence.notes && (
                 <div className="bg-blue-50 rounded-xl border border-blue-200 p-5">
                   <h3 className="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-2">Notes</h3>
-                  <p className="text-sm text-blue-800 leading-relaxed">{selectedEvidence.notes}</p>
+                  <p className="text-sm text-blue-800 leading-relaxed break-words whitespace-pre-wrap">{selectedEvidence.notes}</p>
                 </div>
               )}
 
@@ -667,7 +667,7 @@ export function PremiumEvidenceManager({
                                 {entry.notes && (
                                   <div className="pt-2 border-t border-slate-100">
                                     <p className="text-[11px] font-bold text-slate-400 uppercase mb-0.5">Notes</p>
-                                    <p className="text-xs text-slate-700 leading-relaxed">{entry.notes}</p>
+                                    <p className="text-xs text-slate-700 leading-relaxed break-words whitespace-pre-wrap">{entry.notes}</p>
                                   </div>
                                 )}
                               </div>

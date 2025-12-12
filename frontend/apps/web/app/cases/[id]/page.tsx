@@ -291,7 +291,7 @@ function CaseDetailContent() {
                     <CardTitle>Case Description</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-neutral-700">{caseData.description}</p>
+                    <p className="text-neutral-700 break-words whitespace-pre-wrap">{caseData.description}</p>
                   </CardContent>
                 </Card>
 

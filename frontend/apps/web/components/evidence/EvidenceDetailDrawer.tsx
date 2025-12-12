@@ -60,8 +60,8 @@ export function EvidenceDetailDrawer({ isOpen, onClose, evidence, caseNumber }: 
                                     <div className="flex items-center gap-2 mt-1">
                                         {evidence.category && (
                                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${evidence.category === 'DIGITAL' ? 'bg-blue-100 text-blue-700' :
-                                                    evidence.category === 'PHYSICAL' ? 'bg-purple-100 text-purple-700' :
-                                                        'bg-amber-100 text-amber-700'
+                                                evidence.category === 'PHYSICAL' ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-amber-100 text-amber-700'
                                                 }`}>
                                                 {getTypeBadge(evidence.category).label}
                                             </span>
@@ -87,7 +87,7 @@ export function EvidenceDetailDrawer({ isOpen, onClose, evidence, caseNumber }: 
                     {evidence.description && (
                         <div className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm">
                             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Description</h3>
-                            <p className="text-slate-900 leading-relaxed">{evidence.description}</p>
+                            <p className="text-slate-900 leading-relaxed break-words whitespace-pre-wrap">{evidence.description}</p>
                         </div>
                     )}
 
@@ -176,7 +176,7 @@ export function EvidenceDetailDrawer({ isOpen, onClose, evidence, caseNumber }: 
                                 </svg>
                                 Notes
                             </h3>
-                            <p className="text-yellow-900 leading-relaxed">{evidence.notes}</p>
+                            <p className="text-yellow-900 leading-relaxed break-words whitespace-pre-wrap">{evidence.notes}</p>
                         </div>
                     )}
 
@@ -346,7 +346,7 @@ export function EvidenceDetailDrawer({ isOpen, onClose, evidence, caseNumber }: 
                                                             {record.notes && (
                                                                 <div className="pt-2 border-t border-slate-100">
                                                                     <p className="text-[11px] font-bold text-slate-400 uppercase mb-0.5">Notes</p>
-                                                                    <p className="text-xs text-slate-700 leading-relaxed">{record.notes}</p>
+                                                                    <p className="text-xs text-slate-700 leading-relaxed break-words whitespace-pre-wrap">{record.notes}</p>
                                                                 </div>
                                                             )}
                                                         </div>
