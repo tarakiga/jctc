@@ -3071,3 +3071,169 @@ async def create_legal_instrument(
         "created_at": new_instrument.created_at.isoformat(),
         "created_by": str(new_instrument.created_by)
     }
+
+
+# ==================== CASE TASKS MANAGEMENT ====================
+
+@router.get('/{case_id}/tasks/')
+async def get_case_tasks(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    from app.models.task import Task
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail='Case not found')
+        
+    result = await db.execute(
+        select(Task).where(Task.case_id == case_id).order_by(Task.created_at.desc())
+    )
+    tasks = result.scalars().all()
+    
+    return [{
+        "id": str(task.id),
+        "case_id": str(task.case_id),
+        "title": task.title,
+        "description": task.description,
+        "assigned_to": str(task.assigned_to) if task.assigned_to else None,
+        "status": task.status.value if task.status else None,
+        "priority": task.priority,
+        "due_at": task.due_at.isoformat() if task.due_at else None,
+        "created_at": task.created_at.isoformat() if task.created_at else None,
+        "updated_at": task.updated_at.isoformat() if task.updated_at else None
+    } for task in tasks]
+
+
+@router.post('/{case_id}/tasks/')
+async def create_case_task(
+    case_id: UUID,
+    task_data: Dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    from app.models.task import Task, TaskStatus
+    from datetime import datetime
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail='Case not found')
+        
+    # Handle dates
+    due_at = None
+    if task_data.get('due_at'):
+        try:
+            due_at = datetime.fromisoformat(task_data['due_at'].replace('Z', '+00:00'))
+        except ValueError:
+            pass
+            
+    new_task = Task(
+        case_id=case_id,
+        title=task_data.get('title'),
+        description=task_data.get('description'),
+        assigned_to=UUID(task_data['assigned_to']) if task_data.get('assigned_to') else None,
+        status=TaskStatus(task_data.get('status', 'OPEN')),
+        priority=task_data.get('priority', 3),
+        due_at=due_at
+    )
+    
+    db.add(new_task)
+    await db.commit()
+    await db.refresh(new_task)
+    
+    return {
+        "id": str(new_task.id),
+        "case_id": str(new_task.case_id),
+        "title": new_task.title,
+        "description": new_task.description,
+        "assigned_to": str(new_task.assigned_to) if new_task.assigned_to else None,
+        "status": new_task.status.value,
+        "priority": new_task.priority,
+        "due_at": new_task.due_at.isoformat() if new_task.due_at else None,
+        "created_at": new_task.created_at.isoformat(),
+        "updated_at": new_task.updated_at.isoformat()
+    }
+
+
+@router.patch('/{case_id}/tasks/{task_id}/')
+async def update_case_task(
+    case_id: UUID,
+    task_id: UUID,
+    task_data: Dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    from app.models.task import Task, TaskStatus
+    from datetime import datetime
+    
+    # Find task
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.case_id == case_id))
+    task = result.scalar_one_or_none()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail='Task not found')
+        
+    # Update fields
+    if 'title' in task_data:
+        task.title = task_data['title']
+    if 'description' in task_data:
+        task.description = task_data['description']
+    if 'assigned_to' in task_data:
+        task.assigned_to = UUID(task_data['assigned_to']) if task_data['assigned_to'] else None
+    if 'status' in task_data:
+        task.status = TaskStatus(task_data['status'])
+    if 'priority' in task_data:
+        task.priority = task_data['priority']
+    if 'due_at' in task_data:
+        if task_data['due_at']:
+             try:
+                task.due_at = datetime.fromisoformat(task_data['due_at'].replace('Z', '+00:00'))
+             except ValueError:
+                pass
+        else:
+            task.due_at = None
+            
+    await db.commit()
+    await db.refresh(task)
+    
+    return {
+        "id": str(task.id),
+        "case_id": str(task.case_id),
+        "title": task.title,
+        "description": task.description,
+        "assigned_to": str(task.assigned_to) if task.assigned_to else None,
+        "status": task.status.value,
+        "priority": task.priority,
+        "due_at": task.due_at.isoformat() if task.due_at else None,
+        "created_at": task.created_at.isoformat(),
+        "updated_at": task.updated_at.isoformat()
+    }
+
+
+@router.delete('/{case_id}/tasks/{task_id}/')
+async def delete_case_task(
+    case_id: UUID,
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    from app.models.task import Task
+    
+    # Find task
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.case_id == case_id))
+    task = result.scalar_one_or_none()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail='Task not found')
+        
+    await db.delete(task)
+    await db.commit()
+    
+    return {"message": "Task deleted successfully", "id": str(task_id)}

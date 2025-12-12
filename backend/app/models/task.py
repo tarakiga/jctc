@@ -16,6 +16,7 @@ class Task(BaseModel):
     __tablename__ = "tasks"
     
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
+    task_template_id = Column(String(255))
     title = Column(String(255))
     description = Column(Text)
     assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id"))
