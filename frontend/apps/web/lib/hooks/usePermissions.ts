@@ -8,6 +8,7 @@ import { UserRole } from '@jctc/types'
  * Higher roles inherit permissions from lower roles
  */
 const ROLE_HIERARCHY: Record<UserRole, number> = {
+  [UserRole.SUPER_ADMIN]: 10,  // Highest - bypasses all restrictions
   [UserRole.INTAKE]: 1,
   [UserRole.LIAISON]: 2,
   [UserRole.FORENSIC]: 3,
@@ -32,10 +33,7 @@ const PERMISSIONS = {
     UserRole.ADMIN,
   ],
   'cases:create': [
-    UserRole.INTAKE,
-    UserRole.INVESTIGATOR,
-    UserRole.SUPERVISOR,
-    UserRole.ADMIN,
+    UserRole.INTAKE,  // Only INTAKE can create cases per RBAC matrix
   ],
   'cases:edit': [UserRole.INVESTIGATOR, UserRole.SUPERVISOR, UserRole.ADMIN],
   'cases:delete': [UserRole.SUPERVISOR, UserRole.ADMIN],

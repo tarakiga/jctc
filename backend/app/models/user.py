@@ -6,6 +6,7 @@ import enum
 
 
 class UserRole(str, enum.Enum):
+    SUPER_ADMIN = "SUPER_ADMIN"  # Backend-only, bypasses all restrictions
     INTAKE = "INTAKE"
     INVESTIGATOR = "INVESTIGATOR"
     FORENSIC = "FORENSIC"
@@ -50,10 +51,58 @@ class User(BaseModel):
     audit_configurations = relationship("AuditConfiguration", back_populates="creator")
     retention_jobs = relationship("DataRetentionJob", back_populates="creator")
     audit_archives = relationship("AuditArchive", back_populates="creator")
+    
+    # NDPA Compliance relationships
+    ndpa_consent_records = relationship("NDPAConsentRecord", back_populates="creator")
+    ndpa_processing_activities = relationship("NDPADataProcessingActivity", back_populates="creator")
+    ndpa_data_subject_requests = relationship("NDPADataSubjectRequest", back_populates="assignee")
+    ndpa_breach_notifications = relationship("NDPABreachNotification", back_populates="reporter")
+    ndpa_impact_assessments = relationship("NDPAImpactAssessment", back_populates="creator")
+    ndpa_registrations = relationship("NDPARegistrationRecord", back_populates="creator")
 
 
 # LookupCaseType deprecated - case types now use lookup_values table
 # Table kept for migration compatibility, will be dropped after migration
+
+
+class UserSession(BaseModel):
+    """
+    User session tracking for security and session management.
+    
+    Enables:
+    - Session timeout enforcement
+    - Concurrent session limits
+    - IP/user-agent tracking for security audit
+    - Session invalidation on password change
+    """
+    __tablename__ = "user_sessions"
+    
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, index=True, nullable=False)  # SHA-256 of JWT
+    created_at = Column(DateTime(timezone=True), server_default="now()", nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_activity = Column(DateTime(timezone=True), server_default="now()")
+    ip_address = Column(String(45))  # IPv4 or IPv6
+    user_agent = Column(String(500))
+    is_active = Column(Boolean, default=True, index=True)
+    invalidated_at = Column(DateTime(timezone=True))
+    invalidation_reason = Column(String(100))  # logout, timeout, password_change, admin_revoke
+    
+    # SSO-specific fields
+    sso_session_id = Column(String(255))  # External SSO session ID
+    sso_provider = Column(String(50))     # keycloak, azure_ad, etc.
+    
+    # Relationships
+    user = relationship("User", backref="sessions")
+    
+    def is_expired(self) -> bool:
+        """Check if session has expired."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc) > self.expires_at
+    
+    def is_valid(self) -> bool:
+        """Check if session is currently valid."""
+        return self.is_active and not self.is_expired()
 
 
 class TeamActivity(BaseModel):

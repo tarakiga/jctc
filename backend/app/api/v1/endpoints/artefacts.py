@@ -75,6 +75,17 @@ async def create_artefact_global(
     await db.commit()
     await db.refresh(artefact)
     
+    # Log ARTEFACT_ADDED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=UUID(artefact_data.case_id),
+        user_id=current_user.id,
+        action="ARTEFACT_ADDED",
+        details=f"Artefact ({artefact.artefact_type.value if artefact.artefact_type else 'Unknown'}) added to evidence '{evidence.label}'"
+    )
+    db.add(action_log)
+    await db.commit()
+    
     # Return with enriched data
     return {
         "id": str(artefact.id),

@@ -45,6 +45,47 @@ class Settings(BaseSettings):
     # Security Headers
     allowed_hosts: List[str] = ["localhost", "127.0.0.1"]
     
+    # Field-level Encryption
+    field_encryption_key: Optional[str] = None  # Fernet key for PII encryption
+    
+    # SSO/OAuth2 Configuration
+    sso_enabled: bool = False
+    sso_provider: str = "keycloak"  # keycloak, azure_ad, okta, generic_oidc
+    sso_client_id: Optional[str] = None
+    sso_client_secret: Optional[str] = None
+    sso_authorization_url: Optional[str] = None
+    sso_token_url: Optional[str] = None
+    sso_userinfo_url: Optional[str] = None
+    sso_logout_url: Optional[str] = None
+    sso_scopes: List[str] = ["openid", "profile", "email"]
+    sso_tenant_id: Optional[str] = None  # Azure AD
+    sso_realm: Optional[str] = None      # Keycloak
+    
+    # Session Management
+    session_timeout_minutes: int = 30
+    max_concurrent_sessions: int = 5
+    session_extend_on_activity: bool = True
+    
+    # SIEM Configuration
+    siem_enabled: bool = False
+    siem_webhook_url: Optional[str] = None
+    siem_webhook_api_key: Optional[str] = None
+    siem_syslog_host: Optional[str] = None
+    siem_syslog_port: int = 514
+    siem_syslog_protocol: str = "UDP"  # UDP or TCP
+    siem_format: str = "json"  # json, cef, leef
+    siem_export_interval_seconds: int = 60
+    
+    # S3/MinIO Object Storage
+    s3_enabled: bool = False
+    s3_endpoint_url: Optional[str] = None  # MinIO: http://localhost:9000
+    s3_access_key: Optional[str] = None
+    s3_secret_key: Optional[str] = None
+    s3_region: str = "us-east-1"
+    s3_bucket_name: str = "jctc-evidence"
+    s3_use_ssl: bool = True
+    s3_presigned_url_expiry: int = 3600  # 1 hour
+    
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

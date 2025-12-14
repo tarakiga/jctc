@@ -45,16 +45,25 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 def require_role(*allowed_roles: UserRole):
     """Decorator to require specific user roles."""
     def decorator(current_user: User = Depends(get_current_active_user)):
+        # SUPER_ADMIN and ADMIN bypass all role restrictions
+        if current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+            return current_user
+            
         if current_user.role not in allowed_roles:
+            role_names = ', '.join([role.value for role in allowed_roles])
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions"
+                detail=f"Access denied. Required role(s): {role_names}. Your role: {current_user.role.value}"
             )
         return current_user
     return decorator
 
 def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
     """Require admin role."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -64,6 +73,10 @@ def require_admin(current_user: User = Depends(get_current_active_user)) -> User
 
 def require_supervisor_or_admin(current_user: User = Depends(get_current_active_user)) -> User:
     """Require supervisor or admin role."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role not in [UserRole.SUPERVISOR, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -1,9 +1,10 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi } from '@jctc/api-client'
 import type { User, LoginRequest } from '@jctc/types'
+import { SessionExpiredModal } from '@/components/auth/SessionExpiredModal'
 
 interface AuthContextType {
   user: User | null
@@ -19,12 +20,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showSessionExpired, setShowSessionExpired] = useState(false)
   const router = useRouter()
 
   // Load user on mount
   useEffect(() => {
     loadUser()
   }, [])
+
+  // Listen for session-expired events from API client
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      // Only show modal if user was previously authenticated
+      if (user) {
+        setShowSessionExpired(true)
+      }
+    }
+
+    window.addEventListener('session-expired', handleSessionExpired)
+    return () => window.removeEventListener('session-expired', handleSessionExpired)
+  }, [user])
 
   async function loadUser() {
     try {
@@ -43,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await authApi.login(credentials)
       setUser(response.user)
+      setShowSessionExpired(false) // Clear any session expired state
       router.push('/dashboard')
     } catch (error) {
       throw error
@@ -54,9 +70,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authApi.logout()
     } finally {
       setUser(null)
+      setShowSessionExpired(false)
       router.push('/login')
     }
   }
+
+  const handleSessionExpiredClose = useCallback(() => {
+    setShowSessionExpired(false)
+  }, [])
+
+  const handleSessionExpiredLogout = useCallback(() => {
+    setUser(null)
+    setShowSessionExpired(false)
+  }, [])
 
   async function refreshUser() {
     await loadUser()
@@ -71,7 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <SessionExpiredModal
+        isOpen={showSessionExpired}
+        onClose={handleSessionExpiredClose}
+        onLogout={handleSessionExpiredLogout}
+        countdownSeconds={60}
+      />
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

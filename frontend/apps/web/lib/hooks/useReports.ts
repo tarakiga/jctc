@@ -33,23 +33,23 @@ export interface ScheduledReport {
 }
 
 export const REPORT_TYPES = [
-  { 
-    value: 'MONTHLY_OPERATIONS', 
+  {
+    value: 'MONTHLY_OPERATIONS',
     label: 'Monthly Operations Report',
     description: 'Case intake, investigation metrics, backlog analysis, and team performance'
   },
-  { 
-    value: 'QUARTERLY_PROSECUTION', 
+  {
+    value: 'QUARTERLY_PROSECUTION',
     label: 'Quarterly Prosecution Report',
     description: 'Charges filed, court outcomes, conviction rates, and sentencing data'
   },
-  { 
-    value: 'VICTIM_SUPPORT', 
+  {
+    value: 'VICTIM_SUPPORT',
     label: 'Victim Support Report',
     description: 'Referrals made, services provided, and victim support outcomes'
   },
-  { 
-    value: 'EXECUTIVE', 
+  {
+    value: 'EXECUTIVE',
     label: 'Executive Dashboard Report',
     description: 'High-level KPIs, strategic insights, and trend analysis with visualizations'
   },
@@ -93,7 +93,16 @@ const generateReport = async (data: {
   date_range_end: string;
   export_format: ExportFormat;
 }): Promise<Report> => {
-  return await apiClient.post<Report>('/reports/generate/', data);
+  // Transform to match backend ReportRequest schema
+  const backendPayload = {
+    report_type: data.report_type,
+    format: data.export_format.toLowerCase(), // Backend expects 'format', not 'export_format'
+    parameters: {
+      date_range_start: data.date_range_start,
+      date_range_end: data.date_range_end
+    }
+  };
+  return await apiClient.post<Report>('/reports/generate/', backendPayload);
 };
 
 const createScheduledReport = async (data: Partial<ScheduledReport>): Promise<ScheduledReport> => {

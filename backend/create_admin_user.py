@@ -24,7 +24,7 @@ async def create_sample_data():
             admin_user = User(
                 email="admin@jctc.gov.ng",
                 full_name="System Administrator",
-                role=UserRole.ADMIN,
+                role=UserRole.SUPER_ADMIN,  # Super admin for testing - full system access
                 org_unit="JCTC HQ",
                 is_active=True,
                 hashed_password=get_password_hash("admin123")

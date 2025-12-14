@@ -130,8 +130,16 @@ async def record_seizure(
 ):
     """Record a new seizure for a case."""
     from app.models.party import Party, PartyType
+    from app.models.user import UserRole
     import logging
     logger = logging.getLogger(__name__)
+    
+    # Verify role permissions for seizure (chain of custody operation)
+    if current_user.role not in [UserRole.INVESTIGATOR, UserRole.FORENSIC, UserRole.SUPERVISOR, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Requires INVESTIGATOR, FORENSIC, or SUPERVISOR role."
+        )
     
     # Verify case access
     # check_case_access implementation might need verification 
@@ -159,6 +167,17 @@ async def record_seizure(
     db.add(seizure)
     await db.commit()
     await db.refresh(seizure)
+    
+    # Log SEIZURE_CREATED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=case_id,
+        user_id=current_user.id,
+        action="SEIZURE_CREATED",
+        details=f"Seizure recorded at '{seizure.location}'"
+    )
+    db.add(action_log)
+    await db.commit()
     
     # NEW: Create Party records for each witness
     if seizure_data.witnesses:
@@ -380,6 +399,14 @@ async def create_evidence(
     current_user: User = Depends(get_current_user)
 ):
     """Create new evidence item directly (without explicit seizure, or linked later)."""
+    # Verify role permissions for evidence write
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.INVESTIGATOR, UserRole.FORENSIC, UserRole.SUPERVISOR, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Requires INVESTIGATOR, FORENSIC, or SUPERVISOR role."
+        )
+    
     try:
         evidence = Evidence(
             case_id=evidence_data.case_id,
@@ -407,6 +434,18 @@ async def create_evidence(
         db.add(evidence)
         await db.commit()
         await db.refresh(evidence)
+        
+        # Log EVIDENCE_ADDED action for timeline
+        from app.models.task import ActionLog
+        action_log = ActionLog(
+            case_id=evidence_data.case_id,
+            user_id=current_user.id,
+            action="EVIDENCE_ADDED",
+            details=f"Evidence '{evidence.label}' ({evidence.category}) added to case"
+        )
+        db.add(action_log)
+        await db.commit()
+        
         return evidence
     except Exception as e:
         await db.rollback()
@@ -414,6 +453,7 @@ async def create_evidence(
         print(f"Error creating evidence: {e}")
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=f"Error creating evidence: {str(e)}")
+
 
 @router.post("/upload", response_model=EvidenceResponse)
 async def upload_evidence(
@@ -431,6 +471,14 @@ async def upload_evidence(
     current_user: User = Depends(get_current_user)
 ):
     """Create evidence with file uploads."""
+    # Verify role permissions for evidence write
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.INVESTIGATOR, UserRole.FORENSIC, UserRole.SUPERVISOR, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Requires INVESTIGATOR, FORENSIC, or SUPERVISOR role."
+        )
+    
     try:
         # Parse collected_at from ISO string
         parsed_collected_at = datetime.utcnow()
@@ -514,6 +562,17 @@ async def upload_evidence(
             
             await db.commit()
             await db.refresh(evidence)
+        
+        # Log EVIDENCE_ADDED action for timeline
+        from app.models.task import ActionLog
+        action_log = ActionLog(
+            case_id=case_id,
+            user_id=current_user.id,
+            action="EVIDENCE_ADDED",
+            details=f"Evidence '{evidence.label}' ({evidence.category}) uploaded with {len(files)} file(s)"
+        )
+        db.add(action_log)
+        await db.commit()
             
         return evidence
     except Exception as e:
@@ -564,6 +623,18 @@ async def add_evidence_to_seizure(
     db.add(evidence)
     await db.commit()
     await db.refresh(evidence)
+    
+    # Log EVIDENCE_ADDED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=seizure.case_id,
+        user_id=current_user.id,
+        action="EVIDENCE_ADDED",
+        details=f"Evidence '{evidence.label}' added to seizure at '{seizure.location}'"
+    )
+    db.add(action_log)
+    await db.commit()
+    
     return evidence
 
 @router.get("/seizures/{seizure_id}/items", response_model=List[EvidenceResponse])
@@ -610,6 +681,18 @@ async def update_evidence(
     evidence.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(evidence)
+    
+    # Log EVIDENCE_UPDATED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=evidence.case_id,
+        user_id=current_user.id,
+        action="EVIDENCE_UPDATED",
+        details=f"Evidence '{evidence.label}' updated"
+    )
+    db.add(action_log)
+    await db.commit()
+    
     return evidence
 
 @router.delete("/{evidence_id}", status_code=204)
@@ -624,8 +707,24 @@ async def delete_evidence(
     if not evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
     
+    # Store info before deletion for logging
+    case_id = evidence.case_id
+    evidence_label = evidence.label
+    
     await db.delete(evidence)
     await db.commit()
+    
+    # Log EVIDENCE_DELETED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=case_id,
+        user_id=current_user.id,
+        action="EVIDENCE_DELETED",
+        details=f"Evidence '{evidence_label}' deleted"
+    )
+    db.add(action_log)
+    await db.commit()
+    
     return None
 
 # ==================== ARTEFACT APIs ====================
@@ -655,6 +754,18 @@ async def create_artefact(
     db.add(artefact)
     await db.commit()
     await db.refresh(artefact)
+    
+    # Log ARTEFACT_ADDED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=evidence.case_id,
+        user_id=current_user.id,
+        action="ARTEFACT_ADDED",
+        details=f"Artefact ({artefact.artefact_type.value if artefact.artefact_type else 'Unknown'}) added to evidence '{evidence.label}'"
+    )
+    db.add(action_log)
+    await db.commit()
+    
     return artefact
 
 @router.get("/{evidence_id}/artefacts", response_model=List[ArtefactResponse])

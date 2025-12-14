@@ -84,16 +84,62 @@ function CaseDetailContent() {
   const { addManualEntry } = useActionMutations(caseId)
 
   // Transform actions into timeline events
-  const timelineEvents = actions.map((action: { id: string; action?: string; details?: string; created_at: string; user?: { full_name?: string } }) => ({
-    id: action.id,
-    type: action.action?.toLowerCase().includes('evidence') ? 'evidence' :
-      action.action?.toLowerCase().includes('create') ? 'created' :
-        action.action?.toLowerCase().includes('update') ? 'update' : 'note',
-    title: action.action || 'Action',
-    description: action.details || '',
-    timestamp: action.created_at,
-    user: action.user?.full_name || 'System'
-  }))
+  const formatActionTitle = (action: string) => {
+    const titleMap: Record<string, string> = {
+      'CASE_CREATED': 'Case Created',
+      'CASE_UPDATED': 'Case Updated',
+      'STATUS_CHANGED': 'Status Changed',
+      'PARTY_ADDED': 'Party Added',
+      'PARTY_UPDATED': 'Party Updated',
+      'PARTY_REMOVED': 'Party Removed',
+      'EVIDENCE_ADDED': 'Evidence Added',
+      'EVIDENCE_UPDATED': 'Evidence Updated',
+      'TASK_CREATED': 'Task Created',
+      'TASK_UPDATED': 'Task Updated',
+      'TASK_COMPLETED': 'Task Completed',
+      'ASSIGNMENT_ADDED': 'Team Member Assigned',
+      'ASSIGNMENT_REMOVED': 'Team Member Removed',
+      'NOTE_ADDED': 'Note Added',
+      'MANUAL_ENTRY': 'Note Added',
+    }
+    return titleMap[action] || action?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) || 'Action'
+  }
+
+  const getEventType = (action: string) => {
+    if (action?.includes('EVIDENCE')) return 'evidence'
+    if (action?.includes('CREATE') || action === 'CASE_CREATED') return 'created'
+    if (action?.includes('UPDATE') || action?.includes('CHANGE')) return 'update'
+    return 'note'
+  }
+
+  const timelineEvents = actions.map((action: {
+    id: string;
+    action_type?: string;
+    action_details?: string;
+    timestamp?: string;
+    performed_by_name?: string;
+    // Also support new format in case backend is updated
+    action?: string;
+    details?: string;
+    created_at?: string;
+    user?: { full_name?: string };
+  }) => {
+    // Support both old and new field name formats
+    const actionType = action.action_type || action.action || ''
+    const actionDetails = action.action_details || action.details || ''
+    const actionTimestamp = action.timestamp || action.created_at || new Date().toISOString()
+    const userName = action.performed_by_name || action.user?.full_name || 'System'
+
+    return {
+      id: action.id,
+      type: getEventType(actionType),
+      title: formatActionTitle(actionType),
+      description: actionDetails,
+      timestamp: actionTimestamp,
+      user: userName
+    }
+  })
+
 
   // Fetch evidence items (new detailed evidence management)
   const { data: evidenceItems = [] } = useEvidenceItems(caseId)

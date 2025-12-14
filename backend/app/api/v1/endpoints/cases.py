@@ -62,7 +62,7 @@ async def create_case(
 
     db: AsyncSession = Depends(get_db),
 
-    current_user: User = Depends(require_role(UserRole.INTAKE, UserRole.INVESTIGATOR, UserRole.SUPERVISOR, UserRole.ADMIN))
+    current_user: User = Depends(require_role(UserRole.INTAKE))
 
 ):
 
@@ -390,6 +390,17 @@ async def create_case(
             logger.info(f"Initial collaboration created for case {case_number}")
 
         logger.info(f"Case created successfully: {case_number} by user {current_user.id}")
+
+        # Log CASE_CREATED action for timeline
+        from app.models.task import ActionLog
+        action_log = ActionLog(
+            case_id=db_case.id,
+            user_id=current_user.id,
+            action="CASE_CREATED",
+            details=f"Case '{db_case.title}' created with case number {case_number}"
+        )
+        db.add(action_log)
+        await db.commit()
 
         return db_case
 
@@ -1716,6 +1727,16 @@ async def create_case_task(
     await db.refresh(new_task)
 
     
+    # Log TASK_CREATED action for timeline
+    from app.models.task import ActionLog
+    action_log = ActionLog(
+        case_id=case_id,
+        user_id=current_user.id,
+        action="TASK_CREATED",
+        details=f"Task '{new_task.title}' created"
+    )
+    db.add(action_log)
+    await db.commit()
 
     # Get assignee info if assigned
 
@@ -3237,3 +3258,116 @@ async def delete_case_task(
     await db.commit()
     
     return {"message": "Task deleted successfully", "id": str(task_id)}
+
+
+# =============================================================================
+# ACTION LOG ENDPOINTS (Case Timeline)
+# =============================================================================
+
+@router.get('/{case_id}/actions/')
+async def get_case_actions(
+    case_id: UUID,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all action log entries for a case (Case Timeline)."""
+    from app.models.task import ActionLog
+    from sqlalchemy.orm import selectinload
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail='Case not found')
+    
+    # Fetch action logs with user relationship (joinedload for async compatibility)
+    from sqlalchemy.orm import joinedload
+    result = await db.execute(
+        select(ActionLog)
+        .options(joinedload(ActionLog.user))
+        .where(ActionLog.case_id == case_id)
+        .order_by(ActionLog.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    actions = result.unique().scalars().all()
+    
+    return [{
+        "id": str(action.id),
+        "case_id": str(action.case_id),
+        "action": action.action,
+        "details": action.details,
+        "user_id": str(action.user_id) if action.user_id else None,
+        "user": {
+            "id": str(action.user.id),
+            "full_name": action.user.full_name,
+            "email": action.user.email
+        } if action.user else None,
+        "created_at": action.created_at.isoformat() if action.created_at else None
+    } for action in actions]
+
+
+@router.post('/{case_id}/actions/manual/')
+async def create_manual_action(
+    case_id: UUID,
+    action_data: Dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a manual action log entry (Case Diary/Notes)."""
+    from app.models.task import ActionLog
+    
+    # Verify case exists
+    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_obj = case_result.scalar_one_or_none()
+    
+    if not case_obj:
+        raise HTTPException(status_code=404, detail='Case not found')
+    
+    # Create new action log entry
+    new_action = ActionLog(
+        case_id=case_id,
+        user_id=current_user.id,
+        action=action_data.get('action_type', 'MANUAL_ENTRY'),
+        details=action_data.get('action_details', '')
+    )
+    
+    db.add(new_action)
+    await db.commit()
+    await db.refresh(new_action)
+    
+    return {
+        "id": str(new_action.id),
+        "case_id": str(new_action.case_id),
+        "action": new_action.action,
+        "details": new_action.details,
+        "user_id": str(new_action.user_id) if new_action.user_id else None,
+        "created_at": new_action.created_at.isoformat() if new_action.created_at else None
+    }
+
+
+# =============================================================================
+# HELPER: Log Action (for automatic logging)
+# =============================================================================
+
+async def log_case_action(
+    db: AsyncSession,
+    case_id: UUID,
+    user_id: UUID,
+    action: str,
+    details: str = ""
+):
+    """Helper function to create an automatic action log entry."""
+    from app.models.task import ActionLog
+    
+    new_action = ActionLog(
+        case_id=case_id,
+        user_id=user_id,
+        action=action,
+        details=details
+    )
+    db.add(new_action)
+    # Note: caller is responsible for committing

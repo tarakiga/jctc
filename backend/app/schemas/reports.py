@@ -4,12 +4,18 @@ from datetime import datetime, date
 from enum import Enum
 
 class ReportType(str, Enum):
+    # Original values - keep for backward compatibility
     CASE_SUMMARY = "case_summary"
     EVIDENCE_CHAIN = "evidence_chain"
     COMPLIANCE = "compliance"
     EXECUTIVE_SUMMARY = "executive_summary"
     CUSTOM = "custom"
     INVESTIGATION_LOG = "investigation_log"
+    # Frontend values - add support for these
+    MONTHLY_OPERATIONS = "MONTHLY_OPERATIONS"
+    QUARTERLY_PROSECUTION = "QUARTERLY_PROSECUTION"
+    VICTIM_SUPPORT = "VICTIM_SUPPORT"
+    EXECUTIVE = "EXECUTIVE"
 
 class ReportFormat(str, Enum):
     PDF = "pdf"
@@ -17,6 +23,7 @@ class ReportFormat(str, Enum):
     EXCEL = "excel"
     HTML = "html"
     JSON = "json"
+    CSV = "csv"
 
 class ReportStatus(str, Enum):
     PENDING = "PENDING"

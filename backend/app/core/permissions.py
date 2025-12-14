@@ -15,8 +15,8 @@ async def check_case_access(
     db: AsyncSession = Depends(get_db)
 ) -> bool:
     """Check if user has access to a specific case."""
-    # Admins have access to all cases
-    if current_user.role == UserRole.ADMIN:
+    # SUPER_ADMIN and Admins have access to all cases
+    if current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
         return True
     
     # Check if case exists and user has access
@@ -49,6 +49,10 @@ async def check_case_access(
 def require_roles(*allowed_roles: UserRole):
     """Decorator to require specific user roles."""
     def decorator(current_user: User = Depends(get_current_user)):
+        # SUPER_ADMIN and ADMIN bypass all role restrictions
+        if current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+            return current_user
+            
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -60,6 +64,10 @@ def require_roles(*allowed_roles: UserRole):
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require admin role."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -70,6 +78,10 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 def require_supervisor_or_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require supervisor or admin role."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role not in [UserRole.SUPERVISOR, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -80,6 +92,10 @@ def require_supervisor_or_admin(current_user: User = Depends(get_current_user)) 
 
 def require_prosecution_access(current_user: User = Depends(get_current_user)) -> User:
     """Require prosecutor, supervisor, or admin role."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role not in [UserRole.PROSECUTOR, UserRole.SUPERVISOR, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -90,6 +106,10 @@ def require_prosecution_access(current_user: User = Depends(get_current_user)) -
 
 def require_forensic_access(current_user: User = Depends(get_current_user)) -> User:
     """Require forensic, supervisor, or admin role."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role not in [UserRole.FORENSIC, UserRole.SUPERVISOR, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -103,11 +123,12 @@ def check_audit_permissions(current_user: User = Depends(get_current_user)) -> U
     Check if user has audit access permissions.
     
     Audit access is granted to:
+    - SUPER_ADMIN: Full system access
     - ADMIN: Full audit access
     - SUPERVISOR: Can view audit logs for their team
     - PROSECUTOR: Can view case-related audit logs
     """
-    allowed_roles = [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.PROSECUTOR]
+    allowed_roles = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.PROSECUTOR]
     if current_user.role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -118,6 +139,10 @@ def check_audit_permissions(current_user: User = Depends(get_current_user)) -> U
 
 def require_audit_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require admin role for audit configuration changes."""
+    # SUPER_ADMIN bypasses all role restrictions
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return current_user
+        
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Card, CardContent, Badge } from '@jctc/ui'
+import { Button } from '@jctc/ui'
 import { DeleteTaskModal, StartTaskModal, CompleteTaskModal, BlockTaskModal } from './TaskActionModals'
 import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 import { DatePicker } from '@/components/ui/DatePicker'
+import { TaskCard } from './TaskCard'
 
 // Task types
 type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED'
@@ -293,116 +294,17 @@ export function TaskManager({ caseId, tasks, availableUsers, onAdd, onEdit, onDe
             const statusInfo = getStatusBadge(task.status)
 
             return (
-              <Card
+              <TaskCard
                 key={task.id}
-                className={`group hover:shadow-md transition-all ${overdue && task.status !== 'DONE' ? 'border-red-300 bg-red-50/30' : ''
-                  }`}
-              >
-                <CardContent className="p-4">
-                  {/* Priority bar */}
-                  <div className={`h-1 ${priorityInfo.color} rounded-full mb-3`}></div>
-
-                  {/* Task Header */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <h4 className="font-semibold text-slate-900 flex-1">{task.title}</h4>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenModal(task)}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setDeleteModal({ isOpen: true, task })}
-                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4 text-slate-600 hover:text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Badges */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge variant={statusInfo.variant} className="text-xs">
-                      {statusInfo.label}
-                    </Badge>
-                    <Badge variant="default" className="text-xs bg-slate-100 text-slate-700">
-                      P{task.priority}
-                    </Badge>
-                    {overdue && task.status !== 'DONE' && (
-                      <Badge variant="critical" className="text-xs">
-                        Overdue
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Task Meta */}
-                  <div className="space-y-1.5 text-sm text-slate-600 mb-3">
-                    {task.assigned_to_name && (
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span>{task.assigned_to_name}</span>
-                      </div>
-                    )}
-                    {task.due_at && (
-                      <div className={`flex items-center gap-2 ${overdue && task.status !== 'DONE' ? 'text-red-600 font-medium' : ''
-                        }`}>
-                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>
-                          {new Date(task.due_at).toLocaleDateString()}
-                          {daysUntilDue !== null && task.status !== 'DONE' && (
-                            <span className="ml-1">
-                              ({overdue ? `${Math.abs(daysUntilDue)}d overdue` : `${daysUntilDue}d left`})
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-slate-200">
-                    {nextStatus && task.status !== 'DONE' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (nextStatus === 'IN_PROGRESS') {
-                            setStartModal({ isOpen: true, task })
-                          } else if (nextStatus === 'DONE') {
-                            setCompleteModal({ isOpen: true, task })
-                          }
-                        }}
-                        className="flex-1 text-xs h-8 border-slate-300 text-slate-700 hover:bg-slate-50"
-                      >
-                        {nextStatus === 'IN_PROGRESS' && 'Start Task'}
-                        {nextStatus === 'DONE' && 'Mark Complete'}
-                      </Button>
-                    )}
-                    {task.status === 'IN_PROGRESS' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setBlockModal({ isOpen: true, task })}
-                        className="flex-1 text-xs h-8 border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        Block Task
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                task={task}
+                onEdit={() => handleOpenModal(task)}
+                onDelete={() => setDeleteModal({ isOpen: true, task })}
+                onStart={() => setStartModal({ isOpen: true, task })}
+                onComplete={() => setCompleteModal({ isOpen: true, task })}
+                onBlock={() => setBlockModal({ isOpen: true, task })}
+              />
             )
+
           })}
         </div>
       )}

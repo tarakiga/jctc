@@ -4,6 +4,7 @@
  */
 
 export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',  // Backend-only, full access
   INTAKE = 'INTAKE',
   INVESTIGATOR = 'INVESTIGATOR',
   FORENSIC = 'FORENSIC',

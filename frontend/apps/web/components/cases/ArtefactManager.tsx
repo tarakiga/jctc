@@ -106,6 +106,11 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
       return
     }
 
+    if (!formData.device_id && !editingId) {
+      alert('Please select an evidence item to link this artefact to')
+      return
+    }
+
     try {
       if (editingId) {
         await updateArtefact(editingId, {
@@ -355,18 +360,22 @@ export default function ArtefactManager({ caseId }: ArtefactManagerProps) {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Link to Evidence (Optional)
+                  Link to Evidence *
                 </label>
                 <select
                   value={formData.device_id}
                   onChange={(e) => setFormData(prev => ({ ...prev, device_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
                 >
-                  <option value="">No evidence</option>
+                  <option value="">Select evidence item...</option>
                   {evidence.map(item => (
                     <option key={item.id} value={item.id}>{item.label}</option>
                   ))}
                 </select>
+                {evidence.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">⚠ No evidence items. Add evidence first to link artefacts.</p>
+                )}
               </div>
             </div>
 

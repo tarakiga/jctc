@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../services/api-client'
 
 // Action types
-type ActionType = 
+type ActionType =
   | 'CASE_CREATED'
   | 'CASE_UPDATED'
   | 'STATUS_CHANGED'
@@ -19,32 +19,39 @@ type ActionType =
   | 'NOTE_ADDED'
   | 'MANUAL_ENTRY'
 
+// Interface matching actual backend response
 interface Action {
   id: string
   case_id: string
-  action_type: ActionType
-  action_details: string
-  performed_by: string
-  performed_by_name: string
-  timestamp: string
-  metadata?: Record<string, any>
+  action: ActionType | string  // Backend returns 'action' not 'action_type'
+  details: string              // Backend returns 'details' not 'action_details'
+  user_id: string | null
+  user: {
+    id: string
+    full_name: string
+    email: string
+  } | null
+  created_at: string           // Backend returns 'created_at' not 'timestamp'
 }
+
 
 // API functions
 async function fetchActions(caseId: string): Promise<Action[]> {
-  return await apiClient.get<Action[]>(`/cases/${caseId}/actions/`)
+  return await apiClient.get<Action[]>(`/cases/${caseId}/actions/`, {
+    cache: 'no-store'
+  })
 }
 
 async function createManualAction(
-  caseId: string, 
-  action: Omit<Action, 'id' | 'timestamp' | 'case_id' | 'performed_by' | 'performed_by_name'>
+  caseId: string,
+  action: { action_type: string; action_details: string }
 ): Promise<Action> {
   return await apiClient.post<Action>(`/cases/${caseId}/actions/manual/`, {
     action_type: action.action_type,
-    action_details: action.action_details,
-    metadata: action.metadata || {}
+    action_details: action.action_details
   })
 }
+
 
 // Hooks
 export function useActionLog(caseId: string) {
@@ -59,12 +66,13 @@ export function useActionMutations(caseId: string) {
   const queryClient = useQueryClient()
 
   const createMutation = useMutation({
-    mutationFn: (action: Omit<Action, 'id' | 'timestamp' | 'case_id' | 'performed_by' | 'performed_by_name'>) =>
+    mutationFn: (action: { action_type: string; action_details: string }) =>
       createManualAction(caseId, action),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['actions', caseId] })
     },
   })
+
 
   return {
     addManualEntry: createMutation.mutateAsync,

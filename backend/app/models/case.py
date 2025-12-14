@@ -61,6 +61,14 @@ class RiskFlag(str, enum.Enum):
     CROSS_BORDER = "CROSS_BORDER"
 
 
+class SensitivityLevel(str, enum.Enum):
+    """Sensitivity classification for ABAC (Attribute-Based Access Control)"""
+    NORMAL = "NORMAL"           # Standard role-based access
+    RESTRICTED = "RESTRICTED"   # Assignment-only access
+    CONFIDENTIAL = "CONFIDENTIAL"  # Named-person access list
+    TOP_SECRET = "TOP_SECRET"   # Supervisor approval + named access
+
+
 class Case(BaseModel):
     __tablename__ = "cases"
     
@@ -90,6 +98,14 @@ class Case(BaseModel):
     reporter_type = Column(SQLEnum(ReporterType), default=ReporterType.ANONYMOUS)
     reporter_name = Column(String(255))  # Name of reporter (if not anonymous)
     reporter_contact = Column(JSONB)  # {"phone": "...", "email": "..."}
+    
+    # Sensitivity Classification (ABAC - Attribute-Based Access Control)
+    is_sensitive = Column(Boolean, default=False, index=True)
+    sensitivity_level = Column(SQLEnum(SensitivityLevel), default=SensitivityLevel.NORMAL)
+    access_restrictions = Column(JSONB, default={})  # {"allowed_users": [...], "allowed_roles": [...], "reason": "..."}
+    sensitivity_reason = Column(Text)  # Reason for sensitivity classification
+    marked_sensitive_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    marked_sensitive_at = Column(DateTime(timezone=True))
     
     # Relationships
     # case_type is now a simple string field, no relationship needed

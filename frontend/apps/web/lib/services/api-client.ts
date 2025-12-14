@@ -44,9 +44,29 @@ class ApiClient {
       const error = await response.json().catch(() => ({
         message: response.statusText,
       }))
+
+      // Emit custom event for 401 Unauthorized (session expired)
+      if (response.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('session-expired'))
+      }
+
       // FastAPI returns errors in 'detail' field
       const errorMessage = error.detail || error.message || response.statusText
+
+      // Log full error for debugging
       console.error('API Error:', response.status, response.statusText, error)
+
+      // Show user-friendly toast for 403 errors
+      if (response.status === 403 && typeof window !== 'undefined') {
+        // Dispatch custom event with error message for UI to show toast
+        window.dispatchEvent(new CustomEvent('api-error', {
+          detail: {
+            status: 403,
+            message: errorMessage
+          }
+        }))
+      }
+
       throw new Error(errorMessage || `HTTP ${response.status}`)
     }
 

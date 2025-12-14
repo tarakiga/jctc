@@ -603,11 +603,11 @@ export function PremiumEvidenceManager({
                               </div>
 
                               {/* Entry card */}
-                              <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow overflow-hidden min-w-0">
                                 <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide bg-slate-100 px-2 py-0.5 rounded">{entry.action}</span>
-                                    <span className="text-xs text-slate-500">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide bg-slate-100 px-2 py-0.5 rounded flex-shrink-0">{entry.action}</span>
+                                    <span className="text-xs text-slate-500 truncate">
                                       {new Date(entry.timestamp).toLocaleDateString('en-US', {
                                         month: 'short',
                                         day: 'numeric',
@@ -618,7 +618,7 @@ export function PremiumEvidenceManager({
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-shrink-0">
                                     {entry.signature_verified && (
                                       <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Signature Verified">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -647,16 +647,16 @@ export function PremiumEvidenceManager({
                                 {/* Compact Grid for Details */}
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs mb-2">
                                   {entry.from_person_name && (
-                                    <div className="flex items-center gap-1.5 text-slate-600 truncate">
-                                      <span className="font-semibold text-slate-400 w-8">From:</span>
+                                    <div className="flex items-center gap-1.5 text-slate-600 truncate min-w-0">
+                                      <span className="font-semibold text-slate-400 w-8 flex-shrink-0">From:</span>
                                       <span className="truncate" title={entry.from_person_name}>{entry.from_person_name}</span>
                                     </div>
                                   )}
-                                  <div className="flex items-center gap-1.5 text-slate-600 truncate">
-                                    <span className="font-semibold text-slate-400 w-8">To:</span>
+                                  <div className="flex items-center gap-1.5 text-slate-600 truncate min-w-0">
+                                    <span className="font-semibold text-slate-400 w-8 flex-shrink-0">To:</span>
                                     <span className="truncate" title={entry.to_person_name}>{entry.to_person_name}</span>
                                   </div>
-                                  <div className="col-span-2 flex items-center gap-1.5 text-slate-600 truncate">
+                                  <div className="col-span-2 flex items-center gap-1.5 text-slate-600 truncate min-w-0">
                                     <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                     </svg>
@@ -665,9 +665,9 @@ export function PremiumEvidenceManager({
                                 </div>
 
                                 {entry.notes && (
-                                  <div className="pt-2 border-t border-slate-100">
+                                  <div className="pt-2 border-t border-slate-100 overflow-hidden">
                                     <p className="text-[11px] font-bold text-slate-400 uppercase mb-0.5">Notes</p>
-                                    <p className="text-xs text-slate-700 leading-relaxed break-words whitespace-pre-wrap">{entry.notes}</p>
+                                    <p className="text-xs text-slate-700 leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere" style={{ wordBreak: 'break-word' }}>{entry.notes}</p>
                                   </div>
                                 )}
                               </div>

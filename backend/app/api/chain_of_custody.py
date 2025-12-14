@@ -64,6 +64,17 @@ async def create_custody_entry(
         db.add(db_entry)
         await db.commit()
         
+        # Log CUSTODY_ENTRY_ADDED action for timeline
+        from app.models.task import ActionLog
+        action_log = ActionLog(
+            case_id=evidence.case_id,
+            user_id=current_user.id,
+            action="CUSTODY_ENTRY_ADDED",
+            details=f"Chain of custody '{custody_entry.action}' entry added for evidence '{evidence.label}'"
+        )
+        db.add(action_log)
+        await db.commit()
+        
         # Re-fetch with relationships to ensure names are available
         result = await db.execute(
             select(ChainOfCustodyEntry)

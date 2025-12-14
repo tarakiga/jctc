@@ -68,54 +68,58 @@ function AuthenticatedLayoutContent({ children }: AuthenticatedLayoutProps) {
 
               {/* Navigation */}
               <nav className="hidden md:flex items-center gap-1">
-                <Link 
-                  href="/dashboard" 
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isActive('/dashboard')
-                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
+                <Link
+                  href="/dashboard"
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive('/dashboard')
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   Dashboard
                 </Link>
-                <Link 
-                  href="/cases" 
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isActive('/cases')
-                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
+                <Link
+                  href="/cases"
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive('/cases')
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   Cases
                 </Link>
-                <Link 
-                  href="/evidence" 
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isActive('/evidence')
-                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
+                <Link
+                  href="/evidence"
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive('/evidence')
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   Evidence
                 </Link>
-                <Link 
-                  href="/reports" 
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isActive('/reports')
-                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
+                <Link
+                  href="/reports"
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive('/reports')
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   Reports
                 </Link>
-                {(user.role === UserRole.ADMIN || user.role === UserRole.SUPERVISOR) && (
-                  <Link 
-                    href="/admin" 
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      isActive('/admin')
-                        ? 'text-primary-700 bg-primary-100 hover:bg-primary-100' 
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                <Link
+                  href="/compliance"
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive('/compliance')
+                      ? 'text-primary-700 bg-primary-100 hover:bg-primary-100'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
+                >
+                  Compliance
+                </Link>
+                {(user.role === UserRole.ADMIN || user.role === UserRole.SUPERVISOR) && (
+                  <Link
+                    href="/admin"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive('/admin')
+                        ? 'text-primary-700 bg-primary-100 hover:bg-primary-100'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
                   >
                     Admin
                   </Link>

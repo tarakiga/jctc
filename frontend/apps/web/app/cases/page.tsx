@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@jctc/ui'
 import { ProtectedRoute } from '@/lib/components/ProtectedRoute'
+import { useAuth } from '@/lib/contexts/AuthContext'
 import { useCases, useCaseMutations } from '@/lib/hooks/useCases'
 import { useLookups, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 import { LookupValue } from '@/lib/services/lookups'
@@ -17,6 +18,10 @@ type SortField = 'case_number' | 'date_reported' | 'severity' | 'status'
 type SortOrder = 'asc' | 'desc'
 
 function CasesContent() {
+  // Auth and permissions
+  const { user } = useAuth()
+  const canCreateCase = user?.role === 'INTAKE' || user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
+
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [severityFilter, setSeverityFilter] = useState<string>('all')
@@ -432,15 +437,17 @@ function CasesContent() {
               Track and manage criminal investigations across all jurisdictions
             </p>
           </div>
-          <Button
-            onClick={handleModalOpen}
-            className="bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 transition-all"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create New Case
-          </Button>
+          {canCreateCase && (
+            <Button
+              onClick={handleModalOpen}
+              className="bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 transition-all"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create New Case
+            </Button>
+          )}
         </div>
       </div>
 
@@ -684,16 +691,18 @@ function CasesContent() {
                 ? 'Try adjusting your filters or search terms to find what you\'re looking for.'
                 : 'Get started by creating your first case to begin tracking investigations.'}
             </p>
-            <Button
-              variant="primary"
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
-              onClick={handleModalOpen}
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Create New Case
-            </Button>
+            {canCreateCase && (
+              <Button
+                variant="primary"
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                onClick={handleModalOpen}
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create New Case
+              </Button>
+            )}
           </div>
         </div>
       )}
