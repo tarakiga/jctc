@@ -38,3 +38,6 @@ pandas
 reportlab
 xlsxwriter
 openpyxl
+
+# AWS S3 Storage
+boto3
