@@ -58,8 +58,10 @@ function ReportsContent() {
       return
     }
 
-    // Build full backend URL for download
-    const baseUrl = 'http://localhost:8000'
+    // Build full backend URL for download - use env variable for production
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+    // Remove /api/v1 suffix to get the base URL for downloads
+    const baseUrl = apiBaseUrl.replace(/\/api\/v1\/?$/, '')
     const downloadUrl = report.download_url.startsWith('http')
       ? report.download_url
       : `${baseUrl}${report.download_url}`
