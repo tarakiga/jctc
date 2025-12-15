@@ -288,14 +288,35 @@ async def download_report(
                 detail="Invalid authentication token"
             )
     
-    # Check if report exists in our store
-    if report_id not in generated_reports:
+    # Check if report exists in our in-memory store first
+    report_info = generated_reports.get(report_id)
+    
+    # If not in memory, try to get from database
+    if not report_info:
+        try:
+            from sqlalchemy import select
+            stmt = select(ReportModel).where(ReportModel.id == report_id)
+            result = await db.execute(stmt)
+            db_report = result.scalar_one_or_none()
+            
+            if db_report:
+                # Construct report_info from database record
+                report_info = {
+                    "report_type": db_report.report_type,
+                    "format": db_report.format,
+                    "file_path": db_report.file_path,  # This is the S3 key if S3 was used
+                    "s3_key": db_report.file_path if db_report.file_path and db_report.file_path.startswith("reports/") else None,
+                    "status": db_report.status
+                }
+                logger.info(f"Retrieved report {report_id} from database")
+        except Exception as e:
+            logger.warning(f"Database query failed for report {report_id}: {e}")
+    
+    if not report_info:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found or expired"
         )
-    
-    report_info = generated_reports[report_id]
     
     # Try S3 download first if we have an S3 key
     s3_key = report_info.get("s3_key")
