@@ -177,12 +177,27 @@ async def generate_report(
         # Get file size
         file_size = output_path.stat().st_size if output_path.exists() else 0
         
+        # Upload to S3 if enabled
+        s3_key = None
+        s3_url = None
+        try:
+            from app.utils.s3_storage import is_s3_enabled, upload_file
+            if is_s3_enabled():
+                s3_key, s3_url = upload_file(
+                    str(output_path),
+                    folder="reports",
+                    content_type="application/pdf" if format_str.lower() == "pdf" else "application/octet-stream"
+                )
+                logger.info(f"Report uploaded to S3: {s3_key}")
+        except Exception as e:
+            logger.warning(f"S3 upload failed, using local storage: {e}")
+        
         # Store report info in database
         db_report = ReportModel(
             id=report_id,
             report_type=report_type_str,
             format=format_str.lower(),
-            file_path=str(output_path),
+            file_path=s3_key if s3_key else str(output_path),
             file_size=file_size,
             status="COMPLETED",
             download_url=f"/api/v1/reports/{report_id}/download",
@@ -199,6 +214,8 @@ async def generate_report(
             "report_type": report_type_str,
             "format": format_str.lower(),
             "file_path": str(output_path),
+            "s3_key": s3_key,
+            "s3_url": s3_url,
             "status": "COMPLETED",
             "message": f"{report_type_str.replace('_', ' ').title()} report generated successfully",
             "user_id": str(current_user.id),
@@ -206,7 +223,7 @@ async def generate_report(
             "created_at": datetime.utcnow()
         }
         
-        logger.info(f"Report generated successfully: {output_path}")
+        logger.info(f"Report generated successfully: {output_path}" + (f" (S3: {s3_key})" if s3_key else ""))
         
         return ReportResponse(
             id=report_id,
@@ -279,6 +296,21 @@ async def download_report(
         )
     
     report_info = generated_reports[report_id]
+    
+    # Try S3 download first if we have an S3 key
+    s3_key = report_info.get("s3_key")
+    if s3_key:
+        try:
+            from fastapi.responses import RedirectResponse
+            from app.utils.s3_storage import get_presigned_url, is_s3_enabled
+            if is_s3_enabled():
+                presigned_url = get_presigned_url(s3_key, expiry_seconds=3600)  # 1 hour
+                logger.info(f"Redirecting to S3 presigned URL for report {report_id}")
+                return RedirectResponse(url=presigned_url, status_code=307)
+        except Exception as e:
+            logger.warning(f"S3 download failed, falling back to local: {e}")
+    
+    # Fallback to local file
     file_path = Path(report_info["file_path"])
     
     if not file_path.exists():
