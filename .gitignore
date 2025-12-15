@@ -103,5 +103,7 @@ tests/
 # Global ignore for documentation as per user request
 *.md
 !README.md
+!backend/docs/DEPLOYMENT_HANDOFF.md
+!.agent/workflows/*.md
 *.docx
 lightsail_key.pem

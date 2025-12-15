@@ -717,34 +717,74 @@ async def delete_report(
     current_user: UserSchema = Depends(get_current_user)
 ):
     """Delete a report and its associated files"""
+    from sqlalchemy import select, delete as sql_delete
     
-    # Check if report exists
-    if report_id not in generated_reports:
+    report_info = generated_reports.get(report_id)
+    db_report = None
+    
+    # If not in memory, try database
+    if not report_info:
+        try:
+            stmt = select(ReportModel).where(ReportModel.id == report_id)
+            result = await db.execute(stmt)
+            db_report = result.scalar_one_or_none()
+            
+            if db_report:
+                report_info = {
+                    "report_type": db_report.report_type,
+                    "format": db_report.format,
+                    "file_path": db_report.file_path,
+                    "s3_key": db_report.file_path if db_report.file_path and db_report.file_path.startswith("reports/") else None,
+                    "user_id": db_report.requested_by
+                }
+        except Exception as e:
+            logger.warning(f"Database lookup failed for report {report_id}: {e}")
+    
+    if not report_info:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found"
         )
     
-    report_info = generated_reports[report_id]
-    
     # Verify user has permission (admin or owner)
-    if current_user.role != "ADMIN" and report_info.get("user_id") != str(current_user.id):
+    if current_user.role not in ["ADMIN", "SUPER_ADMIN"] and report_info.get("user_id") != str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to delete this report"
         )
     
-    # Delete the file from disk
+    # Delete from S3 if applicable
+    s3_key = report_info.get("s3_key")
+    if s3_key:
+        try:
+            from app.utils.s3_storage import delete_file, is_s3_enabled
+            if is_s3_enabled():
+                delete_file(s3_key)
+                logger.info(f"Deleted report from S3: {s3_key}")
+        except Exception as e:
+            logger.warning(f"Failed to delete report from S3: {e}")
+    
+    # Delete the local file if exists
     file_path = Path(report_info.get("file_path", ""))
-    if file_path.exists():
+    if file_path.exists() and not str(file_path).startswith("reports/"):
         try:
             file_path.unlink()
             logger.info(f"Deleted report file: {file_path}")
         except Exception as e:
             logger.error(f"Failed to delete report file: {e}")
     
+    # Remove from database
+    if db_report:
+        try:
+            await db.execute(sql_delete(ReportModel).where(ReportModel.id == report_id))
+            await db.commit()
+            logger.info(f"Deleted report from database: {report_id}")
+        except Exception as e:
+            logger.warning(f"Failed to delete report from database: {e}")
+    
     # Remove from in-memory store
-    del generated_reports[report_id]
+    if report_id in generated_reports:
+        del generated_reports[report_id]
     
     return {"message": "Report deleted successfully"}
 

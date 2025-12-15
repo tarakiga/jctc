@@ -158,13 +158,14 @@ def upload_fileobj(
         raise S3StorageError(f"Failed to upload file: {e}")
 
 
-def get_presigned_url(s3_key: str, expiry_seconds: Optional[int] = None) -> str:
+def get_presigned_url(s3_key: str, expiry_seconds: Optional[int] = None, filename: Optional[str] = None) -> str:
     """
     Generate a pre-signed URL for secure file download.
     
     Args:
         s3_key: S3 object key
         expiry_seconds: URL expiration time (default from settings)
+        filename: Optional filename for download (triggers download instead of inline view)
     
     Returns:
         Pre-signed URL string
@@ -174,13 +175,24 @@ def get_presigned_url(s3_key: str, expiry_seconds: Optional[int] = None) -> str:
     if expiry_seconds is None:
         expiry_seconds = settings.s3_presigned_url_expiry
     
+    # Build params
+    params = {
+        'Bucket': settings.s3_bucket_name,
+        'Key': s3_key
+    }
+    
+    # Force download by setting Content-Disposition
+    if filename:
+        params['ResponseContentDisposition'] = f'attachment; filename="{filename}"'
+    else:
+        # Extract filename from key and force download
+        key_filename = s3_key.split('/')[-1] if '/' in s3_key else s3_key
+        params['ResponseContentDisposition'] = f'attachment; filename="{key_filename}"'
+    
     try:
         url = client.generate_presigned_url(
             'get_object',
-            Params={
-                'Bucket': settings.s3_bucket_name,
-                'Key': s3_key
-            },
+            Params=params,
             ExpiresIn=expiry_seconds
         )
         return url
