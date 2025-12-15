@@ -856,7 +856,7 @@ def generate_pdf_content(report_id: str, report_type: str, data: Dict[str, Any],
     ACCENT_COLOR = colors.HexColor('#0EA5E9') # Sky blue
     TEXT_COLOR = colors.HexColor('#334155')   # Slate 700
     LIGHT_BG = colors.HexColor('#F8FAFC')     # Slate 50
-    LOGO_PATH = Path(__file__).parent.parent.parent / "assets" / "logo.png"
+    LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.png"  # app/assets/logo.png
     
     doc = SimpleDocTemplate(
         str(output_path), 
