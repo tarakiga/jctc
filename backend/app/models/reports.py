@@ -40,7 +40,7 @@ class Report(Base):
     
     # User and audit information
     requested_by = Column(String, ForeignKey("users.id"), nullable=False)
-    organization_id = Column(String, ForeignKey("organizations.id"))
+    organization_id = Column(String)  # FK removed - organizations table not yet created
     
     # Metadata
     created_at = Column(DateTime, default=func.now(), nullable=False)
