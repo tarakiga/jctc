@@ -31,6 +31,8 @@ from app.models.audit import (
 )
 from app.models.lookup_value import LookupValue, LOOKUP_CATEGORIES
 from app.models.forensic import ForensicReport
+from app.models.email import EmailSettings, EmailTemplate
+
 
 __all__ = [
     "BaseModel",
@@ -52,4 +54,5 @@ __all__ = [
     "AuditConfiguration", "DataRetentionJob", "AuditArchive",
     "LookupValue", "LOOKUP_CATEGORIES",
     "ForensicReport",
+    "EmailSettings", "EmailTemplate",
 ]

@@ -17,6 +17,13 @@ export enum TeamActivityType {
   LEAVE = 'LEAVE',
 }
 
+// Simple user summary for attendee lists
+export interface UserSummary {
+  id: string
+  full_name: string
+  email: string
+}
+
 export interface TeamActivity {
   id: string
   user_id: string
@@ -27,14 +34,14 @@ export interface TeamActivity {
   end_time: string
   created_at: string
   updated_at: string
+  attendees?: UserSummary[]
 }
 
 export interface TeamActivityWithUser extends TeamActivity {
-  user: {
-    id: string
-    full_name: string
-    email: string
-  }
+  user_name?: string
+  user_email?: string
+  user_work_activity?: WorkActivity | null
+  attendees: UserSummary[]
 }
 
 export interface TeamActivityCreate {
@@ -43,6 +50,8 @@ export interface TeamActivityCreate {
   description?: string | null
   start_time: string
   end_time: string
+  user_id?: string
+  attendee_ids?: string[]
 }
 
 export interface TeamActivityUpdate {
@@ -51,6 +60,7 @@ export interface TeamActivityUpdate {
   description?: string | null
   start_time?: string
   end_time?: string
+  attendee_ids?: string[]
 }
 
 export interface TeamActivityFilter {

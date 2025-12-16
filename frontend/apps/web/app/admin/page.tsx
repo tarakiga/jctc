@@ -6,8 +6,9 @@ import { useUserStats, useCaseStats, useAuditStats } from '@/lib/hooks/useAdmin'
 import { useTeamActivities } from '@/lib/hooks/useTeamActivity'
 import { LookupManagementDrawer } from '@/components/admin/LookupManagementDrawer'
 import { UserManagementDrawer } from '@/components/admin/UserManagementDrawer'
-import { ReportsDrawer } from '@/components/admin/ReportsDrawer'
+import { CalendarManagementDrawer } from '@/components/admin/CalendarManagementDrawer'
 import { AuditLogsDrawer } from '@/components/admin/AuditLogsDrawer'
+import { EmailSettingsDrawer } from '@/components/admin/EmailSettingsDrawer'
 
 export default function AdminPage() {
   const { data: userStats, isLoading: userStatsLoading } = useUserStats()
@@ -18,8 +19,9 @@ export default function AdminPage() {
   // Drawer states
   const [showLookupDrawer, setShowLookupDrawer] = useState(false)
   const [showUserDrawer, setShowUserDrawer] = useState(false)
-  const [showReportsDrawer, setShowReportsDrawer] = useState(false)
+  const [showCalendarDrawer, setShowCalendarDrawer] = useState(false)
   const [showAuditDrawer, setShowAuditDrawer] = useState(false)
+  const [showEmailDrawer, setShowEmailDrawer] = useState(false)
 
   const totalRoles = userStats ? Object.keys(userStats.users_by_role || {}).length : 0
 
@@ -170,17 +172,17 @@ export default function AdminPage() {
           </button>
 
           <button
-            onClick={() => setShowReportsDrawer(true)}
+            onClick={() => setShowCalendarDrawer(true)}
             className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all group text-left"
           >
-            <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-slate-900 group-hover:text-blue-600">Reports</p>
-              <p className="text-sm text-slate-500">Generate & view reports</p>
+              <p className="font-semibold text-slate-900 group-hover:text-blue-600">Calendar</p>
+              <p className="text-sm text-slate-500">Manage team activities</p>
             </div>
           </button>
 
@@ -196,6 +198,21 @@ export default function AdminPage() {
             <div>
               <p className="font-semibold text-slate-900 group-hover:text-blue-600">Audit Logs</p>
               <p className="text-sm text-slate-500">View system activity</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setShowEmailDrawer(true)}
+            className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all group text-left"
+          >
+            <div className="p-3 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl shadow-lg">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 group-hover:text-blue-600">Email System</p>
+              <p className="text-sm text-slate-500">Configure SMTP & Templates</p>
             </div>
           </button>
         </div>
@@ -301,13 +318,17 @@ export default function AdminPage() {
         isOpen={showUserDrawer}
         onClose={() => setShowUserDrawer(false)}
       />
-      <ReportsDrawer
-        isOpen={showReportsDrawer}
-        onClose={() => setShowReportsDrawer(false)}
+      <CalendarManagementDrawer
+        isOpen={showCalendarDrawer}
+        onClose={() => setShowCalendarDrawer(false)}
       />
       <AuditLogsDrawer
         isOpen={showAuditDrawer}
         onClose={() => setShowAuditDrawer(false)}
+      />
+      <EmailSettingsDrawer
+        isOpen={showEmailDrawer}
+        onClose={() => setShowEmailDrawer(false)}
       />
     </>
   )

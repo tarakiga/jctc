@@ -48,6 +48,7 @@ interface CaseDetailSidebarProps {
     teamCount: number
   }
   className?: string
+  userRole?: string  // Current user's role for permission-based visibility
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -107,10 +108,23 @@ const NAV_GROUPS: NavGroup[] = [
   }
 ]
 
-export function CaseDetailSidebar({ activeSection, onSectionChange, stats, className = '' }: CaseDetailSidebarProps) {
+export function CaseDetailSidebar({ activeSection, onSectionChange, stats, className = '', userRole }: CaseDetailSidebarProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(NAV_GROUPS.map(g => g.id))
   )
+
+  // Permission-based section filtering
+  const isPrivilegedUser = userRole === 'SUPERVISOR' || userRole === 'ADMIN'
+
+  // Filter sections based on user permissions
+  const filteredNavGroups = NAV_GROUPS.map(group => ({
+    ...group,
+    sections: group.sections.filter(section => {
+      // Assignments only visible to Supervisors/Admins
+      if (section.id === 'assignments' && !isPrivilegedUser) return false
+      return true
+    })
+  })).filter(group => group.sections.length > 0)  // Remove empty groups
 
   const toggleGroup = (groupId: string) => {
     const newExpanded = new Set(expandedGroups)
@@ -125,7 +139,7 @@ export function CaseDetailSidebar({ activeSection, onSectionChange, stats, class
   return (
     <nav className={`w-72 bg-white border-r border-slate-200 self-start sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto ${className}`}>
       <div className="p-6 space-y-1">
-        {NAV_GROUPS.map((group) => {
+        {filteredNavGroups.map((group) => {
           const isExpanded = expandedGroups.has(group.id)
           const hasActiveSection = group.sections.some(s => s.id === activeSection)
           const Icon = group.icon

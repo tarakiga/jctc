@@ -4,6 +4,10 @@ import asyncio
 from app.database.base import AsyncSessionLocal
 from app.models.lookup_value import LookupValue
 
+# Import all models to ensure SQLAlchemy mappers are fully configured
+# This prevents errors like "NDPAConsentRecord not found" when relationships are resolved
+from app.models import user, case, evidence, ndpa_compliance  # noqa: F401
+
 
 # Default values organized by category
 DEFAULT_LOOKUP_VALUES = {
@@ -337,6 +341,13 @@ DEFAULT_LOOKUP_VALUES = {
         {"value": "APPEAL_HEARING", "label": "Appeal Hearing", "is_system": True, "sort_order": 7},
         {"value": "OTHER", "label": "Other", "is_system": True, "sort_order": 99},
     ],
+    # Team calendar activity types - values must match WorkActivity enum (lowercase)
+    "activity_type": [
+        {"value": "meeting", "label": "Meeting", "color": "#3B82F6", "icon": "calendar", "is_system": True, "sort_order": 1},
+        {"value": "travel", "label": "Travel", "color": "#8B5CF6", "icon": "plane", "is_system": True, "sort_order": 2},
+        {"value": "training", "label": "Training", "color": "#10B981", "icon": "graduation-cap", "is_system": True, "sort_order": 3},
+        {"value": "leave", "label": "Leave", "color": "#F97316", "icon": "coffee", "is_system": True, "sort_order": 4},
+    ],
 }
 
 
@@ -363,6 +374,7 @@ async def seed_lookup_values():
                         value=val_data["value"],
                         label=val_data["label"],
                         color=val_data.get("color"),
+                        icon=val_data.get("icon"),
                         is_system=val_data.get("is_system", True),
                         sort_order=val_data.get("sort_order", 0),
                         is_active=True

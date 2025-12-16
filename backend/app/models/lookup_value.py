@@ -215,5 +215,9 @@ LOOKUP_CATEGORIES = {
     "report_type": {
         "name": "Report Type",
         "description": "Types of forensic reports (extraction, analysis, validation, summary)"
+    },
+    "activity_type": {
+        "name": "Activity Type",
+        "description": "Types of team calendar activities (meetings, travel, training, leave)"
     }
 }

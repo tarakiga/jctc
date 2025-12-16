@@ -303,6 +303,7 @@ function CaseDetailContent() {
             teamCount: assignments.length
           }}
           className="flex-shrink-0"
+          userRole={user?.role}
         />
 
         {/* Content Area */}
@@ -649,7 +650,7 @@ function CaseDetailContent() {
               <AssignmentManager
                 caseId={caseId}
                 assignments={assignments}
-                availableUsers={assignments.map(a => a.user)}
+                availableUsers={availableUsers}
                 onAssign={async (userId, role) => {
                   await assignUser(userId, role)
                 }}

@@ -10,7 +10,9 @@ export interface User {
   updated_at: string
   last_login?: string
   department?: string
+  org_unit?: string
   phone?: string
+  password?: string
 }
 
 export interface UserStats {
@@ -35,7 +37,7 @@ export const usersService = {
    */
   async getUsers(filters?: UserFilters): Promise<{ users: User[], total: number }> {
     const params = new URLSearchParams()
-    
+
     if (filters?.role) params.append('role', filters.role)
     if (filters?.is_active !== undefined) params.append('is_active', filters.is_active.toString())
     if (filters?.search) params.append('search', filters.search)
@@ -44,7 +46,7 @@ export const usersService = {
 
     const queryString = params.toString()
     const response = await apiClient.get(`/users/${queryString ? `?${queryString}` : ''}`)
-    
+
     const usersData = Array.isArray(response) ? response : []
     return {
       users: usersData,

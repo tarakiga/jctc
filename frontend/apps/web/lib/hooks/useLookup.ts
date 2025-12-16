@@ -151,6 +151,7 @@ export const LOOKUP_CATEGORIES = {
     ATTACHMENT_CLASSIFICATION: 'attachment_classification',
     VIRUS_SCAN_STATUS: 'virus_scan_status',
     REPORT_TYPE: 'report_type',
+    ACTIVITY_TYPE: 'activity_type',
 } as const
 
 export type LookupCategory = typeof LOOKUP_CATEGORIES[keyof typeof LOOKUP_CATEGORIES]

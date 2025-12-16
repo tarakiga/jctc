@@ -13,7 +13,7 @@ function ResetPasswordContent() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState('')
   const [token, setToken] = useState<string | null>(null)
-  
+
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -231,7 +231,7 @@ function ResetPasswordContent() {
                 type="submit"
                 variant="primary"
                 size="lg"
-                className="w-full"
+                className="w-full bg-black hover:bg-neutral-800 text-white border-black h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
                 isLoading={isLoading}
               >
                 {isLoading ? 'Resetting...' : 'Reset Password'}

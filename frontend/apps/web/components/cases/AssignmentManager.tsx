@@ -215,7 +215,7 @@ export function AssignmentManager({
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200">
           {/* Table Header */}
           <div className="bg-slate-50 px-6 py-3 border-b border-slate-200">
             <div className="grid grid-cols-12 gap-6 text-xs font-semibold text-slate-600 uppercase tracking-wider">

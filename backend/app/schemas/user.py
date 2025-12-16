@@ -60,3 +60,13 @@ class UserStatsResponse(BaseModel):
     users_by_role: dict[str, int]
     new_users_this_month: int
     last_month_comparison: int
+
+
+# Password Reset Schemas
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

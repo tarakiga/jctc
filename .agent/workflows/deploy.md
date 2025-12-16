@@ -17,7 +17,7 @@ description: Deploy JCTC to production on AWS Lightsail
 Run this single command for full deployment:
 
 ```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main && docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head && docker-compose -f docker-compose.prod.yml build --no-cache app && docker-compose -f docker-compose.prod.yml up -d app"
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main && docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head && docker-compose -f docker-compose.prod.yml run --rm app python -m scripts.seed_lookup_values && docker-compose -f docker-compose.prod.yml build --no-cache app && docker-compose -f docker-compose.prod.yml up -d app"
 ```
 
 ---
@@ -44,17 +44,22 @@ git pull origin main
 docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head
 ```
 
-### 5. Rebuild Backend Container
+### 5. Seed Lookup Values (presets for dropdowns)
+```bash
+docker-compose -f docker-compose.prod.yml run --rm app python -m scripts.seed_lookup_values
+```
+
+### 6. Rebuild Backend Container
 ```bash
 docker-compose -f docker-compose.prod.yml build --no-cache app
 ```
 
-### 6. Start Updated Container
+### 7. Start Updated Container
 ```bash
 docker-compose -f docker-compose.prod.yml up -d app
 ```
 
-### 7. Verify Deployment
+### 8. Verify Deployment
 ```bash
 docker ps | grep jctc_app
 curl https://api.jctc.ng/health

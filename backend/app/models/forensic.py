@@ -8,7 +8,7 @@ class ForensicReport(BaseModel):
     __tablename__ = "forensic_reports"
     
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
-    device_id = Column(UUID(as_uuid=True), ForeignKey("evidence.id"))  # Optional - which device the report is for
+    device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"))  # Optional - which device the report is for
     report_type = Column(String(100))  # e.g., "EXTRACTION", "ANALYSIS", "TIMELINE"
     tool_name = Column(String(255))  # e.g., "Cellebrite UFED", "Magnet AXIOM"
     tool_version = Column(String(100))  # Tool version for chain of custody

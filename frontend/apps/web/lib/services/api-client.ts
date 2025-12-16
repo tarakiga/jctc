@@ -54,7 +54,7 @@ class ApiClient {
       const errorMessage = error.detail || error.message || response.statusText
 
       // Log full error for debugging
-      console.error('API Error:', response.status, response.statusText, error)
+      console.error('API Error:', response.status, response.statusText, JSON.stringify(error, null, 2))
 
       // Show user-friendly toast for 403 errors
       if (response.status === 403 && typeof window !== 'undefined') {

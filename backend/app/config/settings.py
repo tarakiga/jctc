@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     email_from: str = "noreply@jctc.gov.ng"
+    email_encryption_key: Optional[str] = None  # Fernet key for SMTP password encryption
+
     
     # Logging
     log_level: str = "INFO"

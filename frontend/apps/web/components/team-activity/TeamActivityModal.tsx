@@ -5,6 +5,7 @@ import { Button } from '@jctc/ui'
 import { TeamActivityType, TeamActivity } from '@jctc/types'
 import { format } from 'date-fns'
 import { DateTimePicker } from '@/components/ui/DateTimePicker'
+import { useLookup, LOOKUP_CATEGORIES } from '@/lib/hooks/useLookup'
 
 interface TeamActivityModalProps {
   isOpen: boolean
@@ -26,8 +27,10 @@ export function TeamActivityModal({ isOpen, onClose, onSubmit,
   mode,
   isLoading = false
 }: TeamActivityModalProps) {
+  const { values: activityTypes, loading: typesLoading } = useLookup(LOOKUP_CATEGORIES.ACTIVITY_TYPE)
+
   const [formData, setFormData] = useState({
-    activity_type: TeamActivityType.MEETING,
+    activity_type: 'MEETING' as TeamActivityType,
     title: '',
     description: '',
     start_time: format(new Date(), 'yyyy-MM-dd\'T\'HH:mm'),
@@ -45,7 +48,7 @@ export function TeamActivityModal({ isOpen, onClose, onSubmit,
       })
     } else {
       setFormData({
-        activity_type: TeamActivityType.MEETING,
+        activity_type: 'MEETING' as TeamActivityType,
         title: '',
         description: '',
         start_time: format(new Date(), 'yyyy-MM-dd\'T\'HH:mm'),
@@ -95,10 +98,15 @@ export function TeamActivityModal({ isOpen, onClose, onSubmit,
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value={TeamActivityType.MEETING}>Meeting</option>
-                  <option value={TeamActivityType.TRAVEL}>Travel</option>
-                  <option value={TeamActivityType.TRAINING}>Training</option>
-                  <option value={TeamActivityType.LEAVE}>Leave</option>
+                  {typesLoading ? (
+                    <option>Loading...</option>
+                  ) : (
+                    activityTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

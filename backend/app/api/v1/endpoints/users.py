@@ -44,6 +44,25 @@ async def create_user(
     await db.commit()
     await db.refresh(db_user)
     
+    # Send Welcome Email (Async, non-blocking)
+    try:
+        from app.services.email_service import EmailService
+        email_service = EmailService(db) # Initialize with current session
+        
+        await email_service.send_templated_email(
+            to_emails=[db_user.email],
+            template_key="user_invite",
+            variables={
+                "full_name": db_user.full_name,
+                "email": db_user.email,
+                "password": user_data.password, 
+                "login_url": "https://jctc.ng/login"
+            }
+        )
+    except Exception as e:
+        # Log error but ensure user creation succeeds
+        print(f"Failed to send welcome email: {str(e)}")
+        
     return db_user
 
 @router.get("/stats", response_model=UserStatsResponse)

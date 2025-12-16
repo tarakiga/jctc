@@ -1,7 +1,7 @@
 """Pydantic schemas for team activity management."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,8 @@ class TeamActivityBase(BaseModel):
 class TeamActivityCreate(TeamActivityBase):
     """Schema for creating a team activity."""
     
-    user_id: UUID = Field(..., description="User ID for the activity")
+    user_id: UUID = Field(..., description="User ID (creator) for the activity")
+    attendee_ids: Optional[List[UUID]] = Field(default=[], description="List of attendee user IDs")
 
 
 class TeamActivityUpdate(BaseModel):
@@ -33,15 +34,28 @@ class TeamActivityUpdate(BaseModel):
     description: Optional[str] = Field(None, description="Activity description")
     start_time: Optional[datetime] = Field(None, description="Activity start time")
     end_time: Optional[datetime] = Field(None, description="Activity end time")
+    attendee_ids: Optional[List[UUID]] = Field(None, description="List of attendee user IDs")
+
+
+# Simple user summary for attendee list
+class UserSummary(BaseModel):
+    """Simplified user info for attendee lists."""
+    id: UUID
+    full_name: str
+    email: str
+    
+    class Config:
+        from_attributes = True
 
 
 class TeamActivityResponse(TeamActivityBase):
     """Schema for team activity response."""
     
     id: UUID = Field(..., description="Activity ID")
-    user_id: UUID = Field(..., description="User ID for the activity")
+    user_id: UUID = Field(..., description="User ID (creator) for the activity")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+    attendees: List[UserSummary] = Field(default=[], description="List of attendees")
 
     class Config:
         """Pydantic configuration."""
@@ -49,11 +63,11 @@ class TeamActivityResponse(TeamActivityBase):
 
 
 class TeamActivityWithUser(TeamActivityResponse):
-    """Schema for team activity with user information."""
+    """Schema for team activity with user (creator) information."""
     
-    user_name: str = Field(..., description="User full name")
-    user_email: str = Field(..., description="User email")
-    user_work_activity: Optional[WorkActivity] = Field(None, description="User's current work activity")
+    user_name: str = Field(..., description="Creator's full name")
+    user_email: str = Field(..., description="Creator's email")
+    user_work_activity: Optional[WorkActivity] = Field(None, description="Creator's current work activity")
 
 
 class TeamActivityFilter(BaseModel):

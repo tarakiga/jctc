@@ -108,7 +108,7 @@ class UserSession(BaseModel):
 class TeamActivity(BaseModel):
     __tablename__ = "team_activities"
     
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)  # Creator
     activity_type = Column(String(50), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text)
@@ -117,3 +117,45 @@ class TeamActivity(BaseModel):
     
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="team_activities")
+    attendees = relationship(
+        "User",
+        secondary="team_activity_attendees",
+        backref="attended_activities"
+    )
+
+
+class PasswordResetToken(BaseModel):
+    """
+    Secure password reset token storage.
+    
+    Tokens are stored as SHA-256 hashes to prevent token theft via DB access.
+    """
+    __tablename__ = "password_reset_tokens"
+    
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, index=True, nullable=False)  # SHA-256 hash of token
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)  # Set when token is used
+    
+    # Relationship
+    user = relationship("User", backref="password_reset_tokens")
+    
+    def is_expired(self) -> bool:
+        """Check if token has expired."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc) > self.expires_at
+    
+    def is_valid(self) -> bool:
+        """Check if token is valid (not expired and not used)."""
+        return not self.is_expired() and self.used_at is None
+
+
+# Association table for TeamActivity <-> User (attendees)
+from sqlalchemy import Table
+team_activity_attendees = Table(
+    'team_activity_attendees',
+    BaseModel.metadata,
+    Column('activity_id', UUID(as_uuid=True), ForeignKey('team_activities.id', ondelete='CASCADE'), primary_key=True),
+    Column('user_id', UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', DateTime(timezone=True), server_default='now()')
+)

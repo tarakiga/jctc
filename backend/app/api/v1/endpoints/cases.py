@@ -494,31 +494,9 @@ async def list_cases(
 
     
 
-    # Role-based access control
-
-    if current_user.role not in [UserRole.SUPERVISOR, UserRole.ADMIN]:
-
-        # Non-supervisors can only see cases they created or are assigned to
-
-        access_filter = or_(
-
-            Case.created_by == current_user.id,
-
-            Case.lead_investigator == current_user.id,
-
-            Case.id.in_(
-
-                select(CaseAssignment.case_id).filter(
-
-                    CaseAssignment.user_id == current_user.id
-
-                )
-
-            )
-
-        )
-
-        filters.append(access_filter)
+    # Role-based access control - REMOVED
+    # All users can now view all cases (per business requirement)
+    # Create/edit permissions are still enforced at endpoint level
 
     
 
@@ -1073,6 +1051,29 @@ async def assign_user_to_case(
     await db.refresh(db_assignment)
 
     
+    # Send Case Assignment Email Notification
+    try:
+        from app.services.email_service import EmailService
+        email_service = EmailService(db)
+        
+        # Build case URL
+        case_url = f"https://jctc.ng/cases/{case_id}"
+        
+        await email_service.send_templated_email(
+            to_emails=[user.email],
+            template_key="case_assignment",
+            variables={
+                "full_name": user.full_name or user.email,
+                "case_number": case.case_number or str(case_id),
+                "case_title": case.title or "Untitled Case",
+                "role": assignment.role.value if hasattr(assignment.role, 'value') else str(assignment.role),
+                "assigned_by": current_user.full_name or current_user.email,
+                "case_url": case_url
+            }
+        )
+    except Exception as e:
+        # Log but don't fail the request
+        print(f"Failed to send case assignment email: {str(e)}")
 
     return db_assignment
 
