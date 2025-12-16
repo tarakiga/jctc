@@ -2,6 +2,7 @@
 
 <div class="hero-section" markdown>
 
+## ![JCTC Logo](assets/logo.png){ width=150 }
 ## **Justice & Cybercrime Tracking Center**
 
 Your comprehensive platform for **case management**, **evidence tracking**, and **prosecution workflows**.

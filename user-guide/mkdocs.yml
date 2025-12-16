@@ -36,7 +36,8 @@ theme:
     - content.tabs.link
     - toc.integrate
   icon:
-    logo: material/shield-check
+    logo: logo
+  logo: assets/logo.png
   favicon: assets/favicon.ico
 
 nav:
