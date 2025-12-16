@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { Providers } from "./providers";
 import { GlobalShortcuts } from "@/components/GlobalShortcuts";
+import { HelpFab } from "@/components/HelpFab";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -42,6 +43,7 @@ export default function RootLayout({
         <Providers>
           <AuthProvider>
             <GlobalShortcuts />
+            <HelpFab />
             {children}
           </AuthProvider>
         </Providers>
