@@ -32,6 +32,7 @@ from app.models.audit import (
 from app.models.lookup_value import LookupValue, LOOKUP_CATEGORIES
 from app.models.forensic import ForensicReport
 from app.models.email import EmailSettings, EmailTemplate
+from app.models.ndpa_compliance import NDPAConsentRecord, DataDeletionRequest
 
 
 __all__ = [
