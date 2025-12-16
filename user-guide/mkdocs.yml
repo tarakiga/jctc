@@ -44,6 +44,13 @@ nav:
   - Getting Started:
     - First Login: getting-started/first-login.md
     - Navigation Overview: getting-started/navigation-overview.md
+  - SOPs by Role:
+    - Investigators: sops/investigators.md
+    - Supervisors: sops/supervisors.md
+    - Prosecutors: sops/prosecutors.md
+    - Forensic Analysts: sops/forensics.md
+    - Intake Officers: sops/intake.md
+    - Admins: sops/admins.md
   - Tutorials:
     - Create a New Case: tutorials/create-new-case.md
     - Manage Evidence: tutorials/manage-evidence.md
