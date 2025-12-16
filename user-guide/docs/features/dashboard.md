@@ -11,9 +11,13 @@ The top of the dashboard displays four real-time metric cards:
 *   **Recent Activity**: New cases submitted or updated in the current month.
 
 ## Team Activity Calendar
-A visual calendar heatmap tracks team engagement and workload.
-*   **Darker cells** indicate higher activity (more logs, updates, or movements).
-*   Hover over a date to see the specific count of actions taken by the team.
+
+Manage and view the team's operational schedule.
+*   **Views**: Toggle between **Weekly** and **Monthly** perspectives.
+*   **Agenda**: Click any date to reveal a detailed list of scheduled activities.
+*   **Activity Types**: distinct markers for Meetings, Travel, Training, and Leave.
+*   **Attendees**: Hover over attendee avatars to see the full guest list.
+*   **Management**: Admins can add new events directly from this widget.
 
 ## Recent Cases
 A quick-access list of the 5 most recently updated cases.
