@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Archivo } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { Providers } from "./providers";
+import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,6 +41,7 @@ export default function RootLayout({
       >
         <Providers>
           <AuthProvider>
+            <GlobalShortcuts />
             {children}
           </AuthProvider>
         </Providers>

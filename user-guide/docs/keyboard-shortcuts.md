@@ -52,6 +52,9 @@ Master these shortcuts to navigate JCTC like a pro.
 
 ## Tables & Lists
 
+!!! info "Coming Soon"
+    These shortcuts are planned for the next release.
+
 | Shortcut | Action |
 |----------|--------|
 | ++j++ | Move down in list |
@@ -62,6 +65,9 @@ Master these shortcuts to navigate JCTC like a pro.
 ---
 
 ## Forms
+
+!!! info "Coming Soon"
+    These shortcuts are planned for the next release.
 
 | Shortcut | Action |
 |----------|--------|
