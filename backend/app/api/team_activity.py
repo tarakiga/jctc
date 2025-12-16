@@ -24,6 +24,18 @@ from app.utils.dependencies import require_role
 router = APIRouter()
 
 
+def normalize_activity_type(activity_type):
+    """Normalize activity_type to uppercase for Pydantic enum compatibility."""
+    if activity_type is None:
+        return None
+    if isinstance(activity_type, str):
+        return activity_type.upper()
+    # If it's already an enum, get the value
+    if hasattr(activity_type, 'value'):
+        return activity_type.value.upper()
+    return str(activity_type).upper()
+
+
 @router.get("/", response_model=TeamActivityList)
 async def list_team_activities(
     skip: int = 0,
@@ -102,7 +114,7 @@ async def list_team_activities(
                 activity_with_user = TeamActivityWithUser(
                     id=activity.id,
                     user_id=activity.user_id,
-                    activity_type=activity.activity_type,
+                    activity_type=normalize_activity_type(activity.activity_type),
                     title=activity.title,
                     description=activity.description,
                     start_time=activity.start_time,
@@ -119,7 +131,7 @@ async def list_team_activities(
             items.append(TeamActivityResponse(
                 id=activity.id,
                 user_id=activity.user_id,
-                activity_type=activity.activity_type,
+                activity_type=normalize_activity_type(activity.activity_type),
                 title=activity.title,
                 description=activity.description,
                 start_time=activity.start_time,

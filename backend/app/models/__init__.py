@@ -36,6 +36,10 @@ from app.models.ndpa_compliance import (
     NDPAConsentRecord, NDPADataProcessingActivity, NDPADataSubjectRequest,
     NDPABreachNotification, NDPAImpactAssessment, NDPARegistrationRecord
 )
+from app.models.intelligence import (
+    IntelligenceRecord, IntelligenceAttachment, IntelligenceTag, IntelligenceCaseLink,
+    IntelCategory, IntelPriority, IntelStatus
+)
 
 
 __all__ = [
@@ -61,4 +65,6 @@ __all__ = [
     "EmailSettings", "EmailTemplate",
     "NDPAConsentRecord", "NDPADataProcessingActivity", "NDPADataSubjectRequest",
     "NDPABreachNotification", "NDPAImpactAssessment", "NDPARegistrationRecord",
+    "IntelligenceRecord", "IntelligenceAttachment", "IntelligenceTag", "IntelligenceCaseLink",
+    "IntelCategory", "IntelPriority", "IntelStatus",
 ]

@@ -45,6 +45,22 @@ services:
       - "traefik.http.routers.jctc-app.tls.certresolver=letsencrypt"
       - "traefik.http.services.jctc-app.loadbalancer.server.port=8000"
 
+  user-guide:
+    build:
+      context: ./user-guide
+      dockerfile: Dockerfile
+    container_name: jctc_guide
+    restart: unless-stopped
+    networks:
+      - jctc_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jctc-guide.rule=Host(`jctc.ng`) && PathPrefix(`/guide`)"
+      - "traefik.http.routers.jctc-guide.entrypoints=websecure"
+      - "traefik.http.routers.jctc-guide.tls=true"
+      - "traefik.http.routers.jctc-guide.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jctc-guide.loadbalancer.server.port=80"
+
   web:
     build:
       context: .

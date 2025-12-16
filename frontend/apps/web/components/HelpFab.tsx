@@ -4,9 +4,15 @@ import { HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export function HelpFab() {
+    // In development, the guide runs on port 8001 (separate from frontend 3000/3001)
+    // In production, it should be served at /guide/ via reverse proxy
+    const guideUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:8001/guide/'
+        : '/guide/';
+
     return (
         <Link
-            href="/guide/"
+            href={guideUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="fixed bottom-6 right-6 z-50 p-3 bg-black text-white rounded-full shadow-xl hover:scale-110 hover:shadow-2xl transition-all duration-300 group print:hidden"
