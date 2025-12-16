@@ -18,7 +18,7 @@ Learn how to create and configure a new investigation case in JCTC.
 1. Click **Cases** in the side menu
 2. Click the **+ New Case** button
 
-![New Case Button](../assets/screenshots/new-case-button.png)
+![New Case Button](../assets/screenshots/new-case-button.jpg)
 
 ---
 
