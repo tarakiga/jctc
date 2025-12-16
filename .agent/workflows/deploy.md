@@ -4,85 +4,123 @@ description: Deploy JCTC to production on AWS Lightsail
 
 # Production Deployment Workflow
 
+Coordinates full-stack deployment including frontend, backend, and dependencies.
+
+---
+
 ## Prerequisites
+
 - SSH key `lightsail_key.pem` in project root
 - Access to production server (3.11.113.109)
 - Changes committed and pushed to `main` branch
+- Run `/sync-code` workflow first
 
 ---
 
-## Quick Deploy (All Steps)
+## Deployment Options
+
+Choose the appropriate deployment type:
+
+| Type | When to Use |
+|------|-------------|
+| Full Deploy | Major releases, schema changes |
+| Backend Only | API changes, no frontend updates |
+| Frontend Only | UI changes, no backend updates |
+| Hot Reload | Minor config changes |
+
+---
+
+## Full Stack Deploy
 
 // turbo-all
-Run this single command for full deployment:
 
+### 1. Pull Latest Code
 ```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main && docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head && docker-compose -f docker-compose.prod.yml run --rm app python -m scripts.seed_lookup_values && docker-compose -f docker-compose.prod.yml build --no-cache app && docker-compose -f docker-compose.prod.yml up -d app"
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main"
+```
+
+### 2. Apply Database Migrations
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head"
+```
+
+### 3. Seed Lookup Values (if needed)
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml run --rm app python -m scripts.seed_lookup_values"
+```
+
+### 4. Rebuild Backend
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml build --no-cache app"
+```
+
+### 5. Rebuild Frontend
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml build --no-cache web"
+```
+
+### 6. Restart All Services
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml up -d"
+```
+
+### 7. Verify Deployment
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker ps && curl -s https://api.jctc.ng/health"
 ```
 
 ---
 
-## Step-by-Step Deployment
+## Backend Only Deploy
 
-### 1. SSH to Production Server
-```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109
-```
+// turbo-all
 
-### 2. Navigate to Project
 ```bash
-cd jctc-app
-```
-
-### 3. Pull Latest Code
-```bash
-git pull origin main
-```
-
-### 4. Run Database Migrations
-```bash
-docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head
-```
-
-### 5. Seed Lookup Values (presets for dropdowns)
-```bash
-docker-compose -f docker-compose.prod.yml run --rm app python -m scripts.seed_lookup_values
-```
-
-### 6. Rebuild Backend Container
-```bash
-docker-compose -f docker-compose.prod.yml build --no-cache app
-```
-
-### 7. Start Updated Container
-```bash
-docker-compose -f docker-compose.prod.yml up -d app
-```
-
-### 8. Verify Deployment
-```bash
-docker ps | grep jctc_app
-curl https://api.jctc.ng/health
-docker logs jctc_app --tail=10
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main && docker-compose -f docker-compose.prod.yml build --no-cache app && docker-compose -f docker-compose.prod.yml up -d app"
 ```
 
 ---
 
-## Troubleshooting Commands
+## Frontend Only Deploy
 
-### Check Container Logs
+// turbo-all
+
 ```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker logs jctc_app --tail=50"
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main && docker-compose -f docker-compose.prod.yml build --no-cache web && docker-compose -f docker-compose.prod.yml up -d web"
 ```
 
-### Restart Container
+---
+
+## One-Line Full Deploy (Quick)
+
+// turbo
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git pull origin main && docker-compose -f docker-compose.prod.yml run --rm app alembic upgrade head && docker-compose -f docker-compose.prod.yml build --no-cache && docker-compose -f docker-compose.prod.yml up -d"
+```
+
+---
+
+## Container Management
+
+### View Running Containers
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker ps"
+```
+
+### Restart Specific Container
 ```bash
 ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker restart jctc_app"
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker restart jctc_web"
 ```
 
-### Check Database Tables
+### Stop All JCTC Containers
 ```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker exec jctc_db psql -U jctc_user jctc_db -c '\dt'"
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml down"
+```
+
+### Start All JCTC Containers
+```bash
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f docker-compose.prod.yml up -d"
 ```
 
 ### Force Rebuild from Scratch
@@ -92,23 +130,35 @@ ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && docker-compose -f d
 
 ---
 
-## Environment Variables Check
+## Environment Variables
+
+### Check Current Env Vars
 ```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker exec jctc_app printenv | grep -E 'DATABASE|S3|SECRET'"
+ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker exec jctc_app printenv | grep -E 'DATABASE|S3|SECRET|AWS'"
 ```
+
+### Update Env Vars
+Edit the `.env.production` file on the server, then restart containers.
 
 ---
 
-## Rollback (If Needed)
+## Post-Deploy Checklist
 
-### Revert to Previous Commit
-```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git log --oneline -5"
-# Note the previous commit hash, then:
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "cd jctc-app && git checkout <PREV_COMMIT_HASH> && docker-compose -f docker-compose.prod.yml build --no-cache app && docker-compose -f docker-compose.prod.yml up -d app"
-```
+- [ ] Run `/verify` workflow to check health
+- [ ] Check frontend loads at https://jctc.ng
+- [ ] Check API responds at https://api.jctc.ng/health
+- [ ] Verify key features work (login, main pages)
+- [ ] Monitor logs for first few minutes
 
-### Rollback Database Migration
-```bash
-ssh -i lightsail_key.pem ubuntu@3.11.113.109 "docker exec jctc_app alembic downgrade -1"
-```
+---
+
+## Production Environment
+
+| Resource | Value |
+|----------|-------|
+| Backend IP | 3.11.113.109 |
+| Backend URL | https://api.jctc.ng |
+| Frontend URL | https://jctc.ng |
+| S3 Bucket | jctc-files-production2 |
+| Database | PostgreSQL (jctc_db container) |
+| Cache | Redis (jctc_redis container) |
