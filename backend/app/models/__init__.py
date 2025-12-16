@@ -32,7 +32,10 @@ from app.models.audit import (
 from app.models.lookup_value import LookupValue, LOOKUP_CATEGORIES
 from app.models.forensic import ForensicReport
 from app.models.email import EmailSettings, EmailTemplate
-from app.models.ndpa_compliance import NDPAConsentRecord, DataDeletionRequest
+from app.models.ndpa_compliance import (
+    NDPAConsentRecord, NDPADataProcessingActivity, NDPADataSubjectRequest,
+    NDPABreachNotification, NDPAImpactAssessment, NDPARegistrationRecord
+)
 
 
 __all__ = [
@@ -56,4 +59,6 @@ __all__ = [
     "LookupValue", "LOOKUP_CATEGORIES",
     "ForensicReport",
     "EmailSettings", "EmailTemplate",
+    "NDPAConsentRecord", "NDPADataProcessingActivity", "NDPADataSubjectRequest",
+    "NDPABreachNotification", "NDPAImpactAssessment", "NDPARegistrationRecord",
 ]
