@@ -86,5 +86,5 @@ JCTC is a secure, enterprise-grade case management system designed for:
 ## 💡 Need Help?
 
 - Check the [FAQ](faq.md) for common questions
-- View [Keyboard Shortcuts](keyboard-shortcuts.md) for power users
+
 - Contact your system administrator for support

@@ -68,7 +68,7 @@ nav:
     - Compliance: features/compliance.md
     - Admin Settings: features/admin-settings.md
   - FAQ: faq.md
-  - Keyboard Shortcuts: keyboard-shortcuts.md
+  # - Keyboard Shortcuts: keyboard-shortcuts.md
 
 extra_css:
   - stylesheets/extra.css
