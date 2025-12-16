@@ -17,10 +17,10 @@ class UserRole(str, enum.Enum):
 
 
 class WorkActivity(str, enum.Enum):
-    MEETING = "meeting"
-    TRAVEL = "travel"
-    TRAINING = "training"
-    LEAVE = "leave"
+    MEETING = "MEETING"
+    TRAVEL = "TRAVEL"
+    TRAINING = "TRAINING"
+    LEAVE = "LEAVE"
 
 
 class User(BaseModel):
