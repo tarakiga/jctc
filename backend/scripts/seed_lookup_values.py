@@ -4,9 +4,13 @@ import asyncio
 from app.database.base import AsyncSessionLocal
 from app.models.lookup_value import LookupValue
 
-# Import all models to ensure SQLAlchemy mappers are fully configured
+# Import ALL models to ensure SQLAlchemy mappers are fully configured
 # This prevents errors like "NDPAConsentRecord not found" when relationships are resolved
-from app.models import user, case, evidence, ndpa_compliance  # noqa: F401
+from app.models import *  # noqa: F401, F403
+from app.models.ndpa_compliance import (  # noqa: F401
+    NDPAConsentRecord, NDPADataProcessingActivity, NDPADataSubjectRequest,
+    NDPABreachNotification, NDPAImpactAssessment, NDPARegistrationRecord
+)
 
 
 # Default values organized by category
