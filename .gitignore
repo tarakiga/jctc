@@ -105,6 +105,8 @@ tests/
 !README.md
 !backend/docs/DEPLOYMENT_HANDOFF.md
 !.agent/workflows/*.md
+!user-guide/**/*.md
+!user-guide/**/*.yml
 *.docx
 lightsail_key.pem
 test_s3.py

@@ -1,0 +1,121 @@
+site_name: JCTC User Guide
+site_url: https://jctc.ng/guide/
+site_description: Comprehensive user guide for the JCTC Case Management System
+
+theme:
+  name: material
+  custom_dir: overrides
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: Fira Code
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - toc.integrate
+  icon:
+    logo: material/shield-check
+  favicon: assets/favicon.ico
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - First Login: getting-started/first-login.md
+    - Navigation Overview: getting-started/navigation-overview.md
+  - Tutorials:
+    - Create a New Case: tutorials/create-new-case.md
+    - Manage Evidence: tutorials/manage-evidence.md
+    - Chain of Custody: tutorials/track-chain-of-custody.md
+    - Add Parties to Case: tutorials/add-parties-to-case.md
+    - Legal Instruments: tutorials/legal-instruments.md
+    - Prosecution Workflow: tutorials/prosecution-workflow.md
+    - Generate Reports: tutorials/generate-reports.md
+  - Features:
+    - Dashboard: features/dashboard.md
+    - Case Management: features/case-management.md
+    - Evidence Tracking: features/evidence-tracking.md
+    - Intelligence Module: features/intelligence-module.md
+    - Compliance: features/compliance.md
+    - Admin Settings: features/admin-settings.md
+  - FAQ: faq.md
+  - Keyboard Shortcuts: keyboard-shortcuts.md
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tarakiga/jctc
+  generator: false
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      slide_effect: slide
+      width: 100%
+      height: auto
+      zoomable: true
+      draggable: true
