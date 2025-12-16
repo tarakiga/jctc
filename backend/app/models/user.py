@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Boolean, Integer, Text, Enum as SQLEnum, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from app.models.base import BaseModel
 import enum
 
@@ -137,8 +137,8 @@ class PasswordResetToken(BaseModel):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True), nullable=True)  # Set when token is used
     
-    # Relationship
-    user = relationship("User", backref="password_reset_tokens")
+    # Relationship - passive_deletes=True lets DB handle CASCADE
+    user = relationship("User", backref=backref("password_reset_tokens", passive_deletes=True))
     
     def is_expired(self) -> bool:
         """Check if token has expired."""
