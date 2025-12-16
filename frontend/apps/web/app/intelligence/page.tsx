@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-    Search, Filter, Plus, FileText, ArrowDown, CheckCircle, AlertTriangle, Activity, Clock
+    Search, Filter, Plus, FileText, ArrowDown, CheckCircle, AlertTriangle, Activity
 } from 'lucide-react';
 import { IntelCategory, IntelStatus } from '../../types/intelligence';
 import { StatsCard } from '../../components/intelligence/StatsInfo';
@@ -119,30 +119,12 @@ export default function IntelligenceDashboard() {
                     </div>
                 </div>
 
-                {/* Coming Soon Empty State */}
+                {/* Empty State */}
                 <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Clock className="w-8 h-8 text-blue-500" />
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FileText className="w-8 h-8 text-slate-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Intelligence Module Coming Soon</h3>
-                    <p className="text-slate-500 max-w-md mx-auto">
-                        The Intelligence module is currently under development.
-                        You'll be able to create, manage, and analyze intelligence records here.
-                    </p>
-                    <div className="mt-8 flex justify-center gap-3">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                            HUMINT
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                            OSINT
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
-                            SIGINT
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
-                            FININT
-                        </span>
-                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">No Intelligence Records Listed</h3>
                 </div>
             </div>
         </AuthenticatedLayout>
