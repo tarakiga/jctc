@@ -8,7 +8,7 @@ Welcome to JCTC! This guide will help you log in and set up your account.
 
 Navigate to your JCTC instance URL (e.g., `https://jctc.ng`).
 
-![Login Page](../assets/screenshots/login-page.png)
+![Login Page](../assets/screenshots/login.jpg)
 
 ---
 
