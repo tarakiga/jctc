@@ -60,6 +60,7 @@ logs/
 prd.docx
 ~$*.docx
 screenshots/
+!user-guide/docs/assets/screenshots/
 
 # Root-level markdown documentation (local only, except README.md)
 CORE_PRD_COMPLETION_SUMMARY.md
